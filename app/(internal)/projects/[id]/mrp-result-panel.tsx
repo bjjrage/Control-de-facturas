@@ -157,7 +157,7 @@ export function MrpResultPanel({ preview, previewRecipe, previewMrp,projectId }:
         </div>
       )}
 
-      <div className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-3">
+      <div className="erp-kpi kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
         <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide font-bold">
           Caja adicional necesaria
         </div>

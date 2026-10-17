@@ -731,7 +731,7 @@ function QtyInput({ value, onSave }: { value: number; onSave: (v: number) => voi
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
+    <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-2.5">
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="mt-0.5 text-[13px] font-semibold">{value}</div>
       {sub ? <div className="text-[10px] text-[var(--muted)]">{sub}</div> : null}

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Circle, RefreshCw } from "lucide-react";
 import { Button, buttonClassName } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { CostBudgetData } from "./costeo-actions";
 import { ApuTemplatesDialog } from "./apu-templates-dialog";
 import { LaborRatesDialog } from "./labor-rates-dialog";
 import { ApplyApuTemplatesButton } from "./apply-apu-templates-button";
-import { CosteoHelp } from "./costeo-help";
 import styles from "./costeo-checklist.module.css";
 
 type StepState = "done" | "pending" | "warn";
+const STEP_STATE_LABEL: Record<StepState, string> = { done: "Completo", warn: "Revisar", pending: "Pendiente" };
 
 interface Step {
   title: string;
@@ -144,10 +145,10 @@ export function CosteoChecklist({
       </div>
 
       <ol className={styles.rows}>
-        {steps.map((s) => (
+        {steps.map((s, index) => (
           <li key={s.title} className={styles.row} data-state={s.state}>
-            <div className={styles.identity}><StateIcon state={s.state} /><span className={styles.title}>{s.title}</span><CosteoHelp title={s.title}>{s.help}</CosteoHelp></div>
-            <p className={styles.status} data-state={s.state}>{s.detail}</p>
+            <div className={styles.identity}><span className={styles.stepNumber} data-state={s.state} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><span className={styles.title}>{s.title}</span><InfoTooltip label={s.title} content={s.help} /></div>
+            <div className={styles.status} data-state={s.state}><span className={styles.stateBadge} data-state={s.state}><StateIcon state={s.state} />{STEP_STATE_LABEL[s.state]}</span><span>{s.detail}</span></div>
             <div className={styles.actions}>{s.actions ?? <span className={styles.passive}>Cálculo automático</span>}</div>
           </li>
         ))}

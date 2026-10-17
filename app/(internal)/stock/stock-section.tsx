@@ -467,13 +467,13 @@ function Kpi({
     return (
       <button
         onClick={onClick}
-        className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-left hover:border-[var(--muted)] transition-colors"
+        className={`erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 text-left ${tone === "error" ? "kpi-accent-outflow" : tone === "warn" ? "kpi-accent-labor" : ""}`}
       >
         {inner}
       </button>
     );
   }
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">{inner}</div>
+    <div className={`erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 ${tone === "error" ? "kpi-accent-outflow" : tone === "warn" ? "kpi-accent-labor" : ""}`}>{inner}</div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
@@ -83,8 +84,8 @@ export function PortfolioTable({ rows, showHeader = true }: { rows: ProjectListR
       {showHeader ? (
         <div className="flex items-baseline justify-between gap-3">
           <div>
-            <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Portfolio de obras</h2>
-            <p className="mt-1 text-[12px] text-[var(--muted)]">Seleccioná una obra para entrar a su operación contextual</p>
+            <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Portfolio de obras<InfoTooltip className="ml-1" label={"Portfolio de obras"} content={"Seleccioná una obra para entrar a su operación contextual"} /></h2>
+
           </div>
           <span className="text-[11px] text-[var(--muted)]">{filtered.length} de {rows.length}</span>
         </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { createCostRfqsFromProject, type CostRfqCreationResult } from "./costeo-actions";
 
 export function CostRfqDialog({ projectId, onCreated }: { projectId: string; onCreated?: () => void }) {
@@ -16,8 +17,7 @@ export function CostRfqDialog({ projectId, onCreated }: { projectId: string; onC
   const submitting = useRef(false);
   return <Dialog open={open} onOpenChange={(next) => { if (!submitting.current) setOpen(next); }}>
     <DialogTrigger asChild><Button variant="secondary">Cotizar insumos</Button></DialogTrigger>
-    <DialogContent title="Cotizar insumos">
-      <p className="text-[13px] text-[var(--muted)]">Pedí precios de los materiales del presupuesto, agrupados por rubro. Este pedido sirve para Costeo y no genera órdenes de compra.</p>
+    <DialogContent title={<span className="inline-flex items-center gap-1.5">Cotizar insumos<InfoTooltip label="Cotizar insumos" content="Agrupa los materiales del presupuesto por rubro. La solicitud sirve para Costeo y no crea órdenes de compra." /></span>}>
       {error && <p role="alert" className="mt-3 text-[13px] text-[var(--error)]">{error}</p>}
       {result && <div role="status" className="my-3 rounded-lg border-2 border-[var(--border)] bg-[var(--panel-2)] p-3 text-[13px] space-y-2">
         {result.sinInsumos ? <p>La obra todavía no tiene materiales en sus recetas APU.</p> : <>

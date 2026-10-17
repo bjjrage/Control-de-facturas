@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -846,8 +847,8 @@ export function BimSection({ projectId }: { projectId: string }) {
 
       <section aria-labelledby="bim-computo-title" data-testid="bim-computo-fallback" className="space-y-3 border-t border-[var(--border)] pt-5">
         <div>
-          <h2 id="bim-computo-title" className="text-[14px] font-semibold">OPCIÓN B · CÓMPUTO EXCEL/PDF</h2>
-          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Importá cantidades desde Excel o PDF y continuá por el mismo matching, revisión humana y presupuesto.</p>
+          <h2 id="bim-computo-title" className="text-[14px] font-semibold">OPCIÓN B · CÓMPUTO EXCEL/PDF<InfoTooltip className="ml-1" label={"OPCIÓN B · CÓMPUTO EXCEL/PDF"} content={"Importá cantidades desde Excel o PDF y continuá por el mismo matching, revisión humana y presupuesto."} /></h2>
+
         </div>
         <ComputoSection projectId={projectId} />
       </section>

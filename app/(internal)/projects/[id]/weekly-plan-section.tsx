@@ -1,4 +1,5 @@
 "use client";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/input";
 
 
@@ -743,15 +744,11 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-[var(--foreground)]">
-              Plan Semanal de Obra
+              Plan semanal de obra
+              <InfoTooltip className="ml-1" label="Plan semanal de obra" content="Definí el trabajo, calculá recursos y factibilidad, y guardá el plan cuando esté listo." />
             </h3>
-            <p className="text-xs text-[var(--muted)]">
-              Vos definís qué querés ejecutar; el sistema calcula qué necesitás y si es factible.
-              Pasos: 1) qué quiero hacer · 2) calcular plan · 3) qué necesito · 4) es factible · 5) guardar.
-            </p>
           </div>
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs bg-[var(--panel-2)] p-1 rounded-lg border border-[var(--border)]">
             <span className="text-[var(--muted)] px-1">Período:</span>
@@ -771,8 +768,7 @@ export function WeeklyPlanSection({ project }: Props) {
               aria-label="Fecha fin del plan"
             />
           </div>
-
-          <div className="segmented-control text-xs">
+<div className="segmented-control text-xs">
             <button
               type="button"
               aria-pressed={!weatherOverlay}
@@ -801,7 +797,7 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
 
           {weatherOverlay && !isValidProjectCoords(project.latitude,project.longitude) && <EditProjectDialog project={project} focusLocation trigger={<Button size="sm" variant="secondary">Configurar ubicación</Button>}/>}
-          <p className="basis-full text-[11px] text-[var(--muted)]">{weatherOverlay?"Clima ON: requiere coordenadas. Recalculá para evaluar la capacidad de las partidas sensibles y su brecha por lluvia; no cambia la meta base ni el Libro de Obra.":"Clima OFF: factibilidad sin proyección meteorológica. Activá Clima ON y recalculá para comparar."}</p>
+          <InfoTooltip label="Impacto del clima" content="Con Clima ON, recalculá para estimar capacidad y brecha por lluvia; se necesitan coordenadas. No cambia la meta base ni el Libro de Obra. Con Clima OFF, la factibilidad no considera clima." />
           {savedStatus ? (
             <span className="text-[11px] text-[var(--muted)] rounded-full border border-[var(--border)] px-2 py-0.5">
               Plan guardado: {savedStatus}
@@ -880,13 +876,10 @@ export function WeeklyPlanSection({ project }: Props) {
       {/* ============ 2. LISTA DE PARTIDAS (cards compactas, sin scroll horizontal) ============ */}
       {planMode === "ITEM" && (
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. ¿Qué quiero hacer? — partidas ({executableItems.length})
+        <div className="flex items-center text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          1. Definí metas · partidas ({executableItems.length})
+          <InfoTooltip className="ml-1" label="Metas por partida" content="Definí la meta semanal por partida y frente. El botón para definirla está dentro de cada tarjeta." />
         </div>
-        <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-          Definí la meta de esta semana por partida y frente. El botón Definir meta está siempre
-          visible en cada tarjeta, sin scroll horizontal.
-        </p>
 
         {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal.
             Solo partidas ejecutables: un rubro agrupador (parent_id de otras, sin cantidad
@@ -969,8 +962,7 @@ export function WeeklyPlanSection({ project }: Props) {
                       )}
                     </div>
                   </div>
-
-                  <div className="shrink-0">
+<div className="shrink-0">
                     {grouping ? (
                       <span
                         className="inline-block text-[11px] italic text-[var(--muted)]"
@@ -1104,8 +1096,7 @@ export function WeeklyPlanSection({ project }: Props) {
                         </div>
                       );
                     })}
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+<div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
                       <span className="text-[var(--muted)]">
                         Pendiente disponible:{" "}
                         <strong className="text-[var(--foreground)]">
@@ -1144,13 +1135,10 @@ export function WeeklyPlanSection({ project }: Props) {
       {/* ============ 2B. PLANIFICAR POR BLOQUE / RUBRO (modo protagonista) ============ */}
       {planMode === "BLOCK" && (
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. ¿Qué bloque quiero avanzar? ({blocks.length} {blocks.length === 1 ? "bloque" : "bloques"})
+        <div className="flex items-center text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          1. Definí bloques · {blocks.length} {blocks.length === 1 ? "bloque" : "bloques"}
+          <InfoTooltip className="ml-1" label="Metas por bloque" content="Elegí el bloque y la meta semanal; el sistema la distribuye entre partidas, materiales, stock, compras y caja." />
         </div>
-        <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-          Decí qué bloque avanzar y cuántos puntos; el sistema lo descompone en partidas,
-          materiales, stock, compras, caja y riesgos. Sin scroll horizontal.
-        </p>
 
         <div data-testid="bloques-list" className="mt-3 space-y-3">
           {blocks.map((block) => {
@@ -1229,7 +1217,7 @@ export function WeeklyPlanSection({ project }: Props) {
                             data-testid="bloque-pp"
                             className="h-8 w-24 text-xs text-right font-medium"
                           />
-                          <span className="text-[11px] text-[var(--muted)]">pp del bloque</span>
+                          <span className="text-[11px] text-[var(--muted)]">pp del bloque<InfoTooltip className="ml-1" label="Metas del bloque" content={`Los ${blockPp} pp se aplican a cada partida incluida. Cambiar pp o frente reemplaza sus metas; las metas manuales se conservan. Para varios frentes en una partida, usá Por partida.`} /></span>
                         </div>
                       </div>
                       <div className="min-w-0">
@@ -1244,14 +1232,6 @@ export function WeeklyPlanSection({ project }: Props) {
                         />
                       </div>
                     </div>
-                    <p className="text-[11px] text-[var(--muted)]">
-                      +{blockPp} pp del bloque = +{blockPp} puntos porcentuales contractuales en cada
-                      partida incluida. Cambiar pp o frente actualiza las incluidas y reemplaza las metas existentes de estas partidas
-                      (incluidas las cargadas en modo Por partida). Las marcadas “manual” conservan
-                      su valor. Un frente por bloque; para varios frentes en la misma partida usá
-                      el modo Por partida.
-                    </p>
-
                     <RecipeBlockPanel
                       block={block}
                       recipes={recipes}
@@ -1270,8 +1250,7 @@ export function WeeklyPlanSection({ project }: Props) {
                       onApply={applyRecipe}
                       onImport={() => setShowRecipeDialog(true)}
                     />
-
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+<div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                       Partidas incluidas
                     </div>
                     <div className="space-y-2">
@@ -1506,7 +1485,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
-          {preview.weather_overlay_enabled&&!preview.weather_failed_closed&&<div className="erp-table-shell overflow-x-auto"><table><caption className="px-3 py-2 text-left font-semibold">Partidas planificadas · capacidad con clima</caption><thead><tr><th>Partida / frente</th><th>Factor productivo</th><th>Capacidad</th><th>Brecha frente a meta</th></tr></thead><tbody>{preview.items.map(ci=><tr key={ci.budget_item_id+ci.front_label}><td>{ci.item_code} · {ci.item_description} · {ci.front_label}</td><td>{ci.weather_workability_factor==null?"Sin evaluación":Math.round(ci.weather_workability_factor*100)+"%"}</td><td>{ci.weather_adjusted_capacity??"—"} {ci.unit}</td><td>{ci.weather_gap_quantity??"—"} {ci.unit}</td></tr>)}</tbody></table><p className="px-3 py-2 text-xs text-[var(--muted)]">Un factor menor a 100% reduce la capacidad estimada de esa partida en el período. Las cantidades objetivo permanecen iguales.</p></div>}
+          {preview.weather_overlay_enabled&&!preview.weather_failed_closed&&<div className="erp-table-shell overflow-x-auto"><table><caption className="px-3 py-2 text-left font-semibold">Partidas planificadas · capacidad con clima<InfoTooltip className="ml-1" label="Capacidad con clima" content="Un factor menor al 100% reduce la capacidad estimada en el período. Las metas siguen iguales." /></caption><thead><tr><th>Partida / frente</th><th>Factor productivo</th><th>Capacidad</th><th>Brecha frente a meta</th></tr></thead><tbody>{preview.items.map(ci=><tr key={ci.budget_item_id+ci.front_label}><td>{ci.item_code} · {ci.item_description} · {ci.front_label}</td><td>{ci.weather_workability_factor==null?"Sin evaluación":Math.round(ci.weather_workability_factor*100)+"%"}</td><td>{ci.weather_adjusted_capacity??"—"} {ci.unit}</td><td>{ci.weather_gap_quantity??"—"} {ci.unit}</td></tr>)}</tbody></table></div>}
           {/* Encabezado agregado del bloque (modo bloque): BLOQUE → NECESIDAD TOTAL → DETALLE */}
           {planMode === "BLOCK" && previewBlock && (
             <div data-testid="resultado-bloque" className="glass glass-accent-green p-4">
@@ -1589,36 +1568,32 @@ export function WeeklyPlanSection({ project }: Props) {
 
           {/* Caja primero (modo LEGACY; en MRP la caja la muestra el bloque de arriba) */}
           {!previewMrp && (
-          <div className="glass glass-accent-amber p-5 semantic-warning">
+          <div className="erp-kpi kpi-accent-labor rounded-xl border bg-[var(--panel)] p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold uppercase tracking-wide text-[var(--foreground)]">
                 Caja necesaria para cumplir el plan
+                <InfoTooltip className="ml-1" label="Caja necesaria" content="Es el faltante neto a comprar por su costo válido. No incluye valor contractual ni el stock existente." />
               </span>
               <DollarSign className="h-5 w-5 text-[var(--warn)]" />
             </div>
-            <div data-testid="caja-necesaria" className="mt-1 text-3xl font-extrabold text-[#fff8e8]">
+            <div data-testid="caja-necesaria" className="mt-1 text-3xl font-extrabold text-[var(--foreground)]">
               Gs. {preview.total_additional_cash_required.toLocaleString("es-PY")}
             </div>
-            <p className="mt-1 text-xs text-[#f4ead2]">
-              Para cumplir este plan necesito comprar el faltante neto y necesito Gs.{" "}
-              {preview.total_additional_cash_required.toLocaleString("es-PY")}. = faltante neto a comprar ×
-              costo válido. No incluye valor contractual ni stock ya existente.
-            </p>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-              <div className="rounded bg-[var(--panel)] border border-[var(--border)] p-2">
+              <div className="erp-kpi rounded-xl bg-[var(--panel)] border border-[var(--border)] p-2">
                 <div className="text-[var(--muted)]">Materiales — requerido</div>
                 <div className="font-bold">Gs. {preview.total_material_consumption_value.toLocaleString("es-PY")}</div>
               </div>
-              <div className="rounded bg-[var(--panel)] border border-[var(--border)] p-2">
+              <div className="erp-kpi rounded-xl bg-[var(--panel)] border border-[var(--border)] p-2">
                 <div className="text-[var(--muted)]">Stock — cubierto por stock</div>
                 <div className="font-bold text-[var(--foreground)]">Gs. {preview.total_covered_by_stock_value.toLocaleString("es-PY")}</div>
               </div>
-              <div className="rounded bg-[var(--panel)] border border-[var(--border)] p-2">
+              <div className="erp-kpi rounded-xl bg-[var(--panel)] border border-[var(--border)] p-2">
                 <div className="text-[var(--muted)]">OC en tránsito — cubierto por inbound físico</div>
                 <div className="font-bold text-[var(--foreground)]">Gs. {preview.total_covered_by_inbound_value.toLocaleString("es-PY")}</div>
               </div>
             </div>
-            <div className="mt-2 text-[11px] text-[#f4ead2]">
+            <div className="mt-2 text-[11px] text-[var(--muted)]">
               Faltante valorizado (lo que todavía debo comprar):{" "}
               <strong>Gs. {preview.total_additional_cash_required.toLocaleString("es-PY")}</strong>
             </div>

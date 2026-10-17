@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
@@ -229,7 +230,7 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
         </div>
 
         <div>
-          <Label>Fotos de las facturas</Label>
+          <div className="flex items-center gap-1"><Label>Fotos de las facturas</Label><InfoTooltip label="Carga masiva" content="Admite PDF, JPG, PNG y WebP. Al subir, las facturas quedan guardadas y se procesan en segundo plano; no hace falta dejar esta pestaña abierta." /></div>
           <input
             ref={fileInputRef}
             type="file"
@@ -350,10 +351,6 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
             </Button>
           ) : null}
         </div>
-        <p className="text-[11px] text-[var(--muted)]">
-          Una vez que aparecen abajo ya quedaron guardadas — se procesan en segundo plano, no hace falta esperar acá
-          ni tener la pestaña abierta.
-        </p>
       </div>
 
       {jobs.length > 0 ? (

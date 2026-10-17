@@ -790,7 +790,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
+        "erp-sidebar relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
         collapsed ? "w-[52px]" : "w-[164px]"
       )}
     >

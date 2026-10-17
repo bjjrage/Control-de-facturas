@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useState } from "react";
 import { Upload, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,11 +87,8 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
       <div>
-        <h3 className="text-[13px] font-semibold">Importar planilla de APU</h3>
-        <p className="text-[12px] text-[var(--muted)]">
-          Subí la planilla tal cual la tiene la empresa, con el formato que sea. Luna la lee entera (todas las hojas) e identifica las
-          partidas y sus insumos. Antes de guardar vas a ver qué entendió y qué filas quedaron dudosas.
-        </p>
+        <h3 className="text-[13px] font-semibold">Importar planilla de APU<InfoTooltip className="ml-1" label={"Importar planilla de APU"} content={"Subí la planilla tal cual la tiene la empresa, con el formato que sea. Luna la lee entera (todas las hojas) e identifica las partidas y sus insumos. Antes de guardar vas a ver qué entendió y qué filas quedaron dudosas."} /></h3>
+
       </div>
 
       {stage === "idle" || stage === "analyzing" ? (

@@ -1,4 +1,5 @@
 "use client";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
@@ -133,12 +134,8 @@ export function RfqWorkspace({
       {!administrative && <>
       <h2 className="text-lg font-semibold">
         Comparativo — señales de mercado
-      </h2>
-      <p>
-        Las cotizaciones no reemplazan la última compra efectiva. No se comparan
-        monedas distintas sin un tipo de cambio verificado.
-      </p>
-      <div className="overflow-x-auto">
+      <InfoTooltip className="ml-1" label={"Comparativo — señales de mercado"} content={"Las cotizaciones no reemplazan la última compra efectiva. No se comparan monedas distintas sin un tipo de cambio verificado."} /></h2>
+<div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
@@ -237,8 +234,7 @@ export function RfqWorkspace({
       </div>
       </>}
       <section className={styles.section} aria-label="Revisión documental">
-        <h2 className={styles.sectionTitle}><span className={styles.number}>1</span> Revisar presupuestos</h2>
-        <p className={`${styles.muted} mb-4`}>Revisá el análisis y confirmá las discrepancias antes de adjudicar. La oferta y el documento original se conservan.</p>
+        <h2 className={styles.sectionTitle}><span className={styles.number}>1</span> Revisar presupuestos<InfoTooltip className="ml-1" label="Revisar presupuestos" content="Revisá el análisis y registrá discrepancias antes de adjudicar. Se conservan la oferta y el documento original." /></h2>
       {[...new Set(offers.map((o) => o.quote_version_id))].map((version) => (
         <QuoteReview
           key={version}
@@ -257,12 +253,8 @@ export function RfqWorkspace({
         </p>
       ) : purpose === "COST_DISCOVERY" ? (
         <div className="rounded border p-4">
-          <h2>Descubrimiento de costos</h2>
-          <p>
-            La comparación y la adopción humana de precios cierran este
-            circuito. No hay adjudicación ni generación de OCs.
-          </p>
-        </div>
+          <h2>Descubrimiento de costos<InfoTooltip className="ml-1" label={"Descubrimiento de costos"} content={"La comparación y la adopción humana de precios cierran este circuito. No hay adjudicación ni generación de OCs."} /></h2>
+</div>
       ) : (
         <>
           <details className={styles.section}>
@@ -353,7 +345,7 @@ export function RfqWorkspace({
           </details>
           <section id="adjudication" tabIndex={-1} className={`${styles.section} space-y-4`}>
           <h2 className={styles.sectionTitle}><span className={styles.number}>2</span> Adjudicar oferta</h2>
-          <p className={styles.muted}>Elegí un proveedor para preparar la adjudicación o repartí las cantidades entre varios. Guardar este paso todavía no autoriza ni emite una OC.</p>
+          <p className={styles.muted}>Prepará la adjudicación; guardar este paso todavía no emite una OC.</p>
           {pendingReview && <div className={styles.notice}>
             <p className="mb-2">Falta registrar la revisión del presupuesto de {pendingReview.provider_name}. Por eso todavía no podés guardar la adjudicación.</p>
             <WorkflowJump targetId={`review-${pendingReview.quote_version_id}`}>Revisar presupuesto pendiente</WorkflowJump>

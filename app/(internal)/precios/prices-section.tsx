@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { PriceListRow } from "@/lib/costing/price-list";
@@ -50,11 +51,7 @@ export function PricesSection({ rows, providers }: { rows: PriceListRow[]; provi
   return (
     <div className="max-w-6xl space-y-4">
       <div>
-        <h1 className="text-[17px] font-semibold">Lista de precios de materiales</h1>
-        <p className="text-[12px] text-[var(--muted)] max-w-3xl">
-          La estimación se calcula sólo con facturas y recepciones efectivas; si no hay compras, se muestra el CPP del stock. Cotizaciones,
-          referencias manuales/APU y compras quedan identificadas por separado. El precio de Costeo puede tener una adopción propia por obra.
-        </p>
+        <h1 className="text-[17px] font-semibold">Precios de materiales<InfoTooltip className="ml-1" label="Precios de materiales" content="La estimación prioriza facturas y recepciones efectivas; si faltan compras, muestra el CPP del stock. Cotizaciones y referencias quedan identificadas por separado. Costeo puede adoptar otro precio por obra." /></h1>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

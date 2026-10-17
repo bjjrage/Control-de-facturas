@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { purchaseDetailPath } from "@/lib/projects/purchase-navigation";
@@ -154,7 +156,7 @@ export function PurchasingOffers({ rfqId, projectId, items, offers, analyses: in
       <Button onClick={() => { setOpen(true); setError(""); if (allocation.authorized_at) void run(() => loadPreview(allocation.id)); else setStage("authorize"); }}>Continuar compra</Button>
     </div>}
     <div className={styles.offerToolbar}><div><h2>Ofertas recibidas</h2><span className={styles.muted}>{groups.length} proveedor{groups.length === 1 ? "" : "es"}</span></div>
-      {groups.length > 1 && <label className={styles.sortControl}>Ordenar por<select value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="price">Menor total</option><option value="delivery">Menor plazo de entrega</option><option value="availability">Mayor disponibilidad</option></select></label>}
+      {groups.length > 1 && <label className={styles.sortControl}>Ordenar por<Select value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="price">Menor total</option><option value="delivery">Menor plazo de entrega</option><option value="availability">Mayor disponibilidad</option></Select></label>}
     </div>
     {new Set(groups.map(g => g.offer.currency)).size > 1 && <p className={styles.muted}>Los totales se comparan dentro de cada moneda.</p>}
     {!groups.length && <p className={styles.muted}>Todavía no recibiste ofertas.</p>}
@@ -229,11 +231,11 @@ export function PurchasingOffers({ rfqId, projectId, items, offers, analyses: in
                     return <tr key={key}>
                       <th scope="row">{items.find(i => i.id === d.itemId)?.descripcion}<small>{fieldNames[d.field] || d.field}</small></th>
                       <td>{display(d.structured)}</td><td>{display(d.document)}</td>
-                      <td><select aria-label={`Resolución ${fieldNames[d.field] || d.field} de ${items.find(i => i.id === d.itemId)?.descripcion} — ${g.offer.provider_name}`} className={styles.reviewSelect} value={resolutions[g.id]?.[key] || ""} onChange={e => setResolutions(r => ({ ...r, [g.id]: { ...r[g.id], [key]: e.target.value as ReviewDecision["decision"] } }))}>
+                      <td><Select aria-label={`Resolución ${fieldNames[d.field] || d.field} de ${items.find(i => i.id === d.itemId)?.descripcion} — ${g.offer.provider_name}`} className={styles.reviewSelect} value={resolutions[g.id]?.[key] || ""} onChange={e => setResolutions(r => ({ ...r, [g.id]: { ...r[g.id], [key]: e.target.value as ReviewDecision["decision"] } }))}>
                         <option value="">Elegí una resolución</option>
                         <option value="verified_original">Verifiqué el original: el portal es correcto</option>
                         <option value="request_correction">El proveedor debe corregir la oferta o el adjunto</option>
-                      </select></td>
+                      </Select></td>
                     </tr>;
                   })}</tbody>
                 </table></div>

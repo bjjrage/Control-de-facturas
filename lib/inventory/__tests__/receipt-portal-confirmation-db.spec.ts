@@ -7,6 +7,7 @@ const baseline = read("supabase/migrations/20261002231537_production_schema_base
 const canonical = read("supabase/migrations/20261003133414_inventory_canonical_boundaries.sql");
 const context = read("supabase/migrations/20261003135743_inventory_receipt_product_context.sql");
 const proposal = read("supabase/migrations/20261015015138_receipt_portal_confirm_stock.sql");
+const externalActor = read("supabase/migrations/20261017182538_warehouse_portal_external_actor.sql");
 function original(source: string, name: string, schema = "public") {
   const match = new RegExp(`CREATE (?:OR REPLACE )?FUNCTION (?:${schema}\\.${name}|"${schema}"\\."${name}")\\(`).exec(source);
   if (!match) throw new Error("Missing real function " + name);
@@ -50,6 +51,7 @@ beforeAll(async () => {
     CREATE TABLE authorized_order_items(id uuid primary key,empresa_id uuid,order_id uuid,producto_id uuid,product text,unit text,quantity numeric,unit_price numeric);
     CREATE TABLE inventory_locations(id uuid primary key,empresa_id uuid,project_id uuid,location_type text,active boolean,is_primary boolean default true,created_at timestamptz default now());
     CREATE TABLE receipt_portal_links(id uuid primary key,empresa_id uuid,order_id uuid,location_id uuid,token_hash text unique,created_by uuid,active boolean,expires_at timestamptz,last_used_at timestamptz);
+    CREATE TABLE warehouse_portal_links(id uuid primary key,empresa_id uuid,location_id uuid,token_hash text unique,created_by uuid,active boolean,expires_at timestamptz,last_used_at timestamptz);
     CREATE TABLE oc_recepciones(id uuid primary key default gen_random_uuid(),empresa_id uuid,order_id uuid,fecha date,recibido_por text,notas text,delivery_location_id uuid,remision_number text,idempotency_key text,status text,created_by uuid,confirmed_by uuid,confirmed_at timestamptz,updated_at timestamptz,unique(empresa_id,idempotency_key));
     CREATE TABLE oc_recepcion_items(id uuid primary key default gen_random_uuid(),empresa_id uuid,recepcion_id uuid references oc_recepciones(id),order_item_id uuid,producto_id uuid,cantidad_recibida numeric,notas text,inventory_movement_id uuid);
     CREATE TABLE inventory_receipt_evidence(id uuid default gen_random_uuid(),empresa_id uuid,receipt_id uuid,storage_bucket text,storage_path text,file_name text,mime_type text,size_bytes bigint,sha256 text,uploaded_by uuid);
@@ -70,9 +72,10 @@ beforeAll(async () => {
     CREATE TRIGGER receipt_immutable BEFORE INSERT OR UPDATE OR DELETE ON oc_recepcion_items FOR EACH ROW EXECUTE FUNCTION enforce_oc_receipt_line_immutability();
   `);
   await db.exec(proposal);
+  await db.exec(externalActor);
 }, 30000);
 beforeEach(async () => {
-  await db.exec(`TRUNCATE oc_recepcion_items,oc_recepciones,inventory_receipt_evidence,inventory_movement_costs,inventory_movements,inventory_balances,receipt_portal_links,authorized_order_items,authorized_orders,inventory_locations,productos,projects,profiles,empresas,storage.objects;
+  await db.exec(`TRUNCATE oc_recepcion_items,oc_recepciones,inventory_receipt_evidence,inventory_movement_costs,inventory_movements,inventory_balances,receipt_portal_links,warehouse_portal_links,authorized_order_items,authorized_orders,inventory_locations,productos,projects,profiles,empresas,storage.objects;
     INSERT INTO empresas VALUES('${id(1)}',true);
     INSERT INTO profiles VALUES('${id(2)}','${id(1)}','admin',true);
     INSERT INTO projects VALUES('${id(3)}','${id(1)}');
@@ -165,5 +168,20 @@ describe("receiver link confirms canonical worksite stock atomically", () => {
     const created = await db.query<{ r: { receipt_id: string } }>("select inventory_create_receipt($1,$2,'2026-10-14','QA',$3,NULL,'manual',$4,NULL,$5::jsonb) r", [id(1),id(6),id(8),id(2),JSON.stringify([{ order_item_id: id(5),producto_id:id(4),cantidad_recibida:1 }])]);
     await expect(db.query("select inventory_confirm_receipt($1,$2,$3,'manual',NULL)",[id(1),created.rows[0].r.receipt_id,id(8)])).rejects.toThrow(/scoped/);
     expect(await state()).toMatchObject({ stock: 0, movements: 0 });
+  });
+  it("records a reusable warehouse portal delivery under the external receiver, not its sponsor", async () => {
+    await db.exec(`INSERT INTO warehouse_portal_links VALUES('${id(9)}','${id(1)}','${id(8)}','${tokenHash}','${id(2)}',true,now()+interval '7 days',NULL)`);
+    const attempt = id(10);
+    const args = [tokenHash, id(6), attempt, JSON.stringify([{ order_item_id: id(5), producto_id: id(4), cantidad_recibida: 5, notas: null }])];
+    const call = "select public.inventory_portal_receipt($1,$2,'2026-10-14','Depositero externo','REM-QA',$3,NULL,$4::jsonb) r";
+    const first = (await db.query<{ r: { receipt_id: string } }>(call, args)).rows[0].r;
+    expect((await db.query("select status,confirmed_by,recibido_por,created_by from oc_recepciones where id=$1", [first.receipt_id])).rows[0]).toEqual({ status: "CONFIRMED", confirmed_by: null, recibido_por: "Depositero externo", created_by: id(2) });
+    expect((await db.query("select created_by,metadata->>'confirmation_source' source,metadata->>'warehouse_portal_link_id' link,metadata->>'received_by' receiver from inventory_movements")).rows[0]).toEqual({ created_by: null, source: "WAREHOUSE_PORTAL", link: id(9), receiver: "Depositero externo" });
+    expect(await state()).toMatchObject({ receipts: 1, movements: 1, stock: 5 });
+    await db.query(call, args);
+    expect(await state()).toMatchObject({ receipts: 1, movements: 1, stock: 5 });
+    await db.exec("UPDATE warehouse_portal_links SET active=false");
+    await expect(db.query(call, [tokenHash, id(6), id(11), args[3]])).rejects.toThrow();
+    expect(await state()).toMatchObject({ receipts: 1, movements: 1, stock: 5 });
   });
 });

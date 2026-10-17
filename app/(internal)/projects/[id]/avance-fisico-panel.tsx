@@ -17,6 +17,7 @@ import {
 import { ClimateWorkdaysPanel } from "./climate-workdays-panel";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import type {
   Project,
@@ -220,7 +221,7 @@ function CurvaAvance({
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] font-semibold">Curva de avance financiero</div>
+        <div className="text-[13px] font-semibold">Curva financiera<InfoTooltip className="ml-1" label="Curva financiera" content="Cargá el cronograma físico-financiero por mes para ver la curva. Cada adenda crea una versión; la desviación se compara con la versión activa." /></div>
         <div className="flex items-center gap-2">
           {schedulePlans.length > 0 ? (
             <Select
@@ -250,10 +251,7 @@ function CurvaAvance({
       ) : null}
 
       {!schedulePlans.length && !editing ? (
-        <p className="text-[12px] text-[var(--muted)]">
-          Cargá el cronograma físico-financiero (% del contrato previsto por mes) para ver la curva. Cada
-          adenda es una versión nueva; la desviación se mide contra la versión activa.
-        </p>
+        <p className="text-[12px] text-[var(--muted)]">Sin cronograma.</p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={series} margin={{ top: 4, right: 12, left: 4, bottom: 4 }}>

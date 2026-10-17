@@ -9,6 +9,7 @@ import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
+import { ThemeSwitcher } from "./theme-switcher";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
 
@@ -41,7 +42,7 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
   });
 
   return (
-    <div className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
+    <div className="workspace-switcher hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;
@@ -110,7 +111,7 @@ export function Topbar({
   }, [projectId]);
 
   return (
-    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
+    <header className="erp-topbar h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
       <WorkspaceSwitcher showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
       <div className="hidden md:flex items-center gap-1">
         <button
@@ -146,6 +147,7 @@ export function Topbar({
           </span>
         </div>
       ) : null}
+      <ThemeSwitcher />
     </header>
   );
 }

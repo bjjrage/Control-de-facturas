@@ -1,4 +1,5 @@
 ﻿"use client";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useRef, useState } from "react";
 import { Upload, FileCheck2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -75,8 +76,8 @@ export function MultiItemQuoteForm({
     >
       <div className={styles.body}>
       <section className={styles.section} aria-label="Presupuesto original">
-      <h3>1. Documento original</h3>
-      <p className={styles.hint}>Al enviar, se analiza el documento y se compara con estos datos.</p>
+      <h3>1. Documento original<InfoTooltip className="ml-1" label={"1. Documento original"} content={"Al enviar, se analiza el documento y se compara con estos datos."} /></h3>
+
       <div className={styles.upload}>
         <input ref={fileInput} id={`quote-file-${token}`} name="attachment" type="file" className="sr-only" aria-label="Documento original (PDF, foto, Excel o CSV)" accept="application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required
           onInvalid={e => { e.preventDefault(); setError("Adjuntá el presupuesto original antes de enviar la oferta."); }}
@@ -100,8 +101,8 @@ export function MultiItemQuoteForm({
         </p>
       )}
       <section className={styles.section} aria-label="Precios y entrega">
-      <h3>2. Precios y entrega</h3>
-      <p className={styles.hint}>Para omitir un ítem: precio vacío y disponibilidad 0.</p>
+      <h3>2. Precios y entrega<InfoTooltip className="ml-1" label={"2. Precios y entrega"} content={"Para omitir un ítem: precio vacío y disponibilidad 0."} /></h3>
+
       <div className={styles.tableScroll}>
         <table className="w-full text-sm">
           <thead>

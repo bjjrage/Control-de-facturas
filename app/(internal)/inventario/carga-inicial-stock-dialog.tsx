@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/format";
 import {
@@ -344,7 +345,7 @@ export function CargaInicialStockDialog({
       <DialogTrigger asChild>
         <Button variant="secondary" className="h-9 px-3 text-[12px]">{storedBatch ? "Reanudar carga inicial" : "Carga inicial de stock"}</Button>
       </DialogTrigger>
-      <DialogContent title="Carga inicial de stock" className="max-w-5xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Carga inicial de stock<InfoTooltip label="Carga inicial de stock" content="Registrá saldos de apertura como movimientos de inventario. En Excel/CSV, vinculá material y ubicación y revisá todas las filas antes de confirmar." /></span>} className="max-w-5xl">
         <div className="space-y-4">
           {storedBatch ? (
             <div className="space-y-3 rounded-lg border border-[var(--warn)]/30 bg-[var(--warn-bg)] p-3 text-[12px]">
@@ -416,7 +417,6 @@ export function CargaInicialStockDialog({
               ) : (
                 <div className="space-y-3">
                   <input type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void handleFile(event.target.files?.[0])} className="w-full text-[13px]" />
-                  <p className="text-[11px] text-[var(--muted)]">Elegí las columnas, vinculá cada material y ubicación y revisá todas las filas antes de confirmar. Los nombres sin coincidencia exacta quedan sin asignar.</p>
                   {fileError ? <p role="alert" className="text-[12px] text-[var(--error)]">{fileError}</p> : null}
                   {headers.length > 0 ? (
                     <>

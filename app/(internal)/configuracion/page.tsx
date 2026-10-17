@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Empresa } from "@/lib/types";
@@ -42,12 +43,8 @@ export default async function ConfiguracionPage() {
       <EmailIntegration connection={(emailConnection as EmailConnectionSummary | null) ?? null} />
 
       <div className="space-y-2">
-        <h2 className="text-[15px] font-semibold">Plantillas de documentos</h2>
-        <p className="text-[13px] text-[var(--muted)]">
-          Subí una foto o captura de tu formato actual de cada documento.
-          La IA va a generar el HTML que lo reproduce y lo vas a poder previsualizar antes de guardar.
-          Una vez guardado, todos los documentos imprimibles usarán ese diseño en vez del genérico.
-        </p>
+        <h2 className="text-[15px] font-semibold">Plantillas de documentos<InfoTooltip className="ml-1" label={"Plantillas de documentos"} content={"Subí una foto o captura de tu formato actual de cada documento. La IA va a generar el HTML que lo reproduce y lo vas a poder previsualizar antes de guardar. Una vez guardado, todos los documentos imprimibles usarán ese diseño en vez del genérico."} /></h2>
+
       </div>
 
       <TemplateEditor

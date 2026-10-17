@@ -42,15 +42,15 @@ export function PanoramaObras({ data }: { data: PortfolioPanorama }) {
       </div>
 
       <div className="grid gap-2">
-        <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+        <div className="erp-kpi flex items-center gap-2 rounded-xl border bg-[var(--panel)] p-2.5">
           <ShoppingCart size={14} className="shrink-0 text-[var(--primary)]" />
           <div><div className="truncate text-[14px] font-semibold leading-none">{formatMoney(comprasRealizadasPyg, "PYG")}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Compras realizadas · {ordenesCompra} OC</div></div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+        <div className="erp-kpi flex items-center gap-2 rounded-xl border bg-[var(--panel)] p-2.5">
           <Boxes size={14} className="shrink-0 text-[var(--warn)]" />
           <div><div className="text-[14px] font-semibold leading-none">{productosStockMinimo}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Bajo stock mínimo</div></div>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+        <div className="erp-kpi flex items-center gap-2 rounded-xl border bg-[var(--panel)] p-2.5">
           <FileCheck2 size={14} className="shrink-0 text-[var(--warn)]" />
           <div><div className="text-[14px] font-semibold leading-none">{certificadosPendientes}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Certificados pendientes</div></div>
         </div>

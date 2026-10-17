@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { climateToday } from "@/lib/procurement/climate-entry";
 import { LIBRO_LABELS, libroCode, libroDayFacts, libroMonths } from "@/lib/procurement/climate-calendar";
 import { selectClimateDate, stageClimateDraft, type ClimateDraft, type ClimateDraftEntry, type ClimateSelectionResult } from "@/lib/projects/climate-selection";
@@ -71,10 +72,9 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
       <span className="text-[var(--muted)]">Libro guardado:</span>
       <span>Lluvia <strong>{totals.rain}</strong></span><span>Húmedos <strong>{totals.humid}</strong></span><span>Otros <strong>{totals.other}</strong></span><span>Total no trabajados <strong>{totals.rain + totals.humid + totals.other}</strong></span>
     </div>
-    <p className="text-[11px] text-[var(--muted)]">Seleccioná días con clic o Ctrl + clic y asigná B, LL, HH u O. Armá todos los grupos y después pulsá Guardar cambios. Los tipos quedan en borrador hasta guardar.</p>
     <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={COLORS[code]}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
     <div className={styles.toolbar} aria-label="Marcar estado del Libro">
-      <strong className="mr-2 text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong>
+      <div className={styles.selectionSummary}><strong className="text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong><InfoTooltip label="Editar el Libro" content="Seleccioná días con clic; usá Ctrl o selección múltiple para sumar fechas. Elegí B, LL, HH u O y guardá. Los cambios quedan en borrador hasta guardar." /></div>
       {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <button className={styles.typeButton} data-code={code} key={code} type="button" disabled={busy || !selected.length} onClick={() => markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={`${LIBRO_LABELS[code]} · preparar sin guardar`}>{code}</button>)}
       <button className={styles.modeButton} type="button" disabled={busy} aria-label="Selección múltiple" aria-pressed={additive} onClick={() => setAdditive(value => !value)}>
         <span aria-hidden="true">{additive ? "✓" : "+"}</span> Selección múltiple <span className={styles.modeBadge}>{additive ? "ACTIVA" : "INACTIVA"}</span>
@@ -84,12 +84,12 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
       <button className={styles.saveButton} type="button" disabled={busy || !draftCount} onClick={() => startTransition(() => saveDraft())}>Guardar cambios</button>
       <button className={styles.discardButton} type="button" disabled={busy || !draftCount} title="Eliminar todos los cambios sin guardar y restaurar los valores guardados de los días." onClick={() => { if (!selected.length) setSelected(Object.keys(draft)); setDraft({}); setResult(null); }}>Descartar cambios</button>
       <p className={styles.workflowHint} role="status">{saving
-        ? "Guardando los cambios del calendario…"
+        ? "Guardando…"
         : draftCount > 0
-          ? `Tenés ${draftCount} ${draftCount === 1 ? "día modificado" : "días modificados"}. Podés seguir corrigiendo tipos. Guardar confirma todos los cambios; descartar restaura los valores guardados.`
+          ? `${draftCount} ${draftCount === 1 ? "cambio pendiente" : "cambios pendientes"}`
           : selected.length > 0
-            ? "Elegí B, LL, HH u O para estos días. Podés cambiar el tipo antes de guardar. Limpiar selección sólo desmarca los días."
-            : "Seleccioná días en el calendario para asignarles un tipo. Activá selección múltiple o usá Ctrl + clic para sumar días."}</p>
+            ? "Elegí un tipo para preparar el cambio."
+            : "Sin días seleccionados."}</p>
     </div>
     {result ? <div className="text-xs" role="status">
       <p>{result.saved.length} {result.saved.length === 1 ? "día guardado" : "días guardados"} · {result.failed.length} {result.failed.length === 1 ? "día pendiente" : "días pendientes"}.</p>

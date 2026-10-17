@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Trash2, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import {
   listLaborRatesAction,
@@ -35,10 +36,6 @@ export function LaborRatesDialog() {
       setLoading(false);
     });
   }
-
-  useEffect(() => {
-    if (open) refresh();
-  }, [open]);
 
   const base = Number(form.costoHoraBase);
   const pct = form.cargasSocialesPct.trim() === "" ? 0 : Number(form.cargasSocialesPct);
@@ -72,21 +69,15 @@ export function LaborRatesDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (nextOpen) refresh(); }}>
       <DialogTrigger asChild>
         <Button type="button" variant="secondary" className="gap-1.5">
           <Users className="h-3.5 w-3.5" />
           Jornales
         </Button>
       </DialogTrigger>
-      <DialogContent title="Jornales (empresa)" className="max-w-2xl">
+      <DialogContent title={<span>Jornales (empresa)<InfoTooltip className="ml-1" label="Jornales de la empresa" content="Configurá el costo hora propio por categoría, incluidas las cargas sociales. Los APU con el mismo rol toman y actualizan este costo automáticamente." /></span>} className="max-w-2xl">
         <div className="space-y-4 text-[12px]">
-          <p className="text-[var(--muted)]">
-            Costo hora por categoría de la mano de obra propia, con cargas sociales (IPS, aguinaldo, vacaciones). Las
-            líneas de mano de obra del APU cuyo rol coincide con una categoría toman este costo, y se actualizan solas
-            cuando lo cambiás acá.
-          </p>
-
           <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
             <table className="w-full text-left text-[12px]">
               <thead>

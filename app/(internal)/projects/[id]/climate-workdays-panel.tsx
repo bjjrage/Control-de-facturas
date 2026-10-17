@@ -9,6 +9,7 @@ import { ContractClimateDialog } from "./contract-climate-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input, Select } from "@/components/ui/input";
 import type { ClimateEvidence, ClimateEvent, ClimateReasonCode, Project, ProjectWorkdayClassification, ProjectWorkdayStatus } from "@/lib/types";
 import { createClient } from "@/lib/supabase/browser";
@@ -136,19 +137,15 @@ export function ClimateWorkdaysPanel({
 
   return (
     <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 space-y-4" aria-label="Climate Workdays">
-      <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 p-3 text-sm ${configurationIssue ? "border-amber-400/50 bg-amber-400/10" : "border-emerald-400/40 bg-emerald-400/10"}`}>
-        <span>{configurationIssue ?? "Clima habilitado. Consultá una fecha y revisá la evidencia antes de confirmar la jornada."}</span><ClimateConfigDialog project={project} />
+      <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${configurationIssue ? "border-amber-400/50 bg-amber-400/10" : "border-emerald-400/25 bg-emerald-400/[0.06]"}`}>
+        <span>{configurationIssue ?? "Clima habilitado"}{!locationReady ? <InfoTooltip className="ml-1" label="Ubicación requerida" content="Configurá latitud y longitud válidas para evaluar el clima de esta obra." /> : !configurationIssue ? <InfoTooltip className="ml-1" label="Clima habilitado" content="Consultá una fecha y revisá la evidencia. Las propuestas requieren confirmación humana y no modifican las reglas contractuales." /> : null}</span><ClimateConfigDialog project={project} />
       </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <CloudRain className="h-4 w-4 text-[var(--primary)]" />
-            <h3 className="text-sm font-semibold">JORNADAS CLIMÁTICAS / LIBRO DE OBRA</h3>
+            <h3 className="text-sm font-semibold">Jornadas climáticas<InfoTooltip className="ml-1" label="Jornadas climáticas" content={`Umbral de propuesta: ${project.precipitation_threshold_mm ?? 15} mm · fuente: ${project.weather_source ?? "dmh-dinac"}. Las reglas del PBC van por separado. Evaluá una fecha; las propuestas requieren confirmación humana.${historicalOnly ? " El Libro muestra fechas históricas hasta hoy." : ""}`} /></h3>
           </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Umbral de propuesta automática: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}. Las reglas del PBC se configuran por separado.
-          </p>
-          <p className="mt-1 text-xs text-[var(--muted)]">Evaluá una fecha por vez; las propuestas automáticas requieren confirmación humana.{historicalOnly ? " El Libro muestra fechas históricas, hasta hoy." : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Input aria-label={historicalOnly ? "Fecha histórica a evaluar" : "Fecha a evaluar"} type="date" min={project.start_date ?? undefined} max={today} value={date} onChange={(event) => setDate(event.target.value)} className="h-8 w-auto text-xs" />

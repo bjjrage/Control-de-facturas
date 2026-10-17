@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -159,10 +160,8 @@ export default async function OrdenTrabajoDetailPage({ params }: { params: Promi
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
         <div>
-          <h2 className="text-[14px] font-semibold">Preparación comercial posterior a la OT</h2>
-          <p className="text-[12px] text-[var(--muted)] mt-1">
-            Elegí qué documento preparar. Se abre el formulario existente con datos de la aceptación y los ítems de la OT; guardar crea un borrador para revisar.
-          </p>
+          <h2 className="text-[14px] font-semibold">Preparación comercial<InfoTooltip className="ml-1" label={"Preparación comercial"} content={"Elegí qué documento preparar. Se abre el formulario existente con datos de la aceptación y los ítems de la OT; guardar crea un borrador para revisar."} /></h2>
+
         </div>
         {snapshot ? (
           <>

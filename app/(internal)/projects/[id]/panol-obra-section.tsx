@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 
 import { useEffect, useState } from "react";
@@ -395,11 +396,8 @@ export function PanolObraSection({
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold">Depósito de obra · acceso externo</h3>
-            <p className="mt-1 max-w-3xl text-[12px] text-[var(--muted)]">
-              El Depositero puede enviar rendiciones y evidencia desde su celular. El QR da acceso al portal de esta ubicación; podés revocarlo o generar uno nuevo.
-            </p>
-          </div>
+            <h3 className="text-sm font-semibold">Depósito de obra<InfoTooltip className="ml-1" label={"Depósito de obra"} content={"El Depositero puede enviar rendiciones y evidencia desde su celular. El QR da acceso al portal de esta ubicación; podés revocarlo o generar uno nuevo."} /></h3>
+</div>
           <Button type="button" onClick={() => void createLink()} disabled={pendingId !== null || locations.length === 0} className="h-9 px-3 text-xs">
             {pendingId === "create-link" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
             QR para Depositero
@@ -480,20 +478,16 @@ export function PanolObraSection({
         ) : null}
         {actionMessage ? <p className="mt-3 text-[11px] text-[var(--muted)]">{actionMessage}</p> : null}
       </section>
-
-      <section className="space-y-3">
+<section className="space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Recepciones de mercadería confirmadas</h3>
-          <p className="mt-1 text-[12px] text-[var(--muted)]">Ingresos de órdenes de compra confirmados en los depósitos de esta obra.</p>
-        </div>
+          <h3 className="text-sm font-semibold">Recepciones<InfoTooltip className="ml-1" label={"Recepciones"} content={"Ingresos de órdenes de compra confirmados en los depósitos de esta obra."} /></h3>
+</div>
         <RecepcionesObraSection rows={recepciones} projectId={projectId} />
       </section>
-
-      <section className="space-y-3">
+<section className="space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Rendiciones de materiales</h3>
-          <p className="mt-1 text-[12px] text-[var(--muted)]">Revisá evidencia y corregí producto, cantidad y partida antes de confirmar el consumo canónico.</p>
-        </div>
+          <h3 className="text-sm font-semibold">Rendiciones de materiales<InfoTooltip className="ml-1" label={"Rendiciones de materiales"} content={"Revisá evidencia y corregí producto, cantidad y partida antes de confirmar el consumo canónico."} /></h3>
+</div>
         {submissions.length === 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">Esta obra todavía no tiene rendiciones de materiales.</div>
         ) : submissions.map((submission) => {

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { importarProductos, type FilaImport } from "./stock-actions";
 
 // Campos del sistema → columna del archivo
@@ -197,17 +198,12 @@ export function ImportarDialog() {
       <DialogTrigger asChild>
         <Button variant="secondary">Importar Excel</Button>
       </DialogTrigger>
-      <DialogContent title="Importar materiales" className="max-w-2xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar materiales<InfoTooltip label="Importar materiales" content="Acepta CSV o Excel. La primera fila debe tener encabezados; revisá y corregí el mapeo de columnas antes de guardar." /></span>} className="max-w-2xl">
         <div className="space-y-4">
 
           {/* ── STEP: upload ── */}
           {step === "upload" && (
             <>
-              <p className="text-[12px] text-[var(--muted)]">
-                Subí un archivo CSV o Excel con tus materiales. El sistema detecta las columnas
-                automáticamente — podés ajustar el mapeo antes de importar. No hace falta ningún
-                formato especial: sirve cualquier planilla que ya tengas.
-              </p>
               <input
                 ref={fileRef}
                 type="file"
@@ -220,10 +216,7 @@ export function ImportarDialog() {
                   {parseError}
                 </div>
               )}
-              <div className="rounded border border-dashed border-[var(--border)] px-4 py-5 text-center text-[12px] text-[var(--muted)] space-y-1">
-                <div>Formatos: <b>CSV</b> (separador <code>,</code> o <code>;</code>) · <b>Excel</b> (.xlsx, .xls)</div>
-                <div>La primera fila debe tener los nombres de las columnas.</div>
-              </div>
+              <div className="text-[11px] text-[var(--muted)]">CSV · Excel (.xlsx, .xls)</div>
             </>
           )}
 

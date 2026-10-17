@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
@@ -265,7 +266,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       <DialogTrigger asChild>
         <Button variant="secondary">Importar Excel</Button>
       </DialogTrigger>
-      <DialogContent title="Importar presupuesto desde Excel" className="max-w-2xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar presupuesto<InfoTooltip label="Importar presupuesto" content="Subí un XLSX o CSV y vinculá sus columnas con el cómputo métrico antes de importar." /></span>} className="max-w-2xl">
         {error ? (
           <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)] mb-3">
             {error}
@@ -274,10 +275,6 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
 
         {step === "upload" ? (
           <div className="space-y-3">
-            <p className="text-[13px] text-[var(--muted)]">
-              Subí el archivo .xlsx o .csv con tu cómputo métrico. En el próximo paso vas a poder decirle al
-              sistema qué significa cada columna.
-            </p>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"

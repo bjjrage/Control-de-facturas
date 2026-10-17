@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import type {
   Project,
@@ -75,12 +76,9 @@ export function ProgressForecastSection({ project }: { project: Project }) {
               <Sparkles className="h-4 w-4" />
             </div>
             <h3 className="text-base font-semibold text-[var(--foreground)]">
-              Proyección Semanal Inteligente de Obra + Materiales + Impacto en Caja
+              Proyección de obra<InfoTooltip className="ml-1" label="Proyección de obra" content="Estima avance físico y demanda de compras para 7, 14 o 30 días según clima y ritmo de obra." />
             </h3>
           </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Estimación de avance físico y demanda de compras a horizonte mínimo semanal (7d, 14d, 30d) asistida por operabilidad climática.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -220,7 +218,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
           {/* Summary KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* KPI 1: Avance Contractual Físico */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
               <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                 <span>Avance Físico Esperado</span>
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -234,7 +232,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             </div>
 
             {/* KPI 2: Clima y Días Laborables */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
               <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                 <span>Operabilidad en {forecastResult.days_in_horizon} días</span>
                 <CloudRain className="h-4 w-4 text-blue-500" />
@@ -250,7 +248,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             </div>
 
             {/* KPI 3: Consumo de Materiales y Cobertura */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
               <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                 <span>Material a Consumir</span>
                 <Boxes className="h-4 w-4 text-indigo-500" />
@@ -265,7 +263,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             </div>
 
             {/* KPI 4: Salida de Caja Adicional Requerida */}
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <div className="erp-kpi kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
               <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-300 font-medium">
                 <span>Caja Adicional Requerida</span>
                 <DollarSign className="h-4 w-4 text-amber-600" />
@@ -367,11 +365,9 @@ export function ProgressForecastSection({ project }: { project: Project }) {
         <div className="py-12 text-center rounded-lg border border-dashed border-[var(--border)]">
           <Clock className="mx-auto h-8 w-8 text-[var(--muted)] opacity-50" />
           <h4 className="mt-3 text-sm font-medium text-[var(--foreground)]">
-            Ninguna proyección ejecutada para este horizonte
+            Sin proyección para este período
+            <InfoTooltip className="ml-1" label="Proyección de obra" content={`Proyectá ${activeDays} jornadas para estimar el avance según clima, ritmo de obra e inventario disponible.`} />
           </h4>
-          <p className="mt-1 text-xs text-[var(--muted)] max-w-md mx-auto">
-            Hacé clic en &quot;Proyectar&quot; para estimar el avance de las próximas {activeDays} jornadas cruzando el pronóstico del clima con la velocidad de obra y el inventario disponible.
-          </p>
         </div>
       )}
     </div>

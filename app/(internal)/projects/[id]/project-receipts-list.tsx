@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -30,18 +31,20 @@ export function ProjectReceiptsList({ projectId, orders, items, receipts, produc
   const visible = rows.filter(row => showComplete || row.pending.length || !row.lines.length || row.history.some(receipt => receipt.status === "DRAFT"));
   return <section className="space-y-4">
     <header className="flex flex-wrap justify-between gap-3">
-      <div><h2 className="text-lg font-semibold">Recepciones de la obra</h2><p className="text-sm text-[var(--muted)]">Generá el QR para el depositero o registrá la entrega acá. Después revisá y confirmá lo recibido.</p></div>
+      <div><h2 className="text-lg font-semibold">Recepciones de la obra<InfoTooltip className="ml-1" label={"Recepciones de la obra"} content={"El depositero confirma por QR; la entrega ingresa al stock de esta obra."} /></h2></div>
       <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showComplete} onChange={event => setShowComplete(event.target.checked)} /> Mostrar completas</label>
     </header>
     {!hasLocation && <p role="alert" className="rounded-lg border-2 border-amber-400/60 bg-amber-400/10 p-3 text-sm">Esta obra no tiene un depósito activo configurado. La confirmación de entradas de stock requiere ese destino.</p>}
-    <div className="rounded-xl border-2 border-[#66839e] bg-[#20364b] overflow-x-auto">
+    <div className="erp-card erp-interactive-card rounded-xl border border-[var(--interactive-border)] bg-[var(--panel)] overflow-x-auto">
       <table><thead><tr><th>OC / proveedor</th><th>Pendiente de recibir</th><th>Acciones</th></tr></thead>
         <tbody>{visible.map(({ order, lines, history, totals, pending }) => <tr key={order.id} className="hover:bg-white/5">
           <td><Link className="text-action font-semibold" href={`/projects/${projectId}/orders/${order.id}`}>{order.code}</Link><p className="text-xs text-[var(--muted)]">{order.provider_name}</p></td>
           <td>{!lines.length ? "OC histórica sin detalle de ítems" : pending.length ? pending.map(item => <p key={item.id}>{item.product}: <strong>{formatInvoiceQuantity(subtractInvoiceQuantitySumExact(item.quantity_text, [(totals[item.id] ?? 0).toFixed(4)]))} {item.unit}</strong></p>) : "Entrega completa"}</td>
           <td><div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
             {pending.length > 0 && <ReceiptPortalLink orderId={order.id} orderCode={order.code} />}
             {pending.length > 0 && <RegisterReceiptDialog orderId={order.id} orderItems={lines} receivedTotals={totals} onDone={() => router.refresh()} orderCode={order.code} />}
+            </div>
             <details><summary className="cursor-pointer text-sm font-medium">Historial y remitos ({history.length})</summary><div className="mt-3 min-w-80">
               <RecepcionSection orderId={order.id} orderItems={lines} recepciones={history} currentUserId={currentUserId}
                 canDelete canConfirm canMap products={products} evidenceByReceipt={evidenceByReceipt} showRegistration={false} />

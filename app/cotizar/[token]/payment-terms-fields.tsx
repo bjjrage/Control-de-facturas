@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useId, useState } from "react";
 import { Label } from "@/components/ui/input";
 
@@ -14,18 +16,18 @@ export function PaymentTermsFields() {
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
         <Label htmlFor={`${id}-mode`}>Forma de pago</Label>
-        <select id={`${id}-mode`} value={mode} onChange={e => setMode(e.target.value)} required className="h-10 w-full rounded-lg border border-white/20 bg-[#171c25] px-3 text-sm">
+        <Select id={`${id}-mode`} value={mode} onChange={e => setMode(e.target.value)} required className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 text-sm">
           <option value="">Elegí una opción</option>
           <option value="CONTADO">Contado</option>
           <option value="CREDITO">Crédito</option>
-        </select>
+        </Select>
       </div>
       {mode === "CREDITO" && <div>
         <Label htmlFor={`${id}-days`}>Plazo de crédito</Label>
-        <select id={`${id}-days`} value={days} onChange={e => setDays(e.target.value)} required className="h-10 w-full rounded-lg border border-white/20 bg-[#171c25] px-3 text-sm">
+        <Select id={`${id}-days`} value={days} onChange={e => setDays(e.target.value)} required className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-3 text-sm">
           <option value="">Elegí el plazo</option>
           {[30, 60, 90, 120, 160, 180].map(d => <option key={d} value={d}>{d} días</option>)}
-        </select>
+        </Select>
       </div>}
     </div>
   </fieldset>;

@@ -4,6 +4,7 @@ import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 export default async function MaterialDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,15 +51,12 @@ export default async function MaterialDetailPage({ params }: { params: Promise<{
       </div>
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
-        <h2 className="text-[13px] font-semibold">Datos del material</h2>
+        <h2 className="flex items-center text-[13px] font-semibold">Datos del material<InfoTooltip className="ml-1" label="Datos del material" content="Esta ficha guarda los datos maestros. Las existencias y sus cambios se consultan en Stock e Inventario." /></h2>
         <dl className="grid gap-3 sm:grid-cols-3 text-[12px]">
           <div><dt className="text-[var(--muted)]">Unidad</dt><dd className="mt-1">{material.unidad}</dd></div>
           <div><dt className="text-[var(--muted)]">Stock mínimo de referencia</dt><dd className="mt-1">{Number(material.stock_minimo) > 0 ? `${formatNumber(Number(material.stock_minimo), 2)} ${material.unidad}` : "No definido"}</dd></div>
           <div><dt className="text-[var(--muted)]">Estado</dt><dd className="mt-1">{material.activo ? "Activo" : "Inactivo"}</dd></div>
         </dl>
-        <p className="text-[12px] text-[var(--muted)]">
-          Esta ficha es el maestro de materiales; no representa existencias. El stock físico y sus movimientos se consultan en <Link href="/inventario" className="underline text-[var(--foreground)]">Stock e Inventario</Link>.
-        </p>
       </section>
 
       {profile.role === "admin" ? (

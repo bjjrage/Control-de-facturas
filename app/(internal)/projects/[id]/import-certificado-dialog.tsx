@@ -5,6 +5,7 @@ import { Select } from "@/components/ui/select";
 import { useMemo, useState } from "react";
 import { AlertTriangle, FileSpreadsheet, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
 import type { CertificateBudgetItem, CertificateWorkbookRow } from "@/lib/certificates/workbook-import";
@@ -150,10 +151,8 @@ export function ImportCertificadoDialog({
       <DialogTrigger asChild>
         <Button variant="secondary">Importar certificado</Button>
       </DialogTrigger>
-      <DialogContent title="Importar certificado de avance" className="max-w-5xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar certificado<InfoTooltip label="Importar certificado" content="Analizá el XLSX de una obra existente, revisá los vínculos con el presupuesto y confirmá la importación. El análisis no guarda cambios." /></span>} className="max-w-5xl">
         <div className="space-y-4">
-          <p className="text-[12px] text-[var(--muted)]">Importá un certificado XLSX en esta obra existente. El análisis no crea ni modifica datos; primero revisás el vínculo con el presupuesto.</p>
-
           <div
             onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}

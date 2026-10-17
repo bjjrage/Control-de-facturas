@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Label, Select } from "@/components/ui/input";
 import { formatNumber } from "@/lib/format";
 import type { ProjectCertificateItem } from "@/lib/types";
@@ -109,13 +110,8 @@ export function PasteAvanceDialog({
       <DialogTrigger asChild>
         <Button variant="secondary">Pegar avance del mes</Button>
       </DialogTrigger>
-      <DialogContent title="Pegar avance del mes desde Excel" className="max-w-3xl">
+      <DialogContent title={<span>Pegar avance del mes desde Excel<InfoTooltip className="ml-1" label="Pegar avance del mes" content={'En Excel, copiá la columna "presente" y, si querés emparejar por código, también código o rubro. Pegá las celdas desde la primera fila.'} /></span>} className="max-w-3xl">
         <div className="space-y-3">
-          <p className="text-[12px] text-[var(--muted)]">
-            En tu Excel (hoja de medición o ACTA), seleccioná la columna <strong>&quot;presente&quot;</strong> —
-            junto con la columna de código o rubro si querés emparejar por código— copiá (Ctrl+C) y pegá acá.
-          </p>
-
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

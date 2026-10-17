@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 
 import React, { useRef, useState } from "react";
@@ -243,10 +244,8 @@ export function PolicyConfigForm({
     <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-sm space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
         <div>
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Configuración de Política (AuctionPolicy)</h2>
-          <p className="text-[12px] text-[var(--muted)]">
-            Definición desacoplada de Objetivo de Posición, Timing y Límites de Autorización Económica.
-          </p>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Política del simulador<InfoTooltip className="ml-1" label={"Política del simulador"} content={"Define el objetivo de posición, el momento de los lances y el límite económico de autorización."} /></h2>
+
         </div>
         {activeFrozenPolicy && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded">
@@ -367,7 +366,7 @@ export function PolicyConfigForm({
 
           <div>
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
-              Paso de Defensa (defenseStepPyg) - Valor Libre
+              Paso de Defensa (defenseStepPyg) - Valor Libre<InfoTooltip className="ml-1" label={"Paso de defensa"} content={"Ingresá un monto entero en guaraníes; por ejemplo, ₲7, ₲23 o ₲5.000."} />
             </label>
             <div className="flex gap-2">
               <input
@@ -396,7 +395,6 @@ export function PolicyConfigForm({
                 ))}
               </div>
             </div>
-            <p className="text-[11px] text-[var(--muted)] mt-1">Cualquier valor entero en Guaraníes (ej. ₲7, ₲23, ₲5.000).</p>
           </div>
         </div>
       </div>
@@ -423,10 +421,7 @@ export function PolicyConfigForm({
 
           <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
             <p className="text-[12px] font-semibold text-[var(--foreground)] mb-0.5">
-              Fase Aleatoria
-            </p>
-            <p className="text-[11px] text-[var(--muted)]">
-              Defensa activa automática. El grupo puede cerrar en cualquier momento.
+              Fase aleatoria<InfoTooltip className="ml-1" label={"Fase aleatoria"} content={"La defensa queda activa automáticamente. El grupo puede cerrar en cualquier momento."} />
             </p>
           </div>
         </div>
@@ -437,11 +432,11 @@ export function PolicyConfigForm({
         <h3 className="text-[13px] font-semibold text-[var(--foreground)] flex items-center gap-1.5">
           3. Límites Económicos y Autorización Automática
         </h3>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
-              Target Price (₲ PYG)
+              Target Price (₲ PYG)<InfoTooltip className="ml-1" label={"Precio objetivo"} content={"Precio donde idealmente se busca estabilizar la oferta."} />
             </label>
             <input
               type="number"
@@ -449,7 +444,6 @@ export function PolicyConfigForm({
               onChange={(e) => setTargetPricePyg(Math.max(1, parseInt(e.target.value) || 0))}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[14px] font-bold text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <p className="text-[11px] text-[var(--muted)] mt-1">Precio donde idealmente se busca estabilizar la oferta.</p>
           </div>
 
           <div>

@@ -5,6 +5,7 @@ import { Select } from "@/components/ui/select";
 import { useMemo, useState } from "react";
 import { Upload, RefreshCw, CheckCircle2, AlertTriangle, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { importProductionRecipe, saveProductionRecipe } from "../production-recipe-actions";
 
@@ -295,7 +296,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="importar-receta-dialog">
       <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta<InfoTooltip className="ml-1" label="Importar receta" content="Excel: columnas RECETA, UNIDAD_PRODUCCION, PARTIDA_CODIGO, PARTIDA, CANTIDAD y UNIDAD. El vínculo usa el código exacto; los casos ambiguos se eligen a mano. Nada se crea sin confirmar. Manual: cargá cabecera y partidas." /></h4>
           <button type="button" onClick={onClose} className="p-1 text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
             <X className="h-4 w-4" />
           </button>
@@ -320,11 +321,6 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
 
         {mode === "excel" && (
         <>
-        <p className="text-[11px] text-[var(--muted)]">
-          Columnas esperadas: RECETA | UNIDAD_PRODUCCION | PARTIDA_CODIGO | PARTIDA | CANTIDAD | UNIDAD.
-          El mapeo es por código exacto; lo ambiguo se elige manual. Nada se crea sin confirmar.
-        </p>
-
         <label className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] p-3 text-xs cursor-pointer hover:bg-[var(--panel-2)]">
           <Upload className="h-4 w-4 text-[var(--muted)]" />
           <span className="text-[var(--muted)]">{fileName || "Elegir archivo .xlsx / .csv"}</span>
@@ -432,9 +428,6 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
 
         {mode === "manual" && (
         <>
-          <p className="text-[11px] text-[var(--muted)]">
-            Cargá la receta a mano: cabecera + filas de partida/cantidad. Sin Excel.
-          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <label className="block text-[11px] text-[var(--muted)]">Código receta</label>

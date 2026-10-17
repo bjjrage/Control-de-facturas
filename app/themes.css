@@ -1,0 +1,287 @@
+/* Original keeps the ERP blues. Claro changes the complete interface. */
+:root {
+  --interactive-border: #759fc9;
+  --interactive-border-hover: #b4dcff;
+  --ui-hover-glow: 0 0 0 1px #8cc9ff45, 0 0 12px #70b6ff38;
+}
+:root[data-theme="claro"] {
+  --card-scheme: light;
+  --card-bg: #ffffff;
+  --card-raised: #e5eaf3;
+  --card-section: #f5f6fa;
+  --card-input: #ffffff;
+  --card-popover: #ffffff;
+  --card-text: #202334;
+  --card-muted: #526078;
+  --card-border: #8591a5;
+  --card-border-strong: #5279aa;
+  --card-accent: #255ca8;
+  --card-accent-hover: #194681;
+  --card-accent-bg: #e9f1fd;
+  --card-hover: #e7eef8;
+  --card-on-accent: #ffffff;
+  --card-highlight: #e6eaf2;
+  --card-shadow: 0 18px 45px #2631511a, inset 0 1px 0 #fff;
+  --card-shadow-soft: 0 8px 24px #26315112, inset 0 1px 0 #fff;
+  --card-ok: #176744;
+  --card-ok-bg: #e0f2e8;
+  --card-warn: #815100;
+  --card-warn-bg: #fff0cb;
+  --card-error: #b2322b;
+  --card-error-bg: #fce5e2;
+  --card-purple: #75449a;
+  --card-purple-bg: #eee3f8;
+  --card-teal: #14695e;
+  --card-teal-bg: #dcf1ec;
+  --card-orange: #99490f;
+  --card-orange-bg: #ffead9;
+  color-scheme: light;
+  --background: #f3f6fa;
+  --shell: #ffffff;
+  --panel: var(--card-bg);
+  --panel-2: var(--card-raised);
+  --section-bg: var(--card-section);
+  --input-bg: var(--card-input);
+  --popover: var(--card-popover);
+  --foreground: var(--card-text);
+  --muted: var(--card-muted);
+  --border: var(--card-border);
+  --border-strong: var(--card-border-strong);
+  --primary: var(--card-accent);
+  --primary-hover: var(--card-accent-hover);
+  --primary-bg: var(--card-accent-bg);
+  --nav-active: var(--card-accent);
+  --hover: var(--card-hover);
+  --on-primary: var(--card-on-accent);
+  --surface-highlight: var(--card-highlight);
+  --surface-shadow: var(--card-shadow);
+  --surface-shadow-soft: var(--card-shadow-soft);
+  --ok: var(--card-ok);
+  --ok-bg: var(--card-ok-bg);
+  --warn: var(--card-warn);
+  --warn-bg: var(--card-warn-bg);
+  --error: var(--card-error);
+  --error-bg: var(--card-error-bg);
+  --accent-purple: var(--card-purple);
+  --accent-purple-bg: var(--card-purple-bg);
+  --accent-teal: var(--card-teal);
+  --accent-teal-bg: var(--card-teal-bg);
+  --accent-orange: var(--card-orange);
+  --accent-orange-bg: var(--card-orange-bg);
+  --neutral-bg: var(--card-raised);
+  --accent-red: var(--card-error);
+  --accent-admin: var(--card-accent);
+  --accent-operativo: var(--card-teal);
+  --accent-licitaciones: var(--card-warn);
+  --accent-compras: var(--card-accent);
+  --accent-ventas: var(--card-purple);
+  --accent-finanzas: var(--card-ok);
+  --accent-preparar: var(--card-accent);
+  --accent-ejecutar: var(--card-orange);
+  --accent-certificar: var(--card-warn);
+  --cta: var(--card-warn);
+  --cta-ink: var(--card-section);
+  --help-glass: color-mix(in srgb, var(--card-popover) 95%, transparent);
+  --interactive-border: #6687af;
+  --interactive-border-hover: #255ca8;
+  --ui-hover-glow: 0 0 0 1px #4d92e845, 0 0 12px #4d92e833;
+}
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) {
+  color-scheme: var(--card-scheme);
+  --background: var(--card-section);
+  --panel: var(--card-bg);
+  --panel-2: var(--card-raised);
+  --section-bg: var(--card-section);
+  --input-bg: var(--card-input);
+  --popover: var(--card-popover);
+  --foreground: var(--card-text);
+  --muted: var(--card-muted);
+  --border: var(--card-border);
+  --border-strong: var(--card-border-strong);
+  --primary: var(--card-accent);
+  --primary-hover: var(--card-accent-hover);
+  --primary-bg: var(--card-accent-bg);
+  --hover: var(--card-hover);
+  --on-primary: var(--card-on-accent);
+  --surface-highlight: var(--card-highlight);
+  --surface-shadow: var(--card-shadow);
+  --surface-shadow-soft: var(--card-shadow-soft);
+  --ok: var(--card-ok);
+  --ok-bg: var(--card-ok-bg);
+  --warn: var(--card-warn);
+  --warn-bg: var(--card-warn-bg);
+  --error: var(--card-error);
+  --error-bg: var(--card-error-bg);
+  --accent-purple: var(--card-purple);
+  --accent-purple-bg: var(--card-purple-bg);
+  --accent-teal: var(--card-teal);
+  --accent-teal-bg: var(--card-teal-bg);
+  --accent-orange: var(--card-orange);
+  --accent-orange-bg: var(--card-orange-bg);
+  --neutral-bg: var(--card-raised);
+  --accent: var(--card-accent);
+  --accent-red: var(--card-error);
+  --accent-admin: var(--card-accent);
+  --accent-operativo: var(--card-teal);
+  --accent-licitaciones: var(--card-warn);
+  --accent-compras: var(--card-accent);
+  --accent-ventas: var(--card-purple);
+  --accent-finanzas: var(--card-ok);
+  --accent-preparar: var(--card-accent);
+  --accent-ejecutar: var(--card-orange);
+  --accent-certificar: var(--card-warn);
+  --cta: var(--card-warn);
+  --cta-ink: var(--card-section);
+  --help-glass: color-mix(in srgb, var(--card-popover) 95%, transparent);
+  color: var(--foreground);
+}
+
+.theme-switcher {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.theme-switcher-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 150ms, background-color 150ms, border-color 150ms;
+}
+.theme-switcher-option:hover { color: var(--foreground); background: var(--hover); }
+.theme-switcher-option[aria-pressed="true"] { color: var(--foreground); background: var(--primary-bg); border-color: var(--primary); }
+.theme-switcher-option:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.erp-topbar > .project-context-accent { flex-shrink: 1; overflow: hidden; }
+@media (max-width: 1279px) { .theme-switcher-option span { display: none; } .theme-switcher-option { width: 29px; padding: 0; } }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) { border-width: 1px; box-shadow: var(--surface-shadow-soft); transition: border-color 150ms, box-shadow 150ms; }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])):is(:hover, :focus-within) { border-color: var(--border-strong); box-shadow: var(--surface-shadow-soft), inset 0 0 0 1px var(--surface-highlight); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class^="border-white/"], [class*=" border-white/"], [class*="border-slate-"], [class*="border-gray-"]) { border-color: var(--border); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class^="bg-white/"], [class*=" bg-white/"], [class*="bg-slate-"], [class*="bg-gray-"], [class*="bg-zinc-"]) { background-color: var(--surface-highlight); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="hover:bg-white/"], [class*="hover:bg-slate-"]):hover { background-color: var(--hover); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-slate-"], [class*="text-gray-"], [class*="text-zinc-"]) { color: var(--muted); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) input { accent-color: var(--primary); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-emerald-"], [class*="text-green-"]) { color: var(--ok); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-amber-"], [class*="text-yellow-"], [class*="text-orange-"]) { color: var(--warn); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-red-"], [class*="text-rose-"]) { color: var(--error); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-sky-"], [class*="text-blue-"], [class*="text-cyan-"]) { color: var(--primary); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="text-purple-"], [class*="text-violet-"]) { color: var(--accent-purple); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where(.text-white) { color: var(--foreground); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class~="bg-[var(--primary)]"], [class~="bg-[var(--accent)]"]) { color: var(--on-primary); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft, .recharts-default-tooltip, :is(.rounded-lg, .rounded-xl, .rounded-2xl):is(.bg-\[var\(--panel\)\], .bg-\[var\(--panel-2\)\])) :where([class*="bg-black"]) .text-white { color: #ffffff; }
+:root[data-theme="claro"] .recharts-default-tooltip { background: var(--popover) !important; color: var(--foreground) !important; border-color: var(--border) !important; }
+:root[data-theme="claro"] .recharts-cartesian-axis-tick text { fill: var(--muted); }
+:root[data-theme="claro"] .erp-card:hover, :root[data-theme="claro"] .erp-card:focus-within {
+  border-top-color: var(--border-strong);
+  border-right-color: var(--border-strong);
+  border-bottom-color: var(--border-strong);
+  box-shadow: var(--surface-shadow-soft), inset 0 0 0 1px var(--surface-highlight);
+}
+:root[data-theme="claro"] .ht-theme-main-dark { color-scheme: inherit; --ht-border-color: var(--border); --ht-accent-color: var(--primary); --ht-foreground-color: var(--foreground); --ht-foreground-secondary-color: var(--muted); --ht-background-color: var(--panel); --ht-background-secondary-color: var(--panel-2); --ht-cell-editor-foreground-color: var(--foreground); --ht-cell-editor-background-color: var(--input-bg); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft) { background: var(--panel); border-color: var(--border); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft) :where(input:not([type=checkbox]):not([type=radio]), textarea, select, button[role=combobox]) { background-color: var(--input-bg); color: var(--foreground); border-color: var(--border); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft) :where([class*="text-[#"]) { color: var(--foreground); }
+:root[data-theme="claro"] :where(.erp-card, .erp-surface, .erp-surface-strong, .erp-toolbar, .erp-table-shell, .glass, .glass-soft) :where([class*="text-[#6f829f]"], [class*="text-[#8fa2bf]"], [class*="text-[#c9d5e8]"]) { color: var(--muted); }
+
+/* Light canvas, chrome and navigation. No navy background remains in Claro. */
+:root[data-theme="claro"] body { background: var(--background); color: var(--foreground); }
+:root[data-theme="claro"] .erp-main::before { background: none; }
+:root[data-theme="claro"] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), textarea, select, [role="combobox"]) { background-color: var(--input-bg); color: var(--foreground); border-color: var(--border); }
+:root[data-theme="claro"] :is(.erp-sidebar, .erp-topbar, [data-admin-rail]) { background: var(--shell); border-color: #cbd5e1; box-shadow: none; }
+:root[data-theme="claro"] :is([data-admin-overlay], .erp-sidebar [class*="bg-[#0b1728]"]) { background: var(--popover); border-color: var(--border); box-shadow: var(--surface-shadow); }
+:root[data-theme="claro"] .erp-sidebar :is([class*="border-white/"], [class*="hover:border-white/"]):not(button) { border-color: #d6dfe9; }
+:root[data-theme="claro"] .workspace-switcher { background: #f3f6fa; border-color: #cbd5e1; box-shadow: none; }
+:root[data-theme="claro"] :is(.nav-primary:hover, .nav-secondary:hover) { background: var(--hover); color: var(--foreground); }
+:root[data-theme="claro"] .nav-primary[data-active="true"] { background: var(--primary-bg); color: var(--primary); box-shadow: inset 3px 0 0 var(--primary); }
+:root[data-theme="claro"] .nav-secondary[data-active="true"] { background: #edf2f8; color: var(--foreground); box-shadow: inset 2px 0 0 var(--primary); }
+:root[data-theme="claro"] [class*="nav-domain-"]:is(:hover, [data-open="true"], [data-active="true"]) { background: #edf2f8; color: var(--primary); box-shadow: inset 3px 0 0 var(--primary); }
+:root[data-theme="claro"] .workspace-admin-active { background: var(--primary-bg); color: var(--primary); box-shadow: inset 0 0 0 1px #a9bfdc; }
+:root[data-theme="claro"] .workspace-operativo-active { background: var(--accent-teal-bg); color: var(--accent-teal); box-shadow: inset 0 0 0 1px #96c9bd; }
+:root[data-theme="claro"] .workspace-licitaciones-active { background: var(--warn-bg); color: var(--warn); box-shadow: inset 0 0 0 1px #d2b66f; }
+:root[data-theme="claro"] .project-context-accent { background: #edf6f3 !important; border-color: #b7d7cd !important; }
+:root[data-theme="claro"] .erp-topbar :is([class*="text-[#eaf1ff]"], [class*="text-[#dce9fb]"]) { color: var(--foreground); }
+:root[data-theme="claro"] .erp-sidebar [class*="text-[#8fb0ff]"] { color: var(--primary); }
+:root[data-theme="claro"] .erp-sidebar [class*="text-[#08111f]"] { color: #ffffff; }
+:root[data-theme="claro"] [data-admin-rail] button:hover { background: var(--hover); border-color: var(--border); color: var(--foreground); }
+:root[data-theme="claro"] [data-admin-rail] button[class~="text-white"] { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); box-shadow: none; }
+
+/* Interactive cards stay quiet at rest and brighten as a complete surface. */
+.erp-interactive-card,
+:is(a, button, [role="button"]):is(.erp-card, .erp-surface, .erp-surface-strong, .kpi-hover),
+a:is(.rounded-xl.border, .rounded-2xl.border) {
+  border-color: var(--border);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.erp-interactive-card:is(:hover, :focus-within),
+:is(a, button, [role="button"]):is(.erp-card, .erp-surface, .erp-surface-strong, .kpi-hover):is(:hover, :focus-visible),
+a:is(.rounded-xl.border, .rounded-2xl.border):is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--interactive-border-hover) 52%, var(--border));
+  background-color: color-mix(in srgb, var(--panel-2) 78%, var(--primary) 22%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent), 0 0 26px color-mix(in srgb, var(--primary) 23%, transparent), 0 12px 28px rgba(0, 0, 0, .24);
+}
+
+/* All summary KPIs share the project header's thin edge and top accent.
+ * Keep sizing/content local; semantic accents only affect the upper marker.
+ */
+.erp-kpi { --kpi-accent: rgba(96, 165, 250, .58); }
+.erp-kpi:nth-child(4n + 2) { --kpi-accent: rgba(56, 189, 248, .58); }
+.erp-kpi:nth-child(4n + 3) { --kpi-accent: rgba(45, 212, 191, .58); }
+.erp-kpi:nth-child(4n + 4) { --kpi-accent: rgba(251, 146, 60, .58); }
+.erp-kpi.kpi-accent-budget { --kpi-accent: rgba(96, 165, 250, .58); --card-interaction-accent: #60a5fa; }
+.erp-kpi.kpi-accent-purchases { --kpi-accent: rgba(56, 189, 248, .58); --card-interaction-accent: #38bdf8; }
+.erp-kpi.kpi-accent-progress { --kpi-accent: rgba(45, 212, 191, .58); --card-interaction-accent: #2dd4bf; }
+.erp-kpi.kpi-accent-labor { --kpi-accent: rgba(251, 146, 60, .58); --card-interaction-accent: #fb923c; }
+.erp-kpi.kpi-accent-inflow { --kpi-accent: rgba(52, 211, 153, .60); --card-interaction-accent: #34d399; }
+.erp-kpi.kpi-accent-outflow { --kpi-accent: rgba(242, 104, 92, .62); --card-interaction-accent: #f2685c; }
+.erp-kpi-marker {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--card-interaction-accent, var(--primary));
+  background: color-mix(in srgb, var(--card-interaction-accent, var(--primary)) 13%, transparent);
+}
+:root body .erp-kpi {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background-color: var(--panel);
+  box-shadow: inset 0 2px 0 var(--kpi-accent), var(--surface-shadow-soft, 0 10px 26px rgba(0, 0, 0, .18));
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 180ms ease;
+}
+:root body .erp-kpi:is(:hover, :focus-visible, :focus-within) {
+  border-color: color-mix(in srgb, var(--interactive-border-hover) 52%, var(--border));
+  background-color: color-mix(in srgb, var(--panel-2) 78%, var(--card-interaction-accent, var(--primary)) 22%);
+  box-shadow: inset 0 2px 0 var(--kpi-accent), 0 0 0 1px color-mix(in srgb, var(--card-interaction-accent, var(--primary)) 20%, transparent), 0 0 26px color-mix(in srgb, var(--card-interaction-accent, var(--primary)) 23%, transparent), 0 12px 28px rgba(0, 0, 0, .24) !important;
+}
+
+/* Shared luminous hover/focus, including legacy cards and hover utilities.
+ * Important is limited to the enabled hover state: legacy button shadows use
+ * important too. Default surfaces, borders and disabled controls stay intact.
+ */
+:root body :is(
+  button, a[href]:not(.erp-interactive-card):not(.erp-kpi):not(.kpi-hover):not(.erp-card):not(.erp-surface):not(.erp-surface-strong):not(.rounded-lg.border):not(.rounded-xl.border):not(.rounded-2xl.border), summary, [role="button"], [role="combobox"],
+  input, textarea, select, [tabindex]:not([tabindex="-1"]),
+  .erp-toolbar, .erp-table-shell, .glass, .glass-soft
+):not(.erp-kpi):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):is(:hover, :focus-visible) {
+  box-shadow: var(--ui-hover-glow) !important;
+}
+
+:root body :is(.erp-interactive-card, .erp-kpi, .kpi-hover, a:is(.rounded-lg.border, .rounded-xl.border, .rounded-2xl.border)):not(:disabled):not([aria-disabled="true"]):not([data-disabled]):is(:hover, :focus-visible, :focus-within) {
+  border-color: color-mix(in srgb, var(--interactive-border-hover) 52%, var(--border)) !important;
+  background-color: color-mix(in srgb, var(--panel-2) 78%, var(--card-interaction-accent, var(--primary)) 22%) !important;
+  box-shadow: inset 0 2px 0 var(--kpi-accent, transparent), 0 0 0 1px color-mix(in srgb, var(--card-interaction-accent, var(--primary)) 20%, transparent), 0 0 26px color-mix(in srgb, var(--card-interaction-accent, var(--primary)) 23%, transparent), 0 12px 28px rgba(0, 0, 0, .24) !important;
+}

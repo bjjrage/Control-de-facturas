@@ -35,7 +35,9 @@ describe("ERP Radix Select contracts", () => {
   });
   it("migrates the required PREBID/RFQ/climate/personnel/weekly-plan surfaces", () => {
     for (const file of ["app/(internal)/licitaciones/[id]/prebid/workspace.tsx", "app/(internal)/rfqs/rfq-dialog.tsx", "app/(internal)/projects/[id]/climate-workdays-panel.tsx", "app/(internal)/projects/[id]/add-labor-entry-form.tsx", "app/(internal)/projects/[id]/weekly-plan-section.tsx"]) {
-      const source = readFileSync(file,"utf8"); expect(source).toContain("Select"); expect(source).not.toMatch(/<select\b/);
+      const source = readFileSync(file,"utf8"); expect(source).not.toMatch(/<select\b/);
+      if (file.endsWith("rfq-dialog.tsx")) expect(readFileSync("app/(internal)/rfqs/administrative-rfq-dialog.tsx", "utf8")).toContain("Select");
+      else expect(source).toContain("Select");
     }
   });
 });

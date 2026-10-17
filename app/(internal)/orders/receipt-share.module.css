@@ -1,8 +1,16 @@
-.dialog { padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; max-width: 560px; width: calc(100vw - 24px); border: 2px solid #66839e; background: #14263a; }
-.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: #304962; border-bottom: 2px solid #66839e; }
+.dialog { composes: erp-card from global; padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; max-width: 560px; width: calc(100vw - 24px); border: 1px solid var(--interactive-border); background: var(--popover, rgba(13, 26, 44, .95)); }
+.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: var(--panel-2); border-bottom: 1px solid var(--interactive-border); }
 .body { padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; font-size: 13px; }
 .hint { color: #c4d3e3; font-size: 12px; }
 .notice { padding: 10px; border: 1px solid #bda467; border-radius: 8px; background: #3b3528; color: #f3dfb2; font-size: 12px; }
-.qr { display: flex; justify-content: center; padding: 12px; background: white; border: 2px solid #91b3d0; border-radius: 10px; }
-.url { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 1px solid #66839e; border-radius: 6px; background: #20364b; color: #f5f8fc; }
-.footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 2px solid #66839e; background: #0e1c2d; }
+.qr { display: flex; justify-content: center; padding: 12px; background: white; border: 1px solid var(--interactive-border); border-radius: 10px; }
+.url { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 1px solid var(--interactive-border); border-radius: 6px; background: var(--panel-2); color: #f5f8fc; }
+.footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--interactive-border); background: var(--panel-2); }
+/* Light mode surface overrides. */
+:global(html[data-theme="claro"]) .dialog { border: 1px solid var(--border-strong); background: var(--panel); }
+:global(html[data-theme="claro"]) .dialog > h2 { background: var(--panel-2); border-bottom: 1px solid var(--border-strong); }
+:global(html[data-theme="claro"]) .hint { color: var(--muted); }
+:global(html[data-theme="claro"]) .notice { border: 1px solid var(--warn); background: var(--warn-bg); color: var(--warn); }
+:global(html[data-theme="claro"]) .qr { border: 1px solid var(--border-strong); }
+:global(html[data-theme="claro"]) .url { border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--foreground); }
+:global(html[data-theme="claro"]) .footer { border-top: 1px solid var(--border-strong); background: var(--input-bg); }

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { applyScheduleImport } from "../actions";
 import {
@@ -99,14 +100,10 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
       <DialogTrigger asChild>
         <Button type="button" variant="secondary" className="h-9 px-3 text-[12px]">Importar cronograma</Button>
       </DialogTrigger>
-      <DialogContent title="Importar cronograma" className="max-w-6xl">
+      <DialogContent title={<span>Importar cronograma<InfoTooltip className="ml-1" label="Importar cronograma" content="Subí un XLSX con partida, descripción, fechas, duración o predecesora. Solo se actualizan fechas y predecesoras; cantidades, precios y avance se conservan." /></span>} className="max-w-6xl">
         <div className="space-y-3">
           {step === "upload" ? (
             <>
-              <p className="text-[12px] text-[var(--muted)]">
-                Subí el XLSX de cronograma (partida, descripción, inicio, fin, duración, predecesora o nombres
-                equivalentes). Solo se actualizan fechas y predecesoras: cantidades, precios y avance no se tocan.
-              </p>
               {error ? <p role="alert" className="rounded border border-[var(--border)] px-3 py-2 text-[12px]">{error}</p> : null}
               <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[var(--border)] px-4 py-8 text-[12px] text-[var(--muted)]">
                 <input

@@ -49,7 +49,7 @@ describe("PREBID visibility surface contract", () => {
     expect(dashboard).not.toContain("Calibrar Cost Engine");
     expect(dashboard).toContain("Costos históricos");
     expect(dashboard).toContain("Base histórica del Cost Engine");
-    expect(dashboard).toContain("APUs, cómputos o costos reales de obras anteriores");
+    expect(dashboard).toContain("APUs, cómputos o costos reales desde Excel o CSV");
     expect(dashboard).toContain("No uses este importador para cargar la oferta económica de la licitación actual.");
     expect(dashboard).toContain("importarPlanillaCostosHistoricos(fd)");
   });

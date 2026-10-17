@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input, Label } from "@/components/ui/input";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import {
@@ -212,16 +213,12 @@ export function QuotationPanel({
 
       {active && doc.acceptance_status === "PENDING_ACCEPTANCE" && !stale ? (
         <div className="space-y-2">
-          <Label>Link activo para el cliente (solo cotización, nunca la OT)</Label>
+          <div className="flex items-center gap-1"><Label>Link activo para el cliente</Label><InfoTooltip label="Link seguro de cotización" content="El link completo se muestra una sola vez y no se guarda. Si lo perdiste, generá uno nuevo; el anterior se revoca." /></div>
           <div className="text-[12px] text-[var(--muted)]">
             Ref <span className="font-mono">{active.token_prefix}…</span> · versión congelada v{active.quotation_version} · creado {formatDateTime(active.created_at)}
             {active.expires_at ? ` · vence ${formatDateTime(active.expires_at)}` : " · sin vencimiento"}
             {active.prepared_for_email ? ` · email preparado para ${active.prepared_for_email}` : ""}
           </div>
-          <p className="text-[11px] text-[var(--muted)]">
-            El link completo solo se mostró al generarse (no guardamos el secreto). Si se perdió,
-            generá uno nuevo abajo: el anterior se revoca automáticamente.
-          </p>
           <div className="flex gap-2 flex-wrap">
             <form
               action={async () => {
@@ -259,6 +256,7 @@ export function QuotationPanel({
         >
           <div className="text-[13px] font-medium">
             {doc.acceptance_status === "DRAFT" ? "Enviar a aceptación" : "Generar nuevo link (invalida el anterior)"}
+            <InfoTooltip className="ml-1" label="Aceptación electrónica" content="El link fija esta versión de la cotización. El cliente acepta solo la cotización; la OT se genera internamente. El email solo prepara un borrador." />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -271,11 +269,6 @@ export function QuotationPanel({
             </div>
           </div>
           <Button type="submit" disabled={pending}>Generar link seguro</Button>
-          <p className="text-[11px] text-[var(--muted)]">
-            Al generar, la cotización pasa a “Pendiente de aceptación” y el link congela la versión v{doc.quotation_version}.
-            El cliente acepta solo la cotización; la OT se genera sola y es interna. El email solo se
-            prepara (mailto:), nunca se registra como enviado.
-          </p>
         </form>
       ) : null}
 

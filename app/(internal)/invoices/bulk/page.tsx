@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { BulkUploadForm } from "./bulk-form";
 
 export default async function BulkInvoicesPage() {
@@ -11,17 +12,7 @@ export default async function BulkInvoicesPage() {
         <Link href="/invoices" className="text-action text-[12px] text-[var(--muted)]">
           ← Volver a Facturas
         </Link>
-        <h1 className="text-[17px] font-semibold mt-1">Carga masiva de facturas</h1>
-        <p className="text-[13px] text-[var(--muted)] mt-1">
-          Juntá todas las facturas del cierre en una carpeta — foto (tipo CamScanner) para las de papel, PDF para
-          las electrónicas — y soltalas todas juntas acá. Se suben y se procesan en segundo plano: el sistema lee
-          cada una, identifica al proveedor por RUC y la concilia sola contra las órdenes con saldo cuando el monto
-          coincide. Las que no puede leer del todo quedan en{" "}
-          <Link href="/invoices/revision" className="text-action text-[var(--primary)]">
-            revisión manual
-          </Link>
-          . Solo en guaraníes (PYG) — para otras monedas usá &quot;Nueva factura&quot; una por una.
-        </p>
+        <h1 className="text-[17px] font-semibold mt-1">Carga masiva de facturas<InfoTooltip className="ml-1" label="Carga masiva de facturas" content="Subí fotos de facturas en papel o PDF. Se procesan en segundo plano, se identifica al proveedor por RUC y se concilian con órdenes cuando coincide el monto. Lo ilegible queda en Revisión manual. Solo admite PYG." /></h1>
       </div>
       <BulkUploadForm empresaId={profile.empresa_id} userId={profile.id} />
     </div>

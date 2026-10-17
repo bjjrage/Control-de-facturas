@@ -96,15 +96,15 @@ export function InventarioGlobalSection({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Materiales con stock</div>
           <div className="text-[22px] font-bold mt-1">{globalRows.length}</div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Ubicaciones activas</div>
           <div className="text-[22px] font-bold mt-1">{ubicacionesActivas}</div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Valor total (PYG)</div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(valorTotalPyg, "PYG")}</div>
           {enRevision > 0 ? (

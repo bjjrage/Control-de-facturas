@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { StatusBadge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { formatDate } from "@/lib/format";
 import { PaymentOrder } from "@/lib/types";
 
@@ -69,7 +70,7 @@ export function ProyectoPagosTable({
           <thead>
             <tr>
               <th>
-                Código OP
+                Código OP<InfoTooltip className="ml-1" label="Órdenes de pago" content="La orden completa aparece si al menos una de sus facturas corresponde a esta obra." />
                 <ColumnFilter values={uniques.code} selected={colFilters.code} onChange={(v) => setCol("code", v)} />
               </th>
               <th>
@@ -112,12 +113,6 @@ export function ProyectoPagosTable({
           </tbody>
         </table>
       </div>
-      {rows.length > 0 ? (
-        <p className="text-[11px] text-[var(--muted)]">
-          Nota: una OP puede incluir facturas de otros proyectos si el mismo proveedor trabaja en varios — acá se
-          muestra completa si al menos una de sus facturas pertenece a esta obra.
-        </p>
-      ) : null}
     </div>
   );
 }

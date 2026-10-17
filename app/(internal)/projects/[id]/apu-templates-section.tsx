@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { listApuTemplatesAction, deleteApuTemplateAction, type ApuTemplateSummary } from "./apu-templates-actions";
@@ -29,10 +30,8 @@ export function ApuTemplatesSection() {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-[15px] font-semibold">Plantillas de APU</h2>
-      <p className="text-[13px] text-[var(--muted)]">
-        Cargá UNA VEZ las recetas (APU) que ya usa tu empresa, con el formato que tengan. Después, en cualquier obra, se aplican solas a toda partida cuya descripción coincida.
-      </p>
+      <h2 className="text-[15px] font-semibold">Plantillas de APU<InfoTooltip className="ml-1" label={"Plantillas de APU"} content={"Cargá UNA VEZ las recetas (APU) que ya usa tu empresa, con el formato que tengan. Después, en cualquier obra, se aplican solas a toda partida cuya descripción coincida."} /></h2>
+
 
       <ApuPlanillaImport onDone={refresh} />
 

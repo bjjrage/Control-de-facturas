@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/ui/select";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -213,7 +214,7 @@ export function RegisterReceiptDialog({
                     <th>Ítem</th>
                     <th className="num">Ordenado</th>
                     <th className="num w-24">Recibida</th>
-                    <th className="w-48">Material en inventario</th>
+                    <th className="w-48">Material<InfoTooltip className="ml-1" label="Material en inventario" content="Indica dónde sumar lo recibido. Si el material ya está definido en la orden de compra, se asigna automáticamente." /></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -240,7 +241,7 @@ export function RegisterReceiptDialog({
                         />
                       </td>
                       <td>
-                        {it.producto_id ? <p className="text-xs font-medium">{productos.find(p => p.id === it.producto_id)?.nombre ?? it.product}<span className="block text-[var(--muted)] font-normal">Definido en la OC</span></p> : <select
+                        {it.producto_id ? <p className="text-xs font-medium">{productos.find(p => p.id === it.producto_id)?.nombre ?? it.product}<span className="block text-[var(--muted)] font-normal">Definido en la OC</span></p> : <Select
                           aria-label={`Material en inventario para ${it.product}`}
                           value={productoPorItem[it.id] ?? it.producto_id ?? ""}
                           disabled={pending || attemptLocked}
@@ -260,16 +261,13 @@ export function RegisterReceiptDialog({
                             .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
-                        </select>}
+                        </Select>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-[var(--muted)] mt-1">
-              El material indica dónde se suma lo recibido en el inventario. Si ya está definido en la OC, no hace falta elegirlo nuevamente.
-            </p>
           </div>
 
           <div>

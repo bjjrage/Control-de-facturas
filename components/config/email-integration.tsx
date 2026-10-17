@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { EmailConnectionSummary } from "@/lib/email/types";
 
 export function EmailIntegration({ connection }: { connection: EmailConnectionSummary | null }) {
@@ -11,11 +12,8 @@ export function EmailIntegration({ connection }: { connection: EmailConnectionSu
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
       <div>
-        <h2 className="text-[15px] font-semibold">Correo de Rodrigo</h2>
-        <p className="text-[13px] text-[var(--muted)] mt-1">
-          Conectá una cuenta Gmail para que Rodrigo prepare correos y los envíe solamente después de tu aprobación.
-          Solo se solicita el permiso mínimo de envío.
-        </p>
+        <h2 className="text-[15px] font-semibold">Correo de Rodrigo<InfoTooltip className="ml-1" label={"Correo de Rodrigo"} content={"Conectá una cuenta Gmail para que Rodrigo prepare correos y los envíe solamente después de tu aprobación. Solo se solicita el permiso mínimo de envío."} /></h2>
+
       </div>
       {connection ? (
         <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] px-3 py-2">

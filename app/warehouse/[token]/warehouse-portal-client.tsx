@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 
 import { useState, useRef, type FormEvent } from "react";
@@ -281,10 +282,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "receipt" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Recepción de Mercadería</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Recibí materiales desde una Orden de Compra autorizada para esta obra. Soporta recepción parcial.
-            </p>
+            <h2 className="text-sm font-semibold">Recepción<InfoTooltip className="ml-1" label={"Recepción"} content={"Recibí materiales desde una Orden de Compra autorizada para esta obra. Soporta recepción parcial."} /></h2>
+
           </div>
 
           {context.orderLoadError ? <p role="alert" className="text-xs text-red-600">No se pudieron leer las órdenes de compra. Volvé a abrir el enlace antes de registrar una recepción.</p> : context.orders.length === 0 ? (
@@ -449,10 +448,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "consumption" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Registrar Salida / Consumo</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Despachá materiales del depósito imputándolos a una partida del presupuesto de obra.
-            </p>
+            <h2 className="text-sm font-semibold">Registrar consumo<InfoTooltip className="ml-1" label={"Registrar consumo"} content={"Despachá materiales del depósito imputándolos a una partida del presupuesto de obra."} /></h2>
+
           </div>
 
           <form onSubmit={handleConsumptionSubmit} className="space-y-4">
@@ -586,10 +583,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "submission" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Rendición Periódica de Materiales</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Subí fotos del cuaderno de obra, remitos o planillas Excel/CSV. La administración revisará las líneas antes de afectar el stock.
-            </p>
+            <h2 className="text-sm font-semibold">Rendir materiales<InfoTooltip className="ml-1" label={"Rendir materiales"} content={"Subí fotos del cuaderno de obra, remitos o planillas Excel/CSV. La administración revisará las líneas antes de afectar el stock."} /></h2>
+
           </div>
 
           <form onSubmit={handleSubmissionSubmit} className="space-y-4">

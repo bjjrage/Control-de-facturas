@@ -11,7 +11,7 @@ const provider="33333333-3333-4333-8333-333333333333", attachment="44444444-4444
 const invoice="55555555-5555-4555-8555-555555555555", order="66666666-6666-4666-8666-666666666666";
 const sale="77777777-7777-4777-8777-777777777777", client="88888888-8888-4888-8888-888888888888", account="99999999-9999-4999-8999-999999999999";
 const job="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const proposal=(name:string)=>readFileSync(new URL("../../integration-evidence/proposed-sql/"+name,import.meta.url),"utf8");
+const releaseSql=readFileSync(new URL("../../supabase/migrations/20261017182341_audit_financial_guards.sql",import.meta.url),"utf8");
 beforeAll(async()=>{
  db=new PGlite();
  await db.exec(`
@@ -46,11 +46,7 @@ beforeAll(async()=>{
  CREATE TABLE invoice_jobs(id uuid PRIMARY KEY,empresa_id uuid,created_by uuid,status public.invoice_job_status,attempts integer,invoice_id uuid,provider_id uuid,updated_at timestamptz);
  CREATE TABLE audit_logs(empresa_id uuid,actor_id uuid,actor_type text,actor_label text,action text,invoice_id uuid,detail jsonb);
  `);
- await db.exec(proposal("C01-C02-invoice-identity-gates.sql"));
- await db.exec(proposal("V01-V02-collection-guard.sql"));
- await db.exec(proposal("C03-bulk-due-date.sql"));
- await db.exec(proposal("V06-sales-item-tenant.sql"));
- await db.exec(proposal("C01-payment-execution-recheck.sql"));
+ await db.exec(releaseSql);
 },120000);
 afterAll(async()=>{await db?.close()});
 beforeEach(async()=>{
