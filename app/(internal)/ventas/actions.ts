@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { lineTotal, isSalesEditorType } from "@/lib/sales";
+import { isSalesEditorType } from "@/lib/sales";
 import { SalesDocType, SalesDocument, ReceiptMethod } from "@/lib/types";
 import { canLinkSalesDocument, loadPostOtSnapshotForQuotation, validateSalesEmission, loadSalesDocumentDescendants } from "@/lib/sales-post-ot";
 import { revalidatePath } from "next/cache";
@@ -38,21 +38,6 @@ function parseItems(fd: FormData): ItemInput[] | { error: string } {
     items.push({ description, quantity, unit_price, vat_rate });
   }
   return items;
-}
-
-async function writeItems(supabase: Awaited<ReturnType<typeof createClient>>, docId: string, items: ItemInput[]) {
-  await supabase.from("sales_document_items").delete().eq("sales_document_id", docId);
-  const { error } = await supabase.from("sales_document_items").insert(
-    items.map((it) => ({
-      sales_document_id: docId,
-      description: it.description,
-      quantity: it.quantity,
-      unit_price: it.unit_price,
-      vat_rate: it.vat_rate,
-      line_total: lineTotal(it.quantity, it.unit_price),
-    }))
-  );
-  return error;
 }
 
 async function validateSourceDocument(input: {
@@ -127,28 +112,24 @@ export async function createSalesDocument(formData: FormData) {
   const items = parseItems(formData);
   if ("error" in items) return items;
 
-  const { data: doc, error } = await supabase
-    .from("sales_documents")
-    .insert({
-      client_id,
-      doc_type,
-      issue_date: str(formData, "issue_date") ?? new Date().toISOString().slice(0, 10),
-      due_date: str(formData, "due_date"),
-      currency,
-      notes: str(formData, "notes"),
-      source_document_id: sourceDocumentId,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-  if (error || !doc) return { error: error?.message ?? "No se pudo crear el documento." };
-
-  const itemsError = await writeItems(supabase, doc.id, items);
-  if (itemsError) return { error: itemsError.message };
+  const { data: docId, error } = await supabase.rpc("save_sales_document_atomico", {
+    p_empresa_id: profile.empresa_id,
+    p_document_id: null,
+    p_client_id: client_id,
+    p_doc_type: doc_type,
+    p_issue_date: str(formData, "issue_date") ?? new Date().toISOString().slice(0, 10),
+    p_due_date: str(formData, "due_date"),
+    p_currency: currency,
+    p_notes: str(formData, "notes"),
+    p_source_document_id: sourceDocumentId,
+    p_created_by: profile.id,
+    p_items: items,
+  });
+  if (error || !docId) return { error: error?.message ?? "No se pudo crear el documento." };
 
   revalidatePath("/ventas");
   if (workOrderId) revalidatePath(`/ordenes-trabajo/${workOrderId}`);
-  return { error: null, id: doc.id as string };
+  return { error: null, id: docId as string };
 }
 
 export async function updateSalesDocument(id: string, formData: FormData) {
@@ -159,6 +140,7 @@ export async function updateSalesDocument(id: string, formData: FormData) {
     .from("sales_documents")
     .select("status, doc_type, acceptance_status, source_document_id, client_id, currency")
     .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
     .single<Pick<SalesDocument, "status" | "doc_type" | "acceptance_status" | "source_document_id" | "client_id" | "currency">>();
   if (!current) return { error: "Documento no encontrado." };
   if (current.status !== "BORRADOR") return { error: "Solo se puede editar un borrador." };
@@ -194,21 +176,20 @@ export async function updateSalesDocument(id: string, formData: FormData) {
   });
   if (sourceValidation.error) return sourceValidation;
 
-  const { error } = await supabase
-    .from("sales_documents")
-    .update({
-      client_id: nextClientId,
-      doc_type: nextDocType,
-      issue_date: str(formData, "issue_date") ?? undefined,
-      due_date: str(formData, "due_date"),
-      currency: nextCurrency,
-      notes: str(formData, "notes"),
-    })
-    .eq("id", id);
-  if (error) return { error: error.message };
-
-  const itemsError = await writeItems(supabase, id, items);
-  if (itemsError) return { error: itemsError.message };
+  const { data: updatedId, error } = await supabase.rpc("save_sales_document_atomico", {
+    p_empresa_id: profile.empresa_id,
+    p_document_id: id,
+    p_client_id: nextClientId,
+    p_doc_type: nextDocType,
+    p_issue_date: str(formData, "issue_date"),
+    p_due_date: str(formData, "due_date"),
+    p_currency: nextCurrency,
+    p_notes: str(formData, "notes"),
+    p_source_document_id: current.source_document_id,
+    p_created_by: profile.id,
+    p_items: items,
+  });
+  if (error || updatedId !== id) return { error: error?.message ?? "No se pudo confirmar la venta." };
 
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${id}`);

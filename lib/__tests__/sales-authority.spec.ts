@@ -6,9 +6,29 @@ vi.mock("@/lib/auth", () => ({ requireModule: vi.fn(async () => ({ id: "user", e
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
-  rpc: async (name: string) => name === "registrar_cobro_idempotente"
-    ? { data: null, error: { message: "Este tipo de documento no admite cobros positivos" } }
-    : { data: null, error: { message: "Unexpected RPC" } },
+  rpc: async (name: string, args: Record<string, unknown>) => {
+    if (name === "registrar_cobro_idempotente") {
+      return { data: null, error: { message: "Este tipo de documento no admite cobros positivos" } };
+    }
+    if (name === "save_sales_document_atomico") {
+      const rows = state.tables.sales_documents ?? [];
+      const id = (args.p_document_id as string | null) ?? "created-" + rows.length;
+      const row = rows.find((value) => value.id === id);
+      const fields = {
+        client_id: args.p_client_id, doc_type: args.p_doc_type,
+        currency: args.p_currency, source_document_id: args.p_source_document_id,
+      };
+      state.writes.push("rpc:sales_documents");
+      if (row) Object.assign(row, fields);
+      else state.tables.sales_documents = [...rows, {
+        id, empresa_id: "tenant", status: "BORRADOR", acceptance_status: "DRAFT",
+        total: 100, subtotal: 90, vat_amount: 10, cobrado_amount: 0, quotation_version: 4,
+        ...fields,
+      }];
+      return { data: id, error: null };
+    }
+    return { data: null, error: { message: "Unexpected RPC" } };
+  },
   from(table: string) {
     const filters: [string, unknown][] = []; let values: Record<string, unknown> | null = null;
     let operation = "read";
