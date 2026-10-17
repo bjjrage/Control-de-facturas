@@ -12,6 +12,7 @@ const invoice="55555555-5555-4555-8555-555555555555", order="66666666-6666-4666-
 const sale="77777777-7777-4777-8777-777777777777", client="88888888-8888-4888-8888-888888888888", account="99999999-9999-4999-8999-999999999999";
 const job="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const releaseSql=readFileSync(new URL("../../supabase/migrations/20261017182341_audit_financial_guards.sql",import.meta.url),"utf8");
+const receiptIdempotencySql=readFileSync(new URL("../../supabase/migrations/20261017194800_sales_receipt_idempotency.sql",import.meta.url),"utf8");
 beforeAll(async()=>{
  db=new PGlite();
  await db.exec(`
@@ -47,6 +48,7 @@ beforeAll(async()=>{
  CREATE TABLE audit_logs(empresa_id uuid,actor_id uuid,actor_type text,actor_label text,action text,invoice_id uuid,detail jsonb);
  `);
  await db.exec(releaseSql);
+ await db.exec(receiptIdempotencySql);
 },120000);
 afterAll(async()=>{await db?.close()});
 beforeEach(async()=>{
@@ -64,7 +66,31 @@ beforeEach(async()=>{
 const register=(tax="80000000-1",att=attachment)=>db.query("SELECT register_invoice_identity($1,$2,$3,$4,$5::jsonb,$6)",[invoice,att,"a".repeat(64),tax,JSON.stringify({provider_tax_id:tax,invoice_number:"001",invoice_date:null,total:110,product_description:"Cemento",items:[{description:"Cemento"}]}),actor]);
 const link=()=>db.exec(`INSERT INTO invoice_order_matches VALUES('${invoice}','${order}','${tenant}')`);
 const collect=(amount=10)=>db.query("SELECT registrar_cobro_atomico($1,$2,$3,'EFECTIVO',CURRENT_DATE,NULL,NULL,$4,$5)",[tenant,sale,amount,account,actor]);
+const collectOnce=(key:string,amount=10,reference:string|null=null)=>db.query<{receipt_id:string}>(
+ "SELECT registrar_cobro_idempotente($1,$2,$3,'EFECTIVO',CURRENT_DATE,$4,NULL,$5,$6,$7) AS receipt_id",
+ [tenant,sale,amount,reference,account,actor,key]
+);
 describe("proposed financial SQL guards (local only)",()=>{
+ it("returns one receipt and one treasury movement for a repeated request",async()=>{
+   const key="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+   const first=await collectOnce(key,110);
+   await db.exec(`UPDATE sales_documents SET status='COBRADA' WHERE id='${sale}'`);
+   const replay=await collectOnce(key,110);
+   expect(replay.rows[0].receipt_id).toBe(first.rows[0].receipt_id);
+   expect((await db.query<{count:string}>("SELECT count(*)::text AS count FROM sales_receipts")).rows[0].count).toBe("1");
+   expect((await db.query<{saldo:string}>("SELECT saldo::text AS saldo FROM cuentas_financieras WHERE id=$1",[account])).rows[0].saldo).toBe("1110");
+ });
+ it("rejects a changed payload for an already-used attempt key",async()=>{
+   const key="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+   await collectOnce(key);
+   await expect(collectOnce(key,11)).rejects.toThrow(/otro cobro/);
+   await expect(collectOnce(key,10,"different")).rejects.toThrow(/otro cobro/);
+   expect((await db.query<{count:string}>("SELECT count(*)::text AS count FROM sales_receipts")).rows[0].count).toBe("1");
+ });
+ it("rejects amounts the receipt column would round, so identical retries stay identical",async()=>{
+   await expect(collectOnce("dddddddd-dddd-4ddd-8ddd-dddddddddddd",10.001)).rejects.toThrow(/dos decimales/);
+   expect((await db.query<{count:string}>("SELECT count(*)::text AS count FROM sales_receipts")).rows[0].count).toBe("0");
+ });
  it("unverified identity cannot link, MATCH or become payable",async()=>{
    await expect(link()).rejects.toThrow(/sin identidad/);
    await expect(db.exec(`UPDATE invoices SET status='MATCH' WHERE id='${invoice}'`)).rejects.toThrow(/sin identidad/);

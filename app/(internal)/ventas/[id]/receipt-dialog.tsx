@@ -41,12 +41,20 @@ export function ReceiptDialog({
             event.preventDefault();
             if (submitting.current) return;
             const formData = new FormData(event.currentTarget);
+            const attemptStorageKey = `sales-receipt-attempt:${docId}`;
+            let idempotencyKey = sessionStorage.getItem(attemptStorageKey);
+            if (!idempotencyKey) {
+              idempotencyKey = crypto.randomUUID();
+              sessionStorage.setItem(attemptStorageKey, idempotencyKey);
+            }
+            formData.set("idempotency_key", idempotencyKey);
             submitting.current = true;
             setPending(true);
             setError(null);
             try {
               const result = await addReceipt(docId, formData);
               if (result.error) { setError(result.error); return; }
+              sessionStorage.removeItem(attemptStorageKey);
               setOpen(false);
               router.refresh();
             } catch (e) {

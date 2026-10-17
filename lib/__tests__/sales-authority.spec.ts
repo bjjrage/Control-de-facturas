@@ -6,8 +6,11 @@ vi.mock("@/lib/auth", () => ({ requireModule: vi.fn(async () => ({ id: "user", e
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
+  rpc: async (name: string) => name === "registrar_cobro_idempotente"
+    ? { data: null, error: { message: "Este tipo de documento no admite cobros positivos" } }
+    : { data: null, error: { message: "Unexpected RPC" } },
   from(table: string) {
-    let filters: [string, unknown][] = []; let values: Record<string, unknown> | null = null;
+    const filters: [string, unknown][] = []; let values: Record<string, unknown> | null = null;
     let operation = "read";
     const query = {
       select: () => query, order: () => query,
@@ -138,6 +141,7 @@ describe("positive collection server type authority", () => {
   it.each(["NOTA_CREDITO", "REMISION", "PROFORMA"])("rejects crafted %s collection before any write", async type => {
     state.tables.sales_documents = [{...document("blocked", type), status:"EMITIDA"}];
     const fd = new FormData();fd.set("amount","10");
+    fd.set("idempotency_key", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     expect((await addReceipt("blocked",fd)).error).toMatch(/no admite cobros positivos/);
     expect(state.writes).toEqual([]);
   });

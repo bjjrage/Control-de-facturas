@@ -3,10 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { lineTotal, isSalesEditorType, isCollectibleSalesType } from "@/lib/sales";
+import { lineTotal, isSalesEditorType } from "@/lib/sales";
 import { SalesDocType, SalesDocument, ReceiptMethod } from "@/lib/types";
 import { canLinkSalesDocument, loadPostOtSnapshotForQuotation, validateSalesEmission, loadSalesDocumentDescendants } from "@/lib/sales-post-ot";
-import { salesReceivables } from "@/lib/sales-receivables";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -281,27 +280,15 @@ export async function addReceipt(docId: string, formData: FormData) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
-  const { data: doc } = await supabase
-    .from("sales_documents")
-    .select("id, empresa_id, client_id, currency, source_document_id, status, total, cobrado_amount, doc_type")
-    .eq("id", docId)
-    .eq("empresa_id", profile.empresa_id)
-    .single<SalesDocument>();
-  if (!doc) return { error: "Documento no encontrado." };
-  if (doc.status !== "EMITIDA" && doc.status !== "COBRADA_PARCIAL") {
-    return { error: "Solo se registran cobros en documentos emitidos." };
+  const idempotencyKey = str(formData, "idempotency_key");
+  if (!idempotencyKey || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+    return { error: "La clave del intento de cobro es inválida. Volvé a abrir el formulario." };
   }
-
-  if (!isCollectibleSalesType(doc.doc_type)) return { error: "Este tipo de documento no admite cobros positivos. Las notas de crédito reducen deuda o generan saldo a favor." };
 
   const amount = Number(formData.get("amount"));
   if (!Number.isFinite(amount) || amount <= 0) return { error: "El monto debe ser mayor a cero." };
-  const { data: accountDocs, error: accountError } = await supabase.from("sales_documents")
-    .select("id, empresa_id, client_id, currency, source_document_id, doc_type, status, total, cobrado_amount")
-    .eq("empresa_id", profile.empresa_id).eq("client_id", doc.client_id).eq("currency", doc.currency);
-  if (accountError) return { error: "No se pudo verificar el saldo y las notas de crédito." };
-  const saldo = salesReceivables(accountDocs ?? []).balances.get(docId) ?? 0;
-  if (amount - saldo > 0.01) return { error: `El cobro supera el saldo (${saldo}).` };
+  // The database locks the document, checks the current balance and resolves
+  // an earlier request key before checking a now-paid document's status.
 
   const cuentaId = str(formData, "cuenta_id");
   const receiptDate = str(formData, "receipt_date") ?? new Date().toISOString().slice(0, 10);
@@ -309,7 +296,7 @@ export async function addReceipt(docId: string, formData: FormData) {
   const reference = str(formData, "reference");
   const notes = str(formData, "notes");
 
-  const { data: atomicReceiptId, error: atomicErr } = await supabase.rpc("registrar_cobro_atomico", {
+  const { data: atomicReceiptId, error: atomicErr } = await supabase.rpc("registrar_cobro_idempotente", {
     p_empresa_id: profile.empresa_id,
     p_sales_document_id: docId,
     p_amount: amount,
@@ -319,6 +306,7 @@ export async function addReceipt(docId: string, formData: FormData) {
     p_notes: notes,
     p_cuenta_id: cuentaId ?? null,
     p_created_by: profile.id,
+    p_idempotency_key: idempotencyKey,
   });
 
   if (atomicErr) return { error: atomicErr.message };
