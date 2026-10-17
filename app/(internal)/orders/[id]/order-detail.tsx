@@ -5,7 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AuthorizedOrder, AuthorizedOrderItem, Invoice, Provider } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, isOverbilled } from "@/lib/reconciliation";
@@ -341,16 +341,21 @@ export async function OrderDetail({ id, projectId }: { id: string; projectId?: s
         </div>
       </div>
 
+      {order.project_id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border)] p-3">
+        <p className="text-sm text-[var(--muted)]">Las entregas y los QR de esta compra se gestionan en Recepciones de la obra.</p>
+        <Link className={buttonClassName({ variant: "secondary", size: "sm" })} href={`/projects/${order.project_id}?tab=recepciones`}>Ir a Recepciones →</Link>
+      </div>}
       <RecepcionSection
         orderId={order.id}
         orderItems={orderItems ?? []}
         recepciones={recepciones ?? []}
-        canDelete={profile.role === "administracion" || profile.role === "admin"}
-        canConfirm={["comercial", "administracion", "admin"].includes(profile.role)}
-        canCreatePortal={profile.role === "administracion" || profile.role === "admin"}
-        canMap={profile.role === "administracion" || profile.role === "admin"}
+        showRegistration={!order.project_id && profile.role !== "comercial"}
+        canDelete={!order.project_id && (profile.role === "administracion" || profile.role === "admin")}
+        canConfirm={!order.project_id && ["administracion", "admin"].includes(profile.role)}
+        canCreatePortal={false}
+        canMap={!order.project_id && (profile.role === "administracion" || profile.role === "admin")}
         currentUserId={profile.id}
-        canDiscardOwnDraft={profile.role === "comercial"}
+        canDiscardOwnDraft={!order.project_id && profile.role === "comercial"}
         products={products ?? []}
         evidenceByReceipt={evidenceByReceipt}
       />

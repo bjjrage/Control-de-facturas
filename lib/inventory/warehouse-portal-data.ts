@@ -45,6 +45,7 @@ export type WarehousePortalContext = {
   projectCode: string;
   empresaId: string;
   orders: WarehousePortalOrder[];
+  orderLoadError?: boolean;
   stock: WarehousePortalStockItem[];
   allProducts: Array<{ id: string; name: string; unit: string }>;
   budgetItems: WarehousePortalBudgetItem[];
@@ -84,7 +85,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
   if (projError || !project) return null;
 
   // 1. Fetch authorized orders for this project
-  const { data: ordersData } = await admin
+  const { data: ordersData, error: ordersError } = await admin
     .from("authorized_orders")
     .select(`
       id,
@@ -96,7 +97,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
       authorized_order_items (
         id,
         producto_id,
-        description,
+        description:product,
         unit,
         quantity,
         productos (nombre)
@@ -104,13 +105,13 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     `)
     .eq("project_id", project.id)
     .eq("empresa_id", link.empresa_id)
-    .in("status", ["AUTORIZADA", "RECIBIDA_PARCIAL", "EMITIDA"])
+    .in("status", ["AUTORIZADO", "FACTURADO", "CONCILIADO", "APTO_PARA_PAGO", "PAGADO"])
     .order("authorized_at", { ascending: false });
 
   const orderIds = (ordersData ?? []).map((o) => o.id);
 
   // 2. Fetch received quantities per order item
-  let receivedByOrderItem = new Map<string, number>();
+  const receivedByOrderItem = new Map<string, number>();
   if (orderIds.length > 0) {
     const { data: receiptItems } = await admin
       .from("oc_recepcion_items")
@@ -220,6 +221,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     projectCode: project.code,
     empresaId: link.empresa_id,
     orders,
+    orderLoadError: Boolean(ordersError),
     stock,
     allProducts,
     budgetItems,

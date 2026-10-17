@@ -414,7 +414,8 @@ export async function applyDeterministicItemMatches(
 
   const proposals = suggestInvoiceItemMatches(
     invoiceLines as ReconcilableInvoiceLine[],
-    orderLines as ReconcilableOrderLine[]
+    orderLines as ReconcilableOrderLine[],
+    { allowSingleToSingleFallback: false }
   );
   const proposedInvoiceIds = new Set(proposals.map((p) => p.invoiceItemId));
   pending = invoiceLines.length - proposedInvoiceIds.size;

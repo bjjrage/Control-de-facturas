@@ -90,8 +90,14 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "La OC no pertenece a esta obra o empresa." }, { status: 404 });
     }
 
+    const submittedFiles = formData
+      .getAll("files")
+      .filter((v): v is File => v instanceof File && v.size > 0);
+    if (submittedFiles.length > 10 || submittedFiles.some(file => file.size > MAX_FILE_BYTES)) {
+      return NextResponse.json({ error: "Adjuntá hasta 10 archivos de 20 MB como máximo. La recepción no se registró." }, { status: 400 });
+    }
     const attempt = String(formData.get("idempotency_key") ?? "");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepci?n requiere un intento estable." }, { status: 400 });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepción requiere un intento estable." }, { status: 400 });
     const { data: createData, error: createError } = await admin.rpc("inventory_portal_receipt", {
       p_token_hash: hashWarehousePortalToken(token), p_order: order.id, p_date: fecha,
       p_received_by: recibidoPor, p_remision: remisionNumber, p_attempt: attempt, p_notes: notas,
@@ -109,20 +115,23 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     // 2. Upload photo evidence if provided
-    const submittedFiles = formData
-      .getAll("files")
-      .filter((v): v is File => v instanceof File && v.size > 0);
 
-    for (const file of submittedFiles.slice(0, 10)) {
-      if (file.size > MAX_FILE_BYTES) continue;
+
+    const evidenceWarnings: string[] = [];
+    for (const file of submittedFiles) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const sha256 = sha256Bytes(bytes);
+      const { data: existing, error: existingError } = await admin.from("inventory_receipt_evidence")
+        .select("id").eq("empresa_id", link.empresa_id).eq("receipt_id", receiptId).eq("sha256", sha256).limit(1).maybeSingle();
+      if (existingError) { evidenceWarnings.push(file.name); continue; }
+      if (existing) continue;
       const path = `receipts/${receiptId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
       const { error: uploadErr } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
         contentType: file.type || "application/octet-stream",
       });
-      if (!uploadErr) {
-        await admin.from("inventory_receipt_evidence").insert({
+      if (uploadErr) { evidenceWarnings.push(file.name); continue; }
+      {
+        const { error: evidenceError } = await admin.from("inventory_receipt_evidence").insert({
           empresa_id: link.empresa_id,
           receipt_id: receiptId,
           storage_bucket: "warehouse-evidence",
@@ -133,10 +142,14 @@ export async function POST(request: Request, context: RouteContext) {
           sha256,
           uploaded_by: link.created_by,
         });
+        if (evidenceError) {
+          evidenceWarnings.push(file.name);
+          await admin.storage.from("warehouse-evidence").remove([path]);
+        }
       }
     }
 
-    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", movements: (createData as { movements?: string[] }).movements });
+    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", uploadIncomplete: evidenceWarnings.length > 0, pendingEvidence: evidenceWarnings, movements: (createData as { movements?: string[] }).movements });
   }
 
 

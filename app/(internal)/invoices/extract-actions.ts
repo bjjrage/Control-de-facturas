@@ -9,12 +9,13 @@ import {
   ExtractedInvoiceFields,
 } from "@/lib/invoice-extraction";
 import { validateInvoiceArithmetic, type ArithmeticValidation } from "@/lib/invoice-arithmetic";
+import { issueInvoiceExtractionProof } from "@/lib/invoice-extraction-proof";
 import { findProviderByTaxId } from "@/lib/provider-lookup";
 
 export type ExtractedInvoiceData = ExtractedInvoiceFields & { provider_id: string | null };
 
 export type ExtractionResult = {
-  data: (ExtractedInvoiceData & { validation: ArithmeticValidation }) | null;
+  data: (ExtractedInvoiceData & { validation: ArithmeticValidation; extraction_proof: string }) | null;
   error: string | null;
 };
 
@@ -42,7 +43,7 @@ export async function extractInvoiceFromPhoto(
   const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id, profile.empresa_id);
 
   return {
-    data: { ...parsed, provider_id: provider?.id ?? null, validation: validateInvoiceArithmetic(parsed) },
+    data: { ...parsed, provider_id: provider?.id ?? null, validation: validateInvoiceArithmetic(parsed), extraction_proof: issueInvoiceExtractionProof({ empresaId: profile.empresa_id, actorId: profile.id, bytes, fields: parsed }) },
     error: null,
   };
 }

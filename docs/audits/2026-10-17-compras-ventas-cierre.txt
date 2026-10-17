@@ -1,0 +1,71 @@
+CIERRE DE SESIÓN — AUDITORÍA COMPRAS, VENTAS Y ORDEN DE TRABAJO
+Fecha: 17/10/2026. Rama: codex/compras-ventas-integration.
+DICTAMEN: NO-GO para integrar. Sesión de hoy cerrada; auditoría integral incompleta.
+
+1. RESULTADO Y ALCANCE
+Se corrigieron y verificaron defectos prioritarios de identidad de facturas, conciliación, pagos, cobros, saldos, privacidad de cotizaciones, vencimientos y recepciones. Se reparó el incidente de SQL aplicado en producción. Se deja código, pruebas, SQL exacto y este informe para revisión en la rama de trabajo. No se hizo merge a main ni despliegue.
+Las afirmaciones verbales anteriores de que toda la auditoría estaba terminada o publicada fueron prematuras. Este informe y el manifiesto describen el estado verificable. Que un recorrido pase no aprueba todas las pantallas, roles, empresas o condiciones concurrentes.
+El inventario estático adjunto contiene 179 superficies; conserva NO PROBADO cuando no existe evidencia trazable específica. No convierte una lectura de código en una prueba real. Las evidencias históricas del handoff tampoco equivalen a una repetición completa del build final.
+
+2. ENTORNOS Y AUTORIZACIONES
+Worktree utilizado: erp-integration, bajo visualizations/2026/10/12/01a130f7-9ff0-7490-9a7a-97c7ad71bc0e. Checkout original conservado.
+Aislada permitida: kyiihlkncatojvlasoag; rama Supabase recovery-compras-ventas-20261012 del padre ezucivipgmbvamhugkbj. Es una base de preview, no una rama Git.
+Producción: ezucivipgmbvamhugkbj. Solo recibió la reparación específica autorizada después del incidente. Los nuevos controles financieros permanecen en aislada. Producción recuperó su comportamiento anterior; esto no significa que recibió las correcciones del preview.
+El usuario autorizó expresamente el bundle exacto para aislada, posteriormente la reparación exacta en producción y finalmente el push de la rama. No se usaron Nexora ni Personal para ejecutar SQL o modificar datos. La inspección inicial de conexiones ajenas fue equivocada y no corresponde repetirla.
+
+3. INCIDENTE DE PRODUCCIÓN: CAUSA, REPARACIÓN Y LÍMITES
+El SQL destinado a aislada se entregó antes de comprobar el identificador del editor abierto. El usuario lo ejecutó en un editor que mostraba main PRODUCTION. Esa etiqueta correspondía a Supabase; no hubo merge de código. Fue un error de verificación de destino y de orientación del asistente.
+También fue incorrecto inferir falta de acceso administrativo porque el conector no listaba la base: era una branch y la CLI existente sí permitía consultarla explícitamente. La sesión del dashboard venció durante intentos de diagnóstico. La solución final usó CLI con --linked Y --project-ref explícito; nunca se tomó el vínculo local a producción como destino implícito.
+Se tomaron snapshots de solo lectura de producción, de aislada y del historial real de migraciones. Las 12 funciones afectadas coincidían con el paquete; la tabla nueva estaba vacía. Las cinco definiciones previas se contrastaron con historial de producción y baseline aislado, junto con sus permisos.
+Se preparó una reparación transaccional con huellas de esquema, límites de espera y aborto ante cambios inesperados. Dos pruebas locales PGlite verificaron restauración/conservación y aborto por divergencia. La revisión automática inicialmente rechazó ejecutar la nueva reparación sin autorización específica; tras la respuesta afirmativa del usuario se ejecutó.
+Verificación posterior: las cinco funciones ejecutar_orden_pago_atomica, recompute_sales_document, registrar_cobro_atomico, guard_invoice_order_match_tenant y create_invoice_from_job recuperaron definiciones y ACL previas. Se restauró el trigger previo; se retiraron siete funciones y cuatro triggers añadidos. La tabla nueva se conservó vacía fuera de la API pública, en private.incident_invoice_identity_evidence_20261017. No se ejecutó DML sobre registros de negocio ni borrado de datos.
+Reparación verificada a las 05:24:28.489Z. SHA256 del SQL histórico ejecutado: fafb3726e8cc812b202cf08d5bc516c90cd8d58f11253353ef2b76e6a6dea436.
+Lecturas en la ventana 04:45:00Z–05:24:29Z devolvieron cero registros por marcas temporales relevantes en invoices, invoice_jobs, audit_logs, movimientos_tesoreria, payment_orders, sales_documents y sales_receipts; controles adicionales devolvieron cero OP ejecutadas y cero cobros revertidos. Es evidencia acotada a tablas, columnas y ventana revisadas, no prueba absoluta de ausencia de intentos fallidos o de todo efecto posible.
+Evidencia local: audit-20261017/incident-review/{REPAIR-COMPARISON,LOCAL-REPAIR-TESTS,REPAIR-EXECUTION,REPAIR-VERIFIED,PRODUCTION-ACTIVITY-READBACK,PRODUCTION-EXECUTION-REVERSAL-ACTIVITY}.json. No se necesita otra escritura de producción para este cierre.
+
+4. CORRECCIONES DE COMPRAS
+C01/C02: se exige identidad documental verificable, RUC completo incluido dígito verificador y contexto de proveedor/empresa/OC. La prueba HMAC liga bytes originales, actor, empresa, vencimiento de dos horas y campos extraídos. Guardar no hace una segunda llamada al modelo. Se incorporó registro tipado de evidencia y verificación explícita del original para legados, sin fabricar backfills.
+Se retiraron fallbacks de OC por importe/unicidad y de ítem único. El match automático conserva restricciones de producto/referencia normalizados, moneda y pendiente. Se añadieron controles al vincular, resolver excepciones, marcar apta, crear/ejecutar OP y crear OC desde factura; la ejecución revalida relaciones y bloquea la OP.
+C03: worker conserva due_date y moneda y registra identidad; errores quedan pendientes/en revisión. C04: reemplazar archivo limpia campos/prueba y una generación evita que una respuesta tardía del archivo anterior sobrescriba el nuevo.
+C08: lectura determinista de cabecera PDF preserva decimales impresos. Los cinco importes del esquema de salida del modelo pasan a texto/null para conservar separadores; se normalizan centralmente manteniendo el contrato numérico de salida. Se añadieron regresiones de miles, decimales y valores ilegibles.
+C05: fotos PNG IVA10 y JPEG IVA5 pasaron casos reales seleccionados. No se incorporó un OCR general para PDF sin texto; C06 sigue como limitación de capacidad.
+
+5. IVA MIXTO: DIAGNÓSTICO REAL
+El primer caso fallaba con 100 frente a 100000. Al examinar el texto realmente extraído del PDF sintético, la línea terminaba en 100.00: el último cero estaba físicamente recortado fuera de la página por una línea demasiado larga. No era evidencia de que el lector convirtiera un 100.000 correctamente impreso en cien.
+Se preservó el PDF defectuoso y se corrigió el generador para ajustar palabras a 78 caracteres sin cortar importes. Además se endureció la extracción de importes literales descrita arriba. La factura válida de IVA mixto pasó extracción Y persistencia en el build final: pdf-mixed-1792216505463.result.json. No se presenta la corrección del fixture como un defecto funcional del ERP.
+
+6. VENTAS Y SALDOS
+V01: NC bloqueada para cobro positivo en UI, Server Action y SQL canónico; prueba adversarial sin movimiento financiero. V02: modelo compartido de deuda con signos/tipos/monedas correctos, sustitución de remisión facturada y manejo de NC legada; una NC libre no se asigna automáticamente. Errores de lectura no se representan como saldo cero.
+V03: token revocado/vencido/versionado se valida antes de mostrar contenido; filtro por empresa en cliente e ítems. V04: reabrir permite generar un nuevo enlace. V06: guardas de empresa padre/hijo y agregados filtrados. La matriz real completa entre empresas sigue pendiente.
+
+7. RECEPCIONES Y STOCK
+Se preservó la funcionalidad previa de recepción por link de OC con confirmación/stock atómicos y evidencia externa, junto con su migración 20261015015138. El recorrido real registró recepciones 4+6 y reintento sin duplicar stock.
+Portal reutilizable: R01 limpia clave de intento al confirmar; R06 libera busy incluso en error y permite otra recepción en la misma página. R05 corrige columna inexistente mediante description:product, estados canónicos y error visible. R03 valida tamaño/cantidad antes del stock, informa fallo de adjuntos, mantiene intento para recuperar, evita repetición por hash y limpia solo uploads nuevos. R04 oculta QR sin obra soportada.
+La prueba real sin recargar confirmó dos recepciones, dos adjuntos y stock 4→7. Tres pruebas locales inyectaron fallos de evidencia. No se certificó una caída real de Storage. R02 permanece abierto: el portal reutilizable atribuye confirmed_by al sponsor interno aunque recibido_por contiene el nombre externo. No se modificó ese contrato SQL fuera del bundle autorizado.
+
+8. SQL APLICADO EN AISLADA
+Bundle: integration-evidence/proposed-sql/REVIEW-COMPRAS-VENTAS-20261017.sql.
+SHA256: 32ac5b0642bc5dfd0a3c09281a885489c3868ed8be30485ecf438d4408d059c2.
+Incluye C01-C02-invoice-identity-gates, C01-payment-execution-recheck, V01-V02-collection-guard, C03-bulk-due-date y V06-sales-item-tenant.
+Se ejecutó intacto solo en kyiihlkncatojvlasoag después de reparar producción. Se verificaron tabla, 12 funciones/ACL y cinco triggers. Las definiciones completas coinciden normalizando CRLF/LF. Los archivos publicados son referencia de lo ya aplicado, no instrucciones para ejecutarlos en producción. Falta formalizar rollout/migración futura antes de integrar.
+
+9. VALIDACIÓN Y EVIDENCIA
+Build final ts_qWf8lbhOkO1ilvX8Nv: webpack, TypeScript y generación de páginas PASS; preview puerto 3003, inicio 05:52:44.222Z. No hubo cambios de aplicación después del build; sí correcciones del harness y expectativas del esquema raw.
+Batería final con maxWorkers=2: 323/323 PASS, cero fallos. Reintento aislado de sales-provenance: 13/13 PASS. Una ejecución amplia anterior había fallado durante inicialización PGlite/beforeEach con STACK_TRACE_ERROR, sin fallar una aserción de producto; se conservó y repitió aisladamente y limitando concurrencia. No se alteró SQL para hacerla pasar.
+Pruebas SQL/evidencia locales previas: 20/20 PASS; incluyen stub de tesorería downstream, no certificación de toda concurrencia financiera real. Reparación local: 2/2 PASS. Lint de fuentes tocadas: cero errores y dos avisos de argumentos sin usar en test; no se declara lint global limpio (scanner de tests contiene errores previos).
+Ventas fase1: 14/14 PASS (QA-SALES-20261017033133); adversariales: 14/14 PASS (QA-REGRESSION-20261017-AUDIT). Estos recorridos preceden el esquema SQL final y no sustituyen repetir toda venta con él.
+Compras tras SQL: invoice-auto-read-1792214779205, payment-order-1792214800927, payment-treasury-1792214807259, negative-arithmetic-1792214813380, negative-duplicate-1792214904067, final-readback-1792214918039 y dialog-stability-1792214929691 PASS. Lectura final confirmó stock 10, costo 500000, originales y pagos. La matriz tuvo dos facturas válidas: la expectativa inicial de un único adjunto era errónea; el reintento duplicado no añadió factura ni archivo.
+Bulk: vencimiento PASS, corrupto PASS con error esperado, lote válido+duplicado+corrupto PASS tras corregir timestamp del harness; worker reintentó corrupto sin inventar factura exitosa. Duplicado concurrente PASS: una factura/original. Esto no demuestra toda atomicidad C07.
+Build final: IVA mixto extracción/persistencia PASS; PNG IVA10, JPEG IVA5 y rechazo proveedor repetidos PASS. Las fotos se repitieron en modo solo extracción; no se vuelve a contar esa repetición como persistencia. Los recorridos completos pertenecen a builds distintos; no existe un nuevo 18/18 integral del último build.
+Los fallos de harness (regex corrupto, bulkStartedAt, expectativa de adjuntos y PDF recortado) se separan de bugs de aplicación y se conservan localmente. Worker usado en aislada detenido al cierre. Preview puede permanecer disponible para revisión.
+
+10. PENDIENTES Y CRITERIO DE INTEGRACIÓN
+C06: OCR PDF escaneado no soportado en recorrido probado. C07: escrituras manuales cabecera/líneas/matches no tienen recuperación/atomicidad integral demostrada. V05: cabecera/ítems venta por pasos e idempotencia de reintento de cobro siguen como riesgos, sin pérdida reproducida.
+R02: actor incorrecto confirmado, pendiente de reparación específica. R03: falta fallo Storage real. R04: falta regresión UI destino central. V06: falta ataque entre empresas real.
+OT01/OT02: transiciones arbitrarias/aprobación y cantidades acumuladas/cancelaciones son riesgos por código, pendientes de reproducción y reglas de negocio. Operación OT de obra, materiales, consumos, asignación, planificación, impresión/adjuntos/historial propios no encontrados no se inventan como implementados.
+Falta completar cobertura de roles/empresas, todas las superficies inventariadas y repetir ventas con esquema final. No se certifican bancos, SIFEN, depósito central ni operaciones fiscales externas. Por estos pendientes el dictamen sigue NO-GO.
+Próxima sesión: priorizar R02 y OT01/OT02; completar matriz de permisos/empresa; probar recuperación transaccional C07/V05; repetir ventas con SQL final; cerrar cobertura con evidencia y formalizar migración revisada. Cualquier nueva mutación SQL conserva revisión específica; producción no es alternativa de prueba.
+
+11. PUBLICACIÓN Y CUSTODIA
+Se publican fuentes funcionales, pruebas reproducibles, SQL aprobado y documentación sanitizada en rama de trabajo. Cambios locales de tema/clima/UI no relacionados se conservan sin incluir. Parte de la funcionalidad de recepciones ya existía localmente antes de esta sesión y se incluye como dependencia revisada, sin atribuir su autoría a esta auditoría.
+No se publican .env, claves, cookies, pruebas HMAC, estados de sesión, trazas ZIP, videos, originales ni snapshots crudos de bases. Evidencias completas quedan en integration-evidence local y las referencias anteriores parten de ese directorio. El manifiesto adjunto conserva resultados y hallazgos sin credenciales. La reparación histórica de producción está verificada; no se requiere volver a ejecutarla.

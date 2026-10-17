@@ -38,7 +38,7 @@ describe("prompts de extracción: null ante ilegible, sin estimación", () => {
   });
 
   it("el schema permite total null", () => {
-    expect(source).toContain('total: { type: ["number", "null"]');
+    expect(source).toContain('total: { type: ["string", "null"]');
     expect(source).toContain('quantity: { type: ["string", "null"]');
   });
 });

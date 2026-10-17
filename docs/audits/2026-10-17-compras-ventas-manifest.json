@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-17",
+  "closure": "Sesión cerrada por pedido del usuario; auditoría integral incompleta",
+  "verdict": "NO-GO",
+  "branch": "codex/compras-ventas-integration",
+  "runtime": {
+    "pid": 22512,
+    "build": "ts_qWf8lbhOkO1ilvX8Nv",
+    "target": "kyiihlkncatojvlasoag",
+    "origin": "http://localhost:3003",
+    "startedAt": "2026-10-17T05:52:44.222Z",
+    "buildPassed": true,
+    "sourceHashes": "SOURCE-CLOSING-SHA256.json"
+  },
+  "tests": {
+    "command": "npx.cmd vitest run invoice sales admin-kpis scanner-ui-integration financial-guards-proposed-db warehouse --maxWorkers=2 --reporter=json",
+    "total": 323,
+    "passed": 323,
+    "failed": 0,
+    "success": true
+  },
+  "productionRepair": {
+    "repairedAt": "2026-10-17T05:24:28.489Z",
+    "productionTarget": "ezucivipgmbvamhugkbj",
+    "functions": [
+      {
+        "name": "ejecutar_orden_pago_atomica",
+        "definitionRestored": true,
+        "permissionsRestored": true
+      },
+      {
+        "name": "recompute_sales_document",
+        "definitionRestored": true,
+        "permissionsRestored": true
+      },
+      {
+        "name": "registrar_cobro_atomico",
+        "definitionRestored": true,
+        "permissionsRestored": true
+      },
+      {
+        "name": "guard_invoice_order_match_tenant",
+        "definitionRestored": true,
+        "permissionsRestored": true
+      },
+      {
+        "name": "create_invoice_from_job",
+        "definitionRestored": true,
+        "permissionsRestored": true
+      }
+    ],
+    "newFunctionsAbsent": true,
+    "newTriggersAbsent": true,
+    "oldTriggerRestored": true,
+    "newTableAbsentFromPublic": true,
+    "archiveRows": 0,
+    "sqlSha256": "fafb3726e8cc812b202cf08d5bc516c90cd8d58f11253353ef2b76e6a6dea436",
+    "businessDmlExecuted": false
+  },
+  "isolatedBundleSha256": "32ac5b0642bc5dfd0a3c09281a885489c3868ed8be30485ecf438d4408d059c2",
+  "bugs": [
+    {
+      "id": "C01",
+      "severity": "P0",
+      "title": "Factura de otro RUC se guarda bajo proveedor de OC",
+      "status": "Corregido en aplicación y SQL aislado aplicado; rechazo RUC y compra válida hasta tesorería PASS. Matriz completa de roles pendiente.",
+      "evidence": "purchase-e2e/QA-PURCHASE-BASELINE-1792206019638/mismatch-open-order-1792206345066-database.json"
+    },
+    {
+      "id": "C02",
+      "severity": "P0",
+      "title": "Cal105000 vinculada a OC Cemento500000 por unicidad",
+      "status": "Fallback por unicidad/importe retirado; producto incorrecto sin vínculo/OP PASS; guardas SQL aisladas aplicadas.",
+      "evidence": "purchase-e2e/QA-PURCHASE-BASELINE-1792206019638/pdf-vat5-1792206326404-database.json"
+    },
+    {
+      "id": "C03",
+      "severity": "P1",
+      "title": "Vencimiento de lote omitido",
+      "status": "Worker y SQL corregidos; bulk-due-date-1792215242760 PASS con vencimiento 2026-10-25.",
+      "evidence": null
+    },
+    {
+      "id": "C04",
+      "severity": "P1",
+      "title": "Archivo nuevo retiene datos anteriores/respuesta tardía",
+      "status": "Reemplazo sin campos PASS en build OlQkFVVgyx9tmJSsYwkSB; carrera tardía cubierta localmente",
+      "evidence": null
+    },
+    {
+      "id": "C05",
+      "severity": "P2",
+      "title": "Importe de cabecera copiado al renglón PNG",
+      "status": "PNG IVA10 y JPEG IVA5 PASS; extracción repetida en build final. OCR general no certificado.",
+      "evidence": null
+    },
+    {
+      "id": "C06",
+      "severity": "CAPACIDAD",
+      "title": "PDF escaneado sin texto",
+      "status": "Límite de soporte pendiente; no crash",
+      "evidence": null
+    },
+    {
+      "id": "C07",
+      "severity": "RIESGO",
+      "title": "Cabecera/líneas/vínculos compra por pasos",
+      "status": "ABIERTO; atomicidad/recuperación no demostradas",
+      "evidence": null
+    },
+    {
+      "id": "V01",
+      "severity": "P0",
+      "title": "Cobro positivo en NC",
+      "status": "UI y Server Action adversarial PASS; SQL canónico aplicado en aislada. Recorrido completo ventas con esquema final pendiente.",
+      "evidence": "sales-e2e/QA-BASELINE-20261017-AUDIT"
+    },
+    {
+      "id": "V02",
+      "severity": "P1",
+      "title": "Deuda duplicada/tipos/signos/monedas",
+      "status": "Regresión real deuda/NC y monedas PASS en build OlQkFVVgyx9tmJSsYwkSB",
+      "evidence": "sales-e2e/QA-BASELINE-20261017-AUDIT"
+    },
+    {
+      "id": "V03",
+      "severity": "P1",
+      "title": "Link revocado revela edición privada",
+      "status": "Regresión real privacidad revocado PASS en build OlQkFVVgyx9tmJSsYwkSB",
+      "evidence": "sales-e2e/QA-BASELINE-20261017-AUDIT"
+    },
+    {
+      "id": "V04",
+      "severity": "P2",
+      "title": "Reapertura sin nuevo link",
+      "status": "Ciclo real rechazo/reapertura/nuevo link/aceptación/una OT PASS en build OlQkFVVgyx9tmJSsYwkSB",
+      "evidence": null
+    },
+    {
+      "id": "V05",
+      "severity": "RIESGO",
+      "title": "Venta cabecera y líneas no atómicas/retry cobro sin clave",
+      "status": "ABIERTO; no pérdida reproducida",
+      "evidence": null
+    },
+    {
+      "id": "V06",
+      "severity": "P0-RIESGO",
+      "title": "Ítem de otra empresa puede alterar cabecera de venta",
+      "status": "Filtros de empresa y SQL aislado aplicados; pruebas locales PASS; ataque real entre empresas pendiente.",
+      "evidence": null
+    },
+    {
+      "id": "R01",
+      "severity": "P2",
+      "title": "QR reusable conserva intento exitoso y bloquea segunda recepción",
+      "status": "Regresión real PASS en build fjseX1imD5vN8dtGEjFAO: dos recepciones sin recargar, dos adjuntos, stock4 a7 sin duplicados",
+      "evidence": "purchase-e2e/QA-WAREHOUSE-20261017/warehouse-two-receipts-1792211990170.result.json"
+    },
+    {
+      "id": "R02",
+      "severity": "P2",
+      "title": "QR reusable atribuye confirmación al emisor interno",
+      "status": "FAIL confirmado real: confirmed_by=sponsor interno aunque recibido_por=Depositero QA externo; contrato SQL pendiente fuera del bundle autorizado",
+      "evidence": null
+    },
+    {
+      "id": "R03",
+      "severity": "P2",
+      "title": "QR reusable oculta fallo de evidencia posterior a stock",
+      "status": "Dos adjuntos reales conservados PASS; recuperación con tres fallos inyectados locales PASS; caída Storage real pendiente.",
+      "evidence": null
+    },
+    {
+      "id": "R04",
+      "severity": "P3",
+      "title": "QR visible para OC sin obra, backend lo rechaza",
+      "status": "Visibilidad QR sin destino de obra corregida; prueba UI pendiente",
+      "evidence": null
+    },
+    {
+      "id": "OT01",
+      "severity": "P1-RIESGO",
+      "title": "Transiciones no exigen aprobación y permiten estados arbitrarios",
+      "status": "Riesgo de código; reproducción real pendiente",
+      "evidence": null
+    },
+    {
+      "id": "OT02",
+      "severity": "P1-RIESGO",
+      "title": "Derivados OT sin límites acumulados/aprobación/cancelación",
+      "status": "Riesgo de código; reproducción real pendiente",
+      "evidence": null
+    },
+    {
+      "id": "R05",
+      "severity": "P1",
+      "title": "Portal de depósito consulta columna inexistente y estados inválidos; oculta error",
+      "status": "Regresión real PASS en build fjseX1imD5vN8dtGEjFAO: dos recepciones sin recargar, dos adjuntos, stock4 a7 sin duplicados",
+      "evidence": "purchase-e2e/QA-WAREHOUSE-20261017/warehouse-two-receipts-1792211990170.result.json"
+    },
+    {
+      "id": "C08",
+      "severity": "P1",
+      "title": "PDF pierde decimales de subtotal/IVA impresos",
+      "status": "Cabecera decimal corregida; factura válida guardada y pagada PASS. IVA mixto válido extraído y persistido PASS en build final.",
+      "evidence": "purchase-e2e/QA-E2E-20261017033819"
+    },
+    {
+      "id": "R06",
+      "severity": "P1",
+      "title": "Segunda recepción en la misma página ignorada por bloqueo busy sin liberar",
+      "status": "Regresión real PASS en build fjseX1imD5vN8dtGEjFAO: dos recepciones sin recargar, dos adjuntos, stock4 a7 sin duplicados",
+      "evidence": "purchase-e2e/QA-WAREHOUSE-20261017/warehouse-two-receipts-1792211990170.result.json"
+    }
+  ],
+  "absentCapabilities": [
+    "OT vinculada a proyecto/materiales/consumos/asignación y operación dentro de obra no encontradas; no se inventan como features implementadas",
+    "QR central no implementado/probado",
+    "OT: impresión/adjuntos/historial propio no encontrados"
+  ],
+  "evidencePolicy": "Rutas de evidencia son referencias locales; no se publican sesiones, cookies, tokens, originales ni snapshots de datos."
+}

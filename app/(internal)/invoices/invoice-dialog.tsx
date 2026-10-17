@@ -68,11 +68,24 @@ export function InvoiceDialog({
   const orderReferenceRef = useRef<HTMLInputElement>(null);
   const productDescriptionRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const extractionGeneration = useRef(0);
+  const [extractionProof, setExtractionProof] = useState("");
+
+  function clearDocumentFields() {
+    extractionGeneration.current++;
+    setScanning(false);
+    setExtractionProof("");
+    setScanNotice(null); setLines([]); setArithmetic(null);
+    setProviderId(defaultProviderId ?? "");
+    setAmount(""); setDocumentAmounts(null); setVatRate(""); setVatIncluded(true);
+    for (const ref of [invoiceNumberRef, invoiceDateRef, dueDateRef, timbradoRef, orderReferenceRef, productDescriptionRef]) {
+      if (ref.current) ref.current.value = "";
+    }
+  }
 
   async function handleFileChange(file: File | null) {
-    setScanNotice(null);
-    setLines([]);
-    setArithmetic(null);
+    clearDocumentFields();
+    const generation = extractionGeneration.current;
     if (!file || !READABLE_TYPES.includes(file.type)) return;
 
     setScanning(true);
@@ -80,14 +93,18 @@ export function InvoiceDialog({
       const fd = new FormData();
       fd.set("file", file);
       const result = await extractInvoiceFromPhoto(fd);
+      if (generation !== extractionGeneration.current) return;
       if (result.error || !result.data) {
         setScanNotice(result.error ?? "No se pudo leer la factura. Completá los datos a mano.");
         return;
       }
 
       const d = result.data;
+      setExtractionProof(d.extraction_proof);
+      if (d.currency) setCurrency(d.currency);
       if (invoiceNumberRef.current && d.invoice_number) invoiceNumberRef.current.value = d.invoice_number;
       if (invoiceDateRef.current && d.invoice_date) invoiceDateRef.current.value = d.invoice_date;
+      if (dueDateRef.current) dueDateRef.current.value = d.due_date ?? "";
       if (d.total !== null) setAmount(String(d.total));
       if (d.subtotal !== null && d.vat !== null && d.total !== null) {
         // Preserve the original amounts, including mixed rates and rounding.
@@ -104,10 +121,12 @@ export function InvoiceDialog({
       setLines((d.items ?? []).map((item) => ({ ...item })));
       setArithmetic(d.validation ?? null);
 
-      if (d.provider_id) {
+      if (d.provider_id && (!linkOrderId || d.provider_id === defaultProviderId)) {
         setProviderId(d.provider_id);
         setScanNotice("Factura leída. Revisá los datos antes de crear.");
-      } else if (linkOrderId && defaultProviderId && providerId === defaultProviderId && !d.provider_tax_id) {
+      } else if (linkOrderId && d.provider_tax_id && d.provider_id !== defaultProviderId) {
+        setScanNotice("El RUC del emisor no coincide con el proveedor de la OC. No se puede guardar esta factura para esa orden.");
+      } else if (linkOrderId && defaultProviderId && !d.provider_tax_id) {
         setScanNotice("Factura leída. Se conserva el proveedor de la OC. El documento no informa RUC; verificá el emisor antes de guardar.");
       } else if (d.provider_name) {
         setScanNotice(
@@ -117,7 +136,7 @@ export function InvoiceDialog({
         setScanNotice("Factura leída, pero no se detectó el proveedor. Elegilo a mano.");
       }
     } finally {
-      setScanning(false);
+      if (generation === extractionGeneration.current) setScanning(false);
     }
   }
 
@@ -160,6 +179,8 @@ export function InvoiceDialog({
   }
 
   function handleReplaceDocument() {
+    clearDocumentFields();
+    setScanning(false);
     setAttachedDoc(null);
     setScanNotice(null);
     setLines([]);
@@ -183,6 +204,8 @@ export function InvoiceDialog({
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
+          clearDocumentFields();
+          setScanning(false);
           setError(null);
           setAmount("");
           setVatRate("");
@@ -234,6 +257,7 @@ export function InvoiceDialog({
           {linkOrderId ? <input type="hidden" name="link_order_id" value={linkOrderId} /> : null}
           <input type="hidden" name="order_reference" ref={orderReferenceRef} />
           <input type="hidden" name="product_description" ref={productDescriptionRef} />
+          <input type="hidden" name="extraction_proof" value={extractionProof} />
           <input type="hidden" name="items_json" value={JSON.stringify(lines)} />
           {arithmetic && arithmetic.status !== "VALIDA" ? (
             <div className="rounded border border-[var(--warn)]/40 bg-[var(--warn-bg)] px-2.5 py-1.5 text-[12px] text-[var(--warn)]">

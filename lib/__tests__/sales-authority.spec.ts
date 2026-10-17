@@ -34,7 +34,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
     return query;
   },
 }) }));
-import { createSalesDocument, updateSalesDocument, emitSalesDocument, deleteSalesDocument, voidSalesDocument } from "@/app/(internal)/ventas/actions";
+import { createSalesDocument, updateSalesDocument, emitSalesDocument, deleteSalesDocument, voidSalesDocument, addReceipt } from "@/app/(internal)/ventas/actions";
 
 function document(id: string, type = "FACTURA", source: string | null = null) {
   return { id, empresa_id: "tenant", client_id: "client", currency: "PYG", doc_type: type,
@@ -131,5 +131,14 @@ describe("Sales server authority (actual actions, authenticated untrusted input)
     state.tables.sales_documents[0].status = "EMITIDA";
     state.tables.sales_documents.push(document("nc", "NOTA_CREDITO", "draft"));
     expect((await emitSalesDocument("nc")).error).toBeNull();
+  });
+});
+
+describe("positive collection server type authority", () => {
+  it.each(["NOTA_CREDITO", "REMISION", "PROFORMA"])("rejects crafted %s collection before any write", async type => {
+    state.tables.sales_documents = [{...document("blocked", type), status:"EMITIDA"}];
+    const fd = new FormData();fd.set("amount","10");
+    expect((await addReceipt("blocked",fd)).error).toMatch(/no admite cobros positivos/);
+    expect(state.writes).toEqual([]);
   });
 });

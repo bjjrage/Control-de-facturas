@@ -5,12 +5,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
-import { autoMatchInvoice } from "@/lib/invoice-auto-match";
+import { autoMatchInvoice, invoiceOrderContextMatches } from "@/lib/invoice-auto-match";
 import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { calculateInvoiceVat } from "@/lib/invoice-vat";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
+import { persistInvoiceIdentity, requireInvoiceIdentity } from "@/lib/invoice-identity";
+import { verifyInvoiceExtractionProof, invoiceIssuerMatches } from "@/lib/invoice-extraction-proof";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -131,11 +133,72 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
   const admin = createAdminClient();
   const empresaId = profile.empresa_id;
   const { data: provider, error: providerError } = await admin.from("providers")
-    .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
+    .select("id, tax_id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
   if (providerError || !provider) return { error: "Proveedor no disponible para esta empresa." };
+
+  const linkOrderId = str(formData, "link_order_id");
+  if (linkOrderId) {
+    const { data: order, error: orderError } = await admin.from("authorized_orders")
+      .select("provider_id, currency, code, product").eq("id", linkOrderId).eq("empresa_id", empresaId).maybeSingle();
+    if (orderError || !order || order.provider_id !== providerId || order.currency !== currency) {
+      return { error: "El proveedor y la moneda deben coincidir con la OC de esta empresa." };
+    }
+  }
+  let verifiedExtraction: ReturnType<typeof verifyInvoiceExtractionProof> = null;
+  if (!scannerSessionId && file && file.size > 0) {
+    if (file.size > MAX_FILE_BYTES) return { error: "El archivo no puede superar los 20MB." };
+    verifiedExtraction = verifyInvoiceExtractionProof(str(formData, "extraction_proof"), {
+      empresaId, actorId: profile.id, bytes: Buffer.from(await file.arrayBuffer()),
+    });
+    if (!verifiedExtraction) return { error: "Volvé a leer el documento: la lectura falta, venció o corresponde a otro archivo." };
+    if (!invoiceIssuerMatches(verifiedExtraction.fields.provider_tax_id, provider.tax_id)) {
+      return { error: "El RUC del emisor no coincide con el proveedor elegido. Identificá al emisor antes de guardar." };
+    }
+  }
+
+  if (verifiedExtraction && (verifiedExtraction.fields.invoice_number !== invoiceNumber ||
+    verifiedExtraction.fields.invoice_date !== invoiceDate || verifiedExtraction.fields.total !== total ||
+    (verifiedExtraction.fields.currency && verifiedExtraction.fields.currency !== currency))) {
+    return { error: "Número, fecha y total deben corresponder a la lectura del original. Volvé a leerlo antes de guardar cambios documentales." };
+  }
+  if (linkOrderId && verifiedExtraction) {
+    const { data: order } = await admin.from("authorized_orders").select("code, product")
+      .eq("id", linkOrderId).eq("empresa_id", empresaId).maybeSingle();
+    const descriptions = verifiedExtraction.fields.items.map(item => item.description);
+    if (!descriptions.length && verifiedExtraction.fields.product_description) descriptions.push(verifiedExtraction.fields.product_description);
+    if (!order || !invoiceOrderContextMatches({ orderCode: order.code, orderProduct: order.product,
+      orderReference: verifiedExtraction.fields.order_reference, descriptions })) {
+      return { error: "El producto o la referencia del documento no coincide con la OC elegida. Revisá la imputación." };
+    }
+  }
+
+  // Reject ordinary retries before creating a new Storage object. The unique
+  // database constraint still protects concurrent submissions below.
+  const { data: duplicate, error: duplicateError } = await admin.from("invoices")
+    .select("id").eq("empresa_id", empresaId).eq("provider_id", providerId)
+    .eq("invoice_number", invoiceNumber).maybeSingle();
+  if (duplicateError) return { error: "No se pudo comprobar si la factura ya existe. Intentá nuevamente." };
+  if (duplicate) return { error: "Ya existe una factura con ese número para este proveedor." };
 
   let attachmentId: string | null = null;
   let newlyCreatedScannerAttachmentId: string | null = null;
+  let newlyUploadedManualPath: string | null = null;
+  async function cleanupFailedManualUpload() {
+    // Only this request's new manual upload is temporary. Never remove an
+    // existing invoice original or a scanner-session evidence object.
+    if (!newlyUploadedManualPath) return;
+    if (attachmentId) {
+      const result = await admin.from("attachments").delete()
+        .eq("id", attachmentId).eq("empresa_id", empresaId)
+        .eq("bucket", "invoice-files").eq("path", newlyUploadedManualPath);
+      if (result.error) {
+        console.error("Failed to clean temporary invoice attachment", result.error.code);
+        return;
+      }
+    }
+    const result = await admin.storage.from("invoice-files").remove([newlyUploadedManualPath]);
+    if (result.error) console.error("Failed to clean temporary invoice upload", result.error.message);
+  }
 
   if (scannerSessionId) {
     // 1. Consultar scan_sessions SERVER-SIDE con admin client restringido al tenant actual
@@ -157,6 +220,19 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       return { error: "Sesión de Control Scanner inválida o no disponible." };
     }
 
+    const { data: original, error: originalError } = await admin.storage.from(session.storage_bucket).download(session.storage_path);
+    if (originalError || !original) return { error: "No se pudo verificar el original del escáner." };
+    verifiedExtraction = verifyInvoiceExtractionProof(str(formData, "extraction_proof"), {
+      empresaId, actorId: profile.id, bytes: Buffer.from(await original.arrayBuffer()),
+    });
+    if (!verifiedExtraction || !invoiceIssuerMatches(verifiedExtraction.fields.provider_tax_id, provider.tax_id)) {
+      return { error: "El RUC del emisor no coincide con el proveedor elegido o la lectura no corresponde al original del escáner." };
+    }
+
+    if (verifiedExtraction.fields.invoice_number !== invoiceNumber || verifiedExtraction.fields.invoice_date !== invoiceDate ||
+      verifiedExtraction.fields.total !== total || (verifiedExtraction.fields.currency && verifiedExtraction.fields.currency !== currency)) {
+      return { error: "Los datos finales no corresponden a la lectura del original del escáner." };
+    }
     // 2. Anti-replay: verificación preliminar amigable
     const { data: existingAttachment } = await admin
       .from("attachments")
@@ -204,6 +280,7 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       .from("invoice-files")
       .upload(path, file, { contentType: file.type || undefined });
     if (uploadError) return { error: "No se pudo subir el archivo: " + uploadError.message };
+    newlyUploadedManualPath = path;
 
     const { data: attachment, error: attachmentError } = await admin
       .from("attachments")
@@ -218,7 +295,10 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       })
       .select("id")
       .single();
-    if (attachmentError || !attachment) return { error: "No se pudo registrar el adjunto." };
+    if (attachmentError || !attachment) {
+      await cleanupFailedManualUpload();
+      return { error: "No se pudo registrar el adjunto." };
+    }
     attachmentId = attachment.id;
   }
 
@@ -244,6 +324,7 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
     .single();
 
   if (error || !invoice) {
+    await cleanupFailedManualUpload();
     // Si la creación de la factura falla y habíamos creado un attachment de escáner en esta ejecución,
     // limpiamos el registro huérfano en attachments para preservar atomicidad y permitir reintento.
     // NUNCA borramos el objeto de Storage.
@@ -269,8 +350,24 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
   await logAudit(supabase, {
     action: "invoice.created",
     invoiceId: invoice.id,
-    detail: arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : undefined,
+    detail: {
+      ...(arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : {}),
+      ...(verifiedExtraction ? { document_sha256: verifiedExtraction.sha256,
+        document_tax_id: verifiedExtraction.fields.provider_tax_id, issuer_check: "MATCH",
+        extraction_actor: profile.id } : { issuer_check: "MANUAL_UNVERIFIED" }),
+    },
   });
+
+  if (verifiedExtraction && attachmentId) {
+    const identity = await persistInvoiceIdentity(admin, {
+      invoiceId: invoice.id, attachmentId, sha256: verifiedExtraction.sha256,
+      fields: verifiedExtraction.fields, actorId: profile.id,
+    });
+    if (identity.error) {
+      revalidatePath("/invoices");
+      return { error: "La factura se creó pendiente, pero no se pudo registrar la identidad del original. No se vinculó ni habilitó pago: " + identity.error, invoiceId: invoice.id };
+    }
+  }
 
   // Líneas de detalle (revisadas por el humano en el diálogo): se persisten
   // juntas en una sola sentencia, antes de cualquier conciliación automática.
@@ -296,9 +393,12 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
 
   // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
   // si no, se intenta la conciliación automática por monto.
-  const linkOrderId = str(formData, "link_order_id");
   let autoMatchedOrderId: string | null = null;
   let itemMatchWarning: string | undefined;
+  if (!verifiedExtraction) {
+    revalidatePath("/invoices");
+    return { error: null, id: invoice.id, autoMatched: false, warning: "Factura manual pendiente: falta verificar el original antes de vincular una OC o habilitar pagos." };
+  }
   if (linkOrderId) {
     const { error: matchError } = await supabase
       .from("invoice_order_matches")
@@ -315,8 +415,8 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       providerId,
       total,
       empresaId,
-      orderReference: str(formData, "order_reference"),
-      productDescription: str(formData, "product_description"),
+      orderReference: verifiedExtraction ? verifiedExtraction.fields.order_reference : str(formData, "order_reference"),
+      productDescription: verifiedExtraction ? verifiedExtraction.fields.product_description : str(formData, "product_description"),
     });
   }
 
@@ -488,6 +588,8 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
     .eq("empresa_id", empresaId)
     .single();
   if (!invoice) return { error: "Factura no encontrada." };
+  const identityCheck = await requireInvoiceIdentity(supabase, invoiceId, empresaId);
+  if (identityCheck.error) return identityCheck;
   if (invoice.status !== "PENDIENTE") return { error: "Solo se pueden vincular facturas en estado Pendiente." };
 
   const { data: existing } = await supabase

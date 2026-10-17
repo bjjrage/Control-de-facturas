@@ -12,6 +12,11 @@ export function splitVat(amountInclVat: number, rate: 0 | 5 | 10) {
   return { neto, iva: Math.round((amountInclVat - neto) * 100) / 100 };
 }
 
+/** Only invoices and legacy sale notes represent a positive collection. */
+export function isCollectibleSalesType(docType: SalesDocType): boolean {
+  return docType === "FACTURA" || docType === "NOTA_VENTA";
+}
+
 export function docSaldo(total: number, cobrado: number) {
   return Math.round((total - cobrado) * 100) / 100;
 }

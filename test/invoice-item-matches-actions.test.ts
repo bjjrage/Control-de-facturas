@@ -380,9 +380,11 @@ const OL_B1 = UID(8);
 function seedBase() {
   return {
     invoices: [
-      { id: INV, empresa_id: TENANT, provider_id: UID(9), status: "PENDIENTE", total: 3500000 },
-      { id: INV2, empresa_id: TENANT, provider_id: UID(9), status: "PENDIENTE", total: 3500000 },
+      { id: INV, empresa_id: TENANT, provider_id: UID(9), attachment_id: UID(90), invoice_number: "FIXTURE", currency: "PYG", status: "PENDIENTE", total: 3500000 },
+      { id: INV2, empresa_id: TENANT, provider_id: UID(9), attachment_id: UID(90), invoice_number: "FIXTURE", currency: "PYG", status: "PENDIENTE", total: 3500000 },
     ],
+    // Explicit verified originals for these line-matching fixtures.
+    invoice_identity_evidence: [INV, INV2].map(invoice_id => ({ invoice_id, empresa_id: TENANT, provider_id: UID(9), attachment_id: UID(90), invoice_number: "FIXTURE", currency: "PYG", total: 3500000 })),
     invoice_items: [
       { id: IL1, invoice_id: INV, empresa_id: TENANT, product_description: "Ladrillo común", quantity: 2500, unit: "un", unit_price: 1400, subtotal: 3500000, sort_order: 0 },
       { id: IL2, invoice_id: INV2, empresa_id: TENANT, product_description: "Ladrillo común", quantity: 2500, unit: "un", unit_price: 1400, subtotal: 3500000, sort_order: 0 },
@@ -1280,4 +1282,12 @@ describe("H1: servicio compartido insertValidatedItemMatches (invariantes propia
     expect(r.skippedMismatch).toBe(1);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
+});
+
+it("refuses linking without original identity evidence before creating matches", async () => {
+  mocks.db!.tables.invoice_identity_evidence = [];
+  const result = await linkInvoiceToOrder(INV2, OC);
+  expect(result.error).toContain("original");
+  expect(mocks.db!.tables.invoice_order_matches).toHaveLength(1);
+  expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
 });

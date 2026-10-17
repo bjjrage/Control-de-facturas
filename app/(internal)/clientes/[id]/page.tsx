@@ -7,12 +7,13 @@ import { Client, SalesDocument } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
-import { docSaldo, SALES_DOC_STATUS_LABELS, SALES_DOC_TYPE_LABELS, isOverdue } from "@/lib/sales";
+import { SALES_DOC_STATUS_LABELS, SALES_DOC_TYPE_LABELS, isOverdue } from "@/lib/sales";
+import { salesReceivables } from "@/lib/sales-receivables";
 import { ClientDialog } from "../client-dialog";
 import { updateClientRecord } from "../actions";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const { id } = await params;
   const supabase = await createClient();
 
@@ -23,12 +24,13 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     .from("sales_documents")
     .select("*")
     .eq("client_id", id)
+    .eq("empresa_id", profile.empresa_id)
     .order("issue_date", { ascending: false })
     .returns<SalesDocument[]>();
 
-  const porCobrar = (docs ?? [])
-    .filter((d) => d.status === "EMITIDA" || d.status === "COBRADA_PARCIAL")
-    .reduce((s, d) => s + docSaldo(d.total, d.cobrado_amount), 0);
+  const account = salesReceivables(docs ?? []);
+  const pending = [...account.pendingByCurrency].filter(([, amount]) => amount > 0);
+  if (!pending.length) pending.push(["PYG", 0]);
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -66,7 +68,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
         <div>
           <div className="text-[11px] text-[var(--muted)] mb-0.5">Saldo por cobrar</div>
-          <div className={`num ${porCobrar > 0 ? "text-[var(--warn)]" : ""}`}>{formatMoney(porCobrar, "PYG")}</div>
+          {pending.map(([currency, amount]) => <div key={currency} className={`num ${amount > 0 ? "text-[var(--warn)]" : ""}`}>{formatMoney(amount, currency)}</div>)}
+          {[...account.creditByCurrency].filter(([, amount]) => amount > 0).map(([currency, amount]) => <div key={currency} className="num text-[var(--ok)]">A favor: {formatMoney(amount, currency)}</div>)}
         </div>
         {client.address ? (
           <div className="col-span-3">
@@ -107,7 +110,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </thead>
             <tbody>
               {(docs ?? []).map((d) => {
-                const saldo = docSaldo(d.total, d.cobrado_amount);
+                const saldo = account.signedBalances.get(d.id) ?? 0;
                 return (
                   <tr key={d.id}>
                     <td>

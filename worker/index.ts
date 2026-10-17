@@ -15,7 +15,8 @@
  */
 import { config } from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { persistInvoiceIdentity } from "../lib/invoice-identity";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { validateInvoiceArithmetic } from "../lib/invoice-arithmetic";
 import { compareInvoiceQuantitySum, isValidInvoiceQuantity, type PhysicalQuantity } from "../lib/invoice-item-reconcile";
@@ -206,6 +207,7 @@ async function processJob(job: InvoiceJob) {
       provider_id: provider.id,
       invoice_number: parsed.invoice_number,
       invoice_date: parsed.invoice_date ?? job.batch_date,
+      due_date: parsed.due_date ?? null,
       currency: "PYG",
       subtotal: parsed.subtotal,
       vat: parsed.vat,
@@ -282,6 +284,14 @@ async function processJob(job: InvoiceJob) {
 
   // A partially or wholly failed line batch must remain review-only: even a
   // header-level auto-match could make an incomplete invoice look reconciled.
+  const identity = await persistInvoiceIdentity(db, {
+    invoiceId: job.invoice_id!, attachmentId: attachment.id,
+    sha256: createHash("sha256").update(bytes).digest("hex"), fields: parsed, actorId: job.created_by,
+  });
+  if (identity.error) return finish(job.id, job.attempts, job.invoice_id!, {
+    status: "needs_review", outcome: "needs_manual", extracted: parsed, provider_id: provider.id,
+    error: identity.error, message: "Factura pendiente: no se pudo registrar la identidad del original; no se concilió ni habilitó pago.",
+  });
   const matchedOrderId = itemSaveError ? null : await autoMatchInvoice(db, {
     invoiceId: invoice.id,
     providerId: provider.id,

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { isValidPortalTokenFormat, portalQuotationState, tokenExpiresAt } from "@/lib/quotation";
+import { isValidPortalTokenFormat, portalQuotationState, tokenExpiresAt, isQuotationExpired } from "@/lib/quotation";
 import { hashQuotationToken } from "@/lib/quotation-tokens";
 import { AcceptForm, RejectForm } from "./accept-form";
 
@@ -52,24 +52,40 @@ export default async function CotizacionPortalPage({ params }: { params: Promise
     .maybeSingle<TokenRow>();
   if (!tok) notFound();
 
+  if (tok.revoked_at) return <UnavailableQuotation message="Este enlace fue revocado por la empresa. Pedí el enlace vigente." />;
+  if (isQuotationExpired(tok, { acceptance_status: "PENDING_ACCEPTANCE", acceptance_expires_at: null })) {
+    return <UnavailableQuotation message="Esta cotización venció. Pedí una versión vigente." />;
+  }
+  const { data: metadata } = await admin.from("sales_documents")
+    .select("empresa_id, doc_type, quotation_version, acceptance_status, acceptance_expires_at")
+    .eq("id", tok.sales_document_id).eq("empresa_id", tok.empresa_id).maybeSingle();
+  if (!metadata || metadata.doc_type !== "PROFORMA") notFound();
+  const accessState = portalQuotationState(tok, metadata);
+  if (accessState === "STALE") return <UnavailableQuotation message="Este enlace corresponde a una versión anterior. Pedí el nuevo enlace." />;
+  if (accessState === "EXPIRED") return <UnavailableQuotation message="Esta cotización venció. Pedí una versión vigente." />;
+  if (accessState === "DRAFT") return <UnavailableQuotation message="Esta cotización todavía no está habilitada para aceptación." />;
+
   const { data: doc } = await admin
     .from("sales_documents")
     .select(
       "id, empresa_id, client_id, code, doc_type, issue_date, due_date, currency, subtotal, vat_amount, total, notes, quotation_version, acceptance_status, acceptance_expires_at, accepted_at, accepted_by_name"
     )
     .eq("id", tok.sales_document_id)
+    .eq("empresa_id", tok.empresa_id)
+    .eq("quotation_version", tok.quotation_version)
     .maybeSingle<DocRow>();
   if (!doc || doc.doc_type !== "PROFORMA") notFound();
   // Aislamiento de tenant: el token solo resuelve su propio documento.
   if (doc.empresa_id !== tok.empresa_id) notFound();
 
   const [{ data: client }, { data: empresa }, { data: items }] = await Promise.all([
-    admin.from("clients").select("id, name").eq("id", doc.client_id).maybeSingle<{ id: string; name: string }>(),
+    admin.from("clients").select("id, name").eq("id", doc.client_id).eq("empresa_id", tok.empresa_id).maybeSingle<{ id: string; name: string }>(),
     admin.from("empresas").select("id, nombre, ruc, telefono, email_empresa").eq("id", tok.empresa_id).maybeSingle<{ id: string; nombre: string; ruc: string | null; telefono: string | null; email_empresa: string | null }>(),
     admin
       .from("sales_document_items")
       .select("id, description, quantity, unit_price, vat_rate, line_total")
       .eq("sales_document_id", tok.sales_document_id)
+      .eq("empresa_id", tok.empresa_id)
       .order("created_at"),
   ]);
 
@@ -213,4 +229,8 @@ export default async function CotizacionPortalPage({ params }: { params: Promise
       </div>
     </div>
   );
+}
+
+function UnavailableQuotation({ message }: { message: string }) {
+  return <div className="min-h-screen bg-[var(--background)] px-4 py-8"><div className="mx-auto max-w-xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px]">{message}</div></div>;
 }

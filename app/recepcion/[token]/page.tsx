@@ -17,7 +17,7 @@ export default async function ReceiptPortalPage({ params }: { params: Promise<{ 
           <h1 className="mt-1 text-xl font-semibold">OC {context.order.code}</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">Proveedor: {context.order.providerName}</p>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            Cargá las cantidades recibidas y la evidencia. La empresa revisará el borrador; no afecta el inventario hasta su confirmación.
+            Destino: {context.order.destinationName}. Tu confirmación ingresa la mercadería al stock de esta obra.
           </p>
         </section>
         <ReceiptPortalForm token={token} order={context.order} />

@@ -3,9 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { lineTotal, docSaldo, isSalesEditorType } from "@/lib/sales";
+import { lineTotal, isSalesEditorType, isCollectibleSalesType } from "@/lib/sales";
 import { SalesDocType, SalesDocument, ReceiptMethod } from "@/lib/types";
 import { canLinkSalesDocument, loadPostOtSnapshotForQuotation, validateSalesEmission, loadSalesDocumentDescendants } from "@/lib/sales-post-ot";
+import { salesReceivables } from "@/lib/sales-receivables";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -282,17 +283,24 @@ export async function addReceipt(docId: string, formData: FormData) {
 
   const { data: doc } = await supabase
     .from("sales_documents")
-    .select("status, total, cobrado_amount")
+    .select("id, empresa_id, client_id, currency, source_document_id, status, total, cobrado_amount, doc_type")
     .eq("id", docId)
-    .single<{ status: string; total: number; cobrado_amount: number }>();
+    .eq("empresa_id", profile.empresa_id)
+    .single<SalesDocument>();
   if (!doc) return { error: "Documento no encontrado." };
   if (doc.status !== "EMITIDA" && doc.status !== "COBRADA_PARCIAL") {
     return { error: "Solo se registran cobros en documentos emitidos." };
   }
 
+  if (!isCollectibleSalesType(doc.doc_type)) return { error: "Este tipo de documento no admite cobros positivos. Las notas de crédito reducen deuda o generan saldo a favor." };
+
   const amount = Number(formData.get("amount"));
   if (!Number.isFinite(amount) || amount <= 0) return { error: "El monto debe ser mayor a cero." };
-  const saldo = docSaldo(doc.total, doc.cobrado_amount);
+  const { data: accountDocs, error: accountError } = await supabase.from("sales_documents")
+    .select("id, empresa_id, client_id, currency, source_document_id, doc_type, status, total, cobrado_amount")
+    .eq("empresa_id", profile.empresa_id).eq("client_id", doc.client_id).eq("currency", doc.currency);
+  if (accountError) return { error: "No se pudo verificar el saldo y las notas de crédito." };
+  const saldo = salesReceivables(accountDocs ?? []).balances.get(docId) ?? 0;
   if (amount - saldo > 0.01) return { error: `El cobro supera el saldo (${saldo}).` };
 
   const cuentaId = str(formData, "cuenta_id");

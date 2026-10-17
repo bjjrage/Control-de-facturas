@@ -50,8 +50,8 @@ export function ReceiptPortalLink({ orderId, orderCode }: { orderId: string; ord
     <DialogTrigger asChild><Button type="button" variant="secondary" size="sm"><QrCode size={15} aria-hidden="true" /> QR para recibir</Button></DialogTrigger>
     <DialogContent title={orderCode ? `QR de recepción · ${orderCode}` : "QR para el depositero"} className={styles.dialog}>
       <div className={styles.body}>
-        <p>El depositero escanea el QR o abre el enlace para cargar cantidades y adjuntar el remito.</p>
-        <p className={styles.hint}>Su envío queda pendiente de revisión y confirmación de la empresa antes de ingresar al stock.</p>
+        <p>El depositero confirma las cantidades recibidas y adjunta el remito desde este enlace.</p>
+        <p className={styles.hint}>Al confirmar, la mercadería ingresa al stock de la obra. No requiere otra aprobación.</p>
         {!url && <p className={styles.notice}>El enlace dura 7 días y sirve para una entrega. Generarlo reemplaza cualquier enlace activo anterior de esta OC.</p>}
         {error && <p role="alert" className={styles.notice}>{error}</p>}
         {qr && <div className={styles.qr}>

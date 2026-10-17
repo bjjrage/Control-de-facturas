@@ -5,6 +5,9 @@ import { requirePlan, requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { confirmInventoryReceipt, createInventoryReceipt } from "@/lib/inventory/service";
 import { revalidatePath } from "next/cache";
+import { uploadReceiptEvidence } from "@/app/(internal)/inventory/actions";
+import { isReceiptPortalEvidenceSignature } from "@/lib/inventory/receipt-portal";
+import { ACCEPTED_INVOICE_FILE_TYPES, MAX_INVOICE_FILE_BYTES } from "@/lib/invoice-extraction";
 
 export interface RecepcionItemInput {
   order_item_id: string;
@@ -20,11 +23,15 @@ export async function registrarRecepcion(
   items: RecepcionItemInput[],
   notas?: string,
   idempotency_key?: string,
-  remision_number?: string
+  remision_number?: string,
+  document?: File
 ): Promise<{ error?: string; receiptId?: string }> {
   const supabase = await createClient();
-  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
+  if (document) {
+    if (!(document instanceof File) || !document.size || document.size > MAX_INVOICE_FILE_BYTES || !ACCEPTED_INVOICE_FILE_TYPES.includes(document.type) || !isReceiptPortalEvidenceSignature(new Uint8Array(await document.arrayBuffer()), document.type)) return { error: "El remito debe ser PDF o imagen válido de hasta 20 MB." };
+  }
   if (typeof order_id !== "string" || !order_id.trim()) return { error: "Falta la orden de compra." };
   if (typeof fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return { error: "La fecha de recepción no es válida." };
@@ -86,6 +93,10 @@ export async function registrarRecepcion(
     });
   }
 
+  if (document) {
+    const evidence = await uploadReceiptEvidence(created.data.receiptId, [document]);
+    if (evidence.error || evidence.uploaded !== 1) return { error: "No se pudo conservar el remito. La recepción sigue en borrador, sin afectar stock. Reintentá.", receiptId: created.data.receiptId };
+  }
   const confirmed = await confirmInventoryReceipt(supabase, {
     empresaId: profile.empresa_id,
     receiptId: created.data.receiptId,
@@ -107,7 +118,7 @@ export async function registrarRecepcion(
 }
 
 export async function confirmarRecepcion(recepcion_id: string, order_id: string): Promise<{ error?: string }> {
-  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
   const supabase = await createClient();
   const { data: receipt } = await supabase

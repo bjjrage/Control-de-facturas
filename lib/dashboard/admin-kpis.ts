@@ -1,4 +1,5 @@
 import type { CurrencyCode, InvoiceStatus, SalesDocStatus } from "@/lib/types";
+import { salesReceivables } from "@/lib/sales-receivables";
 import { docSaldo } from "@/lib/sales";
 import { orderRemaining } from "@/lib/reconciliation";
 import type { MetricCardData, SparklinePoint, DomainTone } from "./types";
@@ -10,6 +11,9 @@ import { addCashDays } from "@/lib/cashflow/dates";
 export interface RawSalesDocForKpi {
   id: string;
   code?: string | null;
+  empresa_id?: string;
+  client_id?: string;
+  source_document_id?: string | null;
   doc_type: string;
   status: SalesDocStatus;
   total: number;
@@ -231,18 +235,15 @@ export function computeAdminKpis(params: {
     // =========================================================================
     // 4. CUENTAS POR COBRAR (CxC)
     // =========================================================================
-    const cxcDocs = salesDocs.filter(
-      (d) =>
-        (d.status === "EMITIDA" || d.status === "COBRADA_PARCIAL") &&
-        docSaldo(d.total, d.cobrado_amount) > 0
-    );
+    const receivables = salesReceivables(salesDocs);
+    const cxcDocs = salesDocs.filter(d => (receivables.balances.get(d.id) ?? 0) > 0);
 
-    const cxcTotalMap = sumByCurrency(cxcDocs, (d) => docSaldo(d.total, d.cobrado_amount));
+    const cxcTotalMap = sumByCurrency(cxcDocs, (d) => receivables.balances.get(d.id) ?? 0);
     const { primaryFormatted: cxcTotalFormatted, extraFormatted: cxcTotalExtra, primaryValue: cxcTotalPyg } =
       formatMultiCurrencyBalances(cxcTotalMap, "PYG");
 
     const cxcVencidosDocs = cxcDocs.filter((d) => d.due_date && d.due_date < todayIso);
-    const cxcVencidoMap = sumByCurrency(cxcVencidosDocs, (d) => docSaldo(d.total, d.cobrado_amount));
+    const cxcVencidoMap = sumByCurrency(cxcVencidosDocs, (d) => receivables.balances.get(d.id) ?? 0);
     const { primaryFormatted: cxcVencidoFormatted, primaryValue: cxcVencidoPyg } =
       formatMultiCurrencyBalances(cxcVencidoMap, "PYG");
 
@@ -458,14 +459,15 @@ export function computeAdminSecondaryKpis(params: {
   }
 
   if (showSalesKpis) {
+    const receivables = salesReceivables(salesDocs);
     const overdueSales = salesDocs
       .filter((doc) =>
         (doc.status === "EMITIDA" || doc.status === "COBRADA_PARCIAL")
         && doc.due_date !== null
         && doc.due_date < todayIso
-        && docSaldo(doc.total, doc.cobrado_amount) > 0.01
+        && (receivables.balances.get(doc.id) ?? 0) > 0.01
       )
-      .map((doc) => ({ currency: doc.currency, amount: docSaldo(doc.total, doc.cobrado_amount) }));
+      .map((doc) => ({ currency: doc.currency, amount: receivables.balances.get(doc.id) ?? 0 }));
     const overdue = formatAmount(overdueSales);
     cards.push({
       key: "cxc-vencidas",

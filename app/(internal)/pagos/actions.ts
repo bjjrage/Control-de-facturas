@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -17,6 +18,12 @@ export async function createPaymentOrder(formData: FormData): Promise<{ error: s
   if (!providerId) return { error: "Seleccioná un proveedor." };
   if (invoiceIds.length === 0) return { error: "Seleccioná al menos una factura." };
 
+  for (const invoiceId of invoiceIds) {
+    const {data: invoice} = await supabase.from("invoices").select("provider_id,status").eq("id",invoiceId).eq("empresa_id",empresaId).maybeSingle();
+    if (!invoice || invoice.provider_id!==providerId || invoice.status!=="APTO_PARA_PAGO") return {error:"Solo se incluyen facturas aptas para pago del mismo proveedor y empresa."};
+    const identityCheck = await requireInvoiceIdentity(supabase,invoiceId,empresaId);
+    if(identityCheck.error) return {error:identityCheck.error};
+  }
   const { data: code } = await supabase.rpc("next_op_code");
 
   const { data: op, error: opError } = await supabase
@@ -71,6 +78,9 @@ export async function createPaymentOrderFromInvoice(invoiceId: string): Promise<
   if (!invoice) return { error: "Factura no encontrada." };
   if (invoice.status !== "APTO_PARA_PAGO") return { error: "Solo facturas aptas para pago." };
 
+  const identityCheck = await requireInvoiceIdentity(supabase,invoiceId,empresaId);
+  if(identityCheck.error) return {error:identityCheck.error};
+
   const { data: existing } = await supabase
     .from("payment_order_invoices")
     .select("payment_order_id")
@@ -124,6 +134,9 @@ export async function markPaymentOrderExecuted(
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 
+  const {data: links,error: linkError}=await supabase.from("payment_order_invoices").select("invoice_id").eq("payment_order_id",opId).eq("empresa_id",empresaId);
+  if(linkError || !links?.length) return {error:"No se pudieron verificar las facturas de esta OP."};
+  for(const link of links) { const checked=await requireInvoiceIdentity(supabase,link.invoice_id,empresaId);if(checked.error)return checked; }
   const { error: rpcError } = await supabase.rpc("ejecutar_orden_pago_atomica", {
     p_empresa_id: empresaId,
     p_op_id: opId,

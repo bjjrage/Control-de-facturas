@@ -26,6 +26,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
   // State for Receipt tab
   const [selectedOrderId, setSelectedOrderId] = useState<string>(context.orders[0]?.id ?? "");
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
+  const receiptBusy = useRef(false);
   const [receiptSubmitting, setReceiptSubmitting] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
@@ -52,7 +53,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
   // Handle Receipt Submission
   async function handleReceiptSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (receiptSubmitting || !selectedOrder) return;
+    if (receiptBusy.current || !selectedOrder) return;
+    receiptBusy.current = true;
     setReceiptSubmitting(true);
     setReceiptError(null);
     setReceiptSuccess(null);
@@ -71,6 +73,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
 
     if (itemsToReceive.length === 0) {
       setReceiptError("Ingresá al menos una cantidad mayor a cero para recibir.");
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
       return;
     }
@@ -81,11 +84,12 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     try {
       const saved = localStorage.getItem(storageKey);
       const attempt = saved ? JSON.parse(saved) as { key: string; payload: string } : { key: crypto.randomUUID(), payload };
-      if (attempt.payload !== payload) throw new Error("Reintent? primero la recepci?n pendiente con los mismos datos.");
+      if (attempt.payload !== payload) throw new Error("Reintentá primero la recepción pendiente con los mismos datos.");
       localStorage.setItem(storageKey, JSON.stringify(attempt));
       form.set("idempotency_key", attempt.key);
     } catch (error) {
       setReceiptError(error instanceof Error ? error.message : "No se pudo conservar el intento.");
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
       return;
     }
@@ -98,7 +102,12 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setReceiptError(data.error ?? "No se pudo registrar la recepción.");
+      } else if (data.uploadIncomplete) {
+        setReceiptSuccess(`Recepción ${data.receiptId} confirmada e ingresada al stock.`);
+        setReceiptError("Quedaron adjuntos sin guardar. Conservá los archivos y reenviá los mismos datos para reintentar la evidencia sin duplicar la recepción.");
       } else {
+        const completed = localStorage.getItem(storageKey);
+        if (completed && JSON.parse(completed).key === form.get("idempotency_key")) localStorage.removeItem(storageKey);
         setReceiptSuccess(`Recepción registrada con éxito. Se confirmaron los movimientos en ${context.locationName}.`);
         setReceiptQuantities({});
         (event.target as HTMLFormElement).reset();
@@ -106,6 +115,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     } catch {
       setReceiptError("Error de conexión. Revisá tu red e intentá de nuevo.");
     } finally {
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
     }
   }
@@ -277,7 +287,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
             </p>
           </div>
 
-          {context.orders.length === 0 ? (
+          {context.orderLoadError ? <p role="alert" className="text-xs text-red-600">No se pudieron leer las órdenes de compra. Volvé a abrir el enlace antes de registrar una recepción.</p> : context.orders.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--muted)]">
               No hay órdenes de compra con saldo pendiente de entrega en esta obra.
             </div>

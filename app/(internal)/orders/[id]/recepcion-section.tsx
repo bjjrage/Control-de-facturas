@@ -19,6 +19,8 @@ import {
 } from "../oc-recepcion-actions";
 import { ReceiptPortalLink } from "../receipt-portal-link";
 import styles from "./receipt-dialog.module.css";
+import { readReceiptDocument } from "../receipt-document-actions";
+import { Upload } from "lucide-react";
 
 type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
 type OrderItemWithExactQuantity = AuthorizedOrderItem & { quantity_text: string };
@@ -50,6 +52,10 @@ export function RegisterReceiptDialog({
   const [pending, setPending] = useState(false);
   const [attemptLocked, setAttemptLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [document, setDocument] = useState<File | null>(null);
+  const [reading, setReading] = useState(false);
+  const [documentNotice, setDocumentNotice] = useState<string[]>([]);
+  const documentInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const idempotencyKey = useRef<string | null>(null);
   const submitting = useRef(false);
@@ -73,7 +79,28 @@ export function RegisterReceiptDialog({
     setProductoPorItem({});
     setAttemptLocked(false);
     setError(null);
+    setDocument(null);
+    setDocumentNotice([]);
     idempotencyKey.current = null;
+  }
+
+  async function readDocument(file: File) {
+    setDocument(file);
+    setReading(true);
+    setError(null);
+    setDocumentNotice([]);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const result = await readReceiptDocument(orderId, form);
+      if (result.error || !result.data) { setError(result.error ?? "No se pudo leer el remito."); return; }
+      setCantidades(result.data.quantities);
+      setRemisionNumber(result.data.number ?? "");
+      if (result.data.date) setFecha(result.data.date);
+      if (result.data.receivedBy) setRecibidoPor(result.data.receivedBy);
+      setDocumentNotice(["Remito leído. Revisá las cantidades antes de confirmar.", ...result.data.warnings]);
+    } catch { setError("No se pudo leer el remito. Reintentá la carga del documento."); }
+    finally { setReading(false); }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -107,6 +134,7 @@ export function RegisterReceiptDialog({
         notas || undefined,
         idempotencyKey.current,
         remisionNumber || undefined,
+        document ?? undefined,
       );
       if (res.error) {
         setError(res.error);
@@ -132,13 +160,20 @@ export function RegisterReceiptDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (reading) return; setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
       <DialogTrigger asChild>
-        <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
+        <Button size="sm">Registrar recepción</Button>
       </DialogTrigger>
       <DialogContent title={orderCode ? `Recibir mercadería · ${orderCode}` : "Registrar recepción de mercadería"} className={styles.dialog}>
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.body}>
+          <div>
+            <h3 className="font-semibold mb-2">Remito de entrega</h3>
+            <input ref={documentInput} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" aria-label="Subir remito" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void readDocument(file); event.target.value = ""; }} />
+            <Button type="button" variant="secondary" size="sm" disabled={reading || pending || attemptLocked} onClick={() => documentInput.current?.click()}><Upload size={15} aria-hidden="true" />{reading ? "Leyendo remito…" : document ? "Reemplazar remito" : "Subir remito"}</Button>
+            <p className="mt-2 text-xs text-[var(--muted)]">{document?.name ?? "PDF o foto: se completan los datos automáticamente. También podés registrar una entrega sin documento."}</p>
+            {documentNotice.map((notice, index) => <p key={index} role="status" className="text-xs mt-2">{notice}</p>)}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] text-[var(--muted)] mb-1">Fecha *</label>
@@ -178,7 +213,7 @@ export function RegisterReceiptDialog({
                     <th>Ítem</th>
                     <th className="num">Ordenado</th>
                     <th className="num w-24">Recibida</th>
-                    <th className="w-40">Producto de stock</th>
+                    <th className="w-48">Material en inventario</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -205,13 +240,14 @@ export function RegisterReceiptDialog({
                         />
                       </td>
                       <td>
-                        <Select
+                        {it.producto_id ? <p className="text-xs font-medium">{productos.find(p => p.id === it.producto_id)?.nombre ?? it.product}<span className="block text-[var(--muted)] font-normal">Definido en la OC</span></p> : <select
+                          aria-label={`Material en inventario para ${it.product}`}
                           value={productoPorItem[it.id] ?? it.producto_id ?? ""}
                           disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
-                          className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]"
+                          className="w-full min-w-36 h-9 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px]"
                         >
                           <option value="" disabled={Boolean(it.producto_id)}>— no cargar a stock —</option>
                           {it.producto_id && !productos.some((p) => p.id === it.producto_id) ? (
@@ -224,7 +260,7 @@ export function RegisterReceiptDialog({
                             .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
-                        </Select>
+                        </select>}
                       </td>
                     </tr>
                   ))}
@@ -232,8 +268,7 @@ export function RegisterReceiptDialog({
               </table>
             </div>
             <p className="text-[11px] text-[var(--muted)] mt-1">
-              Elegí un producto para que la recepción genere la entrada de stock automáticamente,
-              al precio unitario de la OC.
+              El material indica dónde se suma lo recibido en el inventario. Si ya está definido en la OC, no hace falta elegirlo nuevamente.
             </p>
           </div>
 
@@ -261,10 +296,10 @@ export function RegisterReceiptDialog({
 
           </div>
           <div className={styles.footer}>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending || reading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={pending || !recibidoPor.trim()}>
+            <Button type="submit" disabled={pending || reading || !recibidoPor.trim()}>
               {pending ? "Guardando…" : "Confirmar recepción"}
             </Button>
           </div>
@@ -360,7 +395,9 @@ function RecepcionCard({
           <div className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">
             {recepcion.status === "CONFIRMED"
-              ? "Confirmada"
+              ? recepcion.idempotency_key?.startsWith("receipt-portal:") && !recepcion.confirmed_by
+                ? "Confirmada desde link · stock ingresado"
+                : "Confirmada"
               : recepcion.status === "VOIDED"
                 ? "Anulada"
                 : recepcion.idempotency_key

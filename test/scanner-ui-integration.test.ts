@@ -1,5 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { createInvoice } from '@/app/(internal)/invoices/actions';
+import { createInvoice as createInvoiceAction } from '@/app/(internal)/invoices/actions';
+import { issueInvoiceExtractionProof } from '@/lib/invoice-extraction-proof';
+const scannedBytes = Buffer.from('%PDF-1.4 scanner fixture bytes');
+// These storage/session tests supply a real signed fixture extraction. The
+// proof tamper, actor, tenant and file checks are tested in their own suite.
+async function createInvoice(fd: FormData) {
+  const file = fd.get('file');
+  const bytes = file instanceof File && file.size ? Buffer.from(await file.arrayBuffer()) : scannedBytes;
+  fd.set('extraction_proof', issueInvoiceExtractionProof({ empresaId:'empresa-tenant-111',actorId:'user-operator-123',bytes,
+    fields:{ provider_name:'Fixture provider',provider_tax_id:'800000001',invoice_number:String(fd.get('invoice_number')),
+      invoice_date:String(fd.get('invoice_date')),total:Number(fd.get('total')),subtotal:null,vat:null,timbrado:null,
+      order_reference:null,product_description:'Fixture document',items:[] } }, 'scanner-unit-test-signing-secret'));
+  return createInvoiceAction(fd);
+}
 
 // Mock auth
 vi.mock('@/lib/auth', () => ({
@@ -49,8 +62,10 @@ let simulateToctouSelectRace: boolean = false;
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
+    rpc: async () => ({ data: null, error: null }),
     storage: {
       from: (bucket: string) => ({
+        download: async () => ({ data: new Blob([scannedBytes]), error: null }),
         upload: async (path: string, file: any, options: any) => {
           mockStorageUploadCalls.push({ bucket, path, file, options });
           return { error: null };
@@ -116,7 +131,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         },
         maybeSingle: async () => {
           if (table === 'providers') {
-            return { data: filters.id === 'provider-abc-123' && filters.empresa_id === 'empresa-tenant-111' ? { id: filters.id } : null, error: null };
+            return { data: filters.id === 'provider-abc-123' && filters.empresa_id === 'empresa-tenant-111' ? { id: filters.id, tax_id: '800000001' } : null, error: null };
           }
           if (table === 'scan_sessions') {
             const match = mockScanSessions.find((s) => {
@@ -225,10 +240,12 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockInvoiceInsertError = null;
     simulateToctouSelectRace = false;
     vi.clearAllMocks();
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "scanner-unit-test-signing-secret");
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it('asocia directamente scanner_session_id validando sesión completada del mismo tenant sin re-subir a storage', async () => {

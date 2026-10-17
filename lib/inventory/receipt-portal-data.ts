@@ -14,6 +14,8 @@ export type ReceiptPortalItem = {
 export type ReceiptPortalOrder = {
   code: string;
   providerName: string;
+  projectId: string;
+  destinationName: string;
   items: ReceiptPortalItem[];
 };
 
@@ -45,7 +47,7 @@ export async function getReceiptPortalContext(token: string) {
         .order("sort_order", { ascending: true }),
       admin
         .from("inventory_locations")
-        .select("id, active, location_type, project_id")
+        .select("id, name, active, location_type, project_id")
         .eq("id", link.location_id)
         .eq("empresa_id", link.empresa_id)
         .maybeSingle(),
@@ -89,6 +91,8 @@ export async function getReceiptPortalContext(token: string) {
     order: {
       code: order.code as string,
       providerName: order.provider_name as string,
+      projectId: order.project_id as string,
+      destinationName: location.name as string,
       items: orderItems.map((item) => {
         const ordered = Number(item.quantity);
         const received = receivedByItem.get(item.id as string) ?? 0;

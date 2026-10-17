@@ -246,7 +246,7 @@ export function QuotationPanel({
         </div>
       ) : null}
 
-      {canGenerate && (doc.acceptance_status === "DRAFT" || doc.acceptance_status === "PENDING_ACCEPTANCE" || doc.acceptance_status === "EXPIRED") && (!active || stale) ? (
+      {canGenerate && (doc.acceptance_status === "DRAFT" || doc.acceptance_status === "PENDING_ACCEPTANCE" || doc.acceptance_status === "EXPIRED") && (!active || stale || doc.acceptance_status === "DRAFT") ? (
         <form
           className="rounded-lg border border-[var(--border)] p-3 space-y-2"
           action={async (fd: FormData) => {

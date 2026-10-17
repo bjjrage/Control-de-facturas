@@ -1,7 +1,8 @@
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Client, CurrencyCode, SalesDocument } from "@/lib/types";
-import { docSaldo, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
+import { salesReceivables } from "@/lib/sales-receivables";
+import { SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 import { formatDate, formatMoney } from "@/lib/format";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -42,8 +43,8 @@ export default async function CobrosPage({
     supabase
       .from("sales_documents")
       .select("*")
-      .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
-      .in("doc_type", ["FACTURA", "NOTA_VENTA"])
+      .in("status", ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"])
+      .in("doc_type", ["FACTURA", "NOTA_VENTA", "NOTA_CREDITO"])
       .order("issue_date", { ascending: false })
       .returns<SalesDocument[]>(),
     supabase
@@ -60,7 +61,8 @@ export default async function CobrosPage({
   ]);
   const cuentasList = cuentas ?? [];
 
-  const allDocs = docs ?? [];
+  const account = salesReceivables(docs ?? []);
+  const allDocs = (docs ?? []).filter(d => (account.balances.get(d.id) ?? 0) > 0);
   const clientById = new Map((clients ?? []).map((c) => [c.id, c.name]));
   const filtered = clientFilter
     ? allDocs.filter((d) => d.client_id === clientFilter)
@@ -82,7 +84,7 @@ export default async function CobrosPage({
   // Aging: per client+currency, 4 buckets
   const agingMap = new Map<string, AgingRow>();
   for (const d of allDocs) {
-    const saldo = docSaldo(d.total, d.cobrado_amount);
+    const saldo = (account.balances.get(d.id) ?? 0);
     if (saldo <= 0) continue;
     const key = `${d.client_id}|${d.currency}`;
     if (!agingMap.has(key)) {
@@ -111,7 +113,7 @@ export default async function CobrosPage({
   );
 
   function renderRow(d: SalesDocument) {
-    const saldo = docSaldo(d.total, d.cobrado_amount);
+    const saldo = (account.balances.get(d.id) ?? 0);
     const overdue = d.due_date && d.due_date < today;
     const days = d.due_date ? daysDiff(d.due_date) : null;
     return (
@@ -161,7 +163,7 @@ export default async function CobrosPage({
   }
 
   const totalPorCobrar = filtered.reduce(
-    (sum, d) => sum + docSaldo(d.total, d.cobrado_amount),
+    (sum, d) => sum + (account.balances.get(d.id) ?? 0),
     0
   );
 
