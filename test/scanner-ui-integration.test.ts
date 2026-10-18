@@ -202,6 +202,13 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
+    rpc: async (name: string, args: { p_header: Record<string, unknown> }) => {
+      if (name !== 'create_invoice_with_lines_atomico') return { data: null, error: { message: 'Unexpected RPC' } };
+      if (mockInvoiceInsertError) return { data: null, error: mockInvoiceInsertError };
+      const inserted = { id: 'inv-' + Math.random().toString(36).slice(2, 8), ...args.p_header };
+      mockInvoicesInserted.push(inserted);
+      return { data: inserted.id, error: null };
+    },
     from: (table: string) => ({
       insert: (data: any) => {
         if (table === 'invoices') {

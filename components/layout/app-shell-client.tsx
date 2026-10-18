@@ -254,6 +254,8 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
   // Pre-warm ALL sections in background on first mount — first-click on any
   // section will be instant. We load the current path first, then the rest.
   useEffect(() => {
+    // In dev, eager warming competes with Next's on-demand compilation.
+    if (process.env.NODE_ENV === "development") return;
     const currentPath = window.location.pathname as SectionKey;
 
     async function warmAll() {

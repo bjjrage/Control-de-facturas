@@ -10,7 +10,7 @@ import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { calculateInvoiceVat } from "@/lib/invoice-vat";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
-import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
+import { applyDeterministicItemMatches, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { persistInvoiceIdentity, requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { verifyInvoiceExtractionProof, invoiceIssuerMatches } from "@/lib/invoice-extraction-proof";
 import { revalidatePath } from "next/cache";
@@ -303,9 +303,10 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
   }
 
   const supabase = await createClient();
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .insert({
+  const { data: invoiceId, error } = await supabase.rpc("create_invoice_with_lines_atomico", {
+    p_empresa_id: empresaId,
+    p_actor_id: profile.id,
+    p_header: {
       provider_id: providerId,
       invoice_number: invoiceNumber,
       invoice_date: invoiceDate,
@@ -318,10 +319,10 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       timbrado: str(formData, "timbrado"),
       attachment_id: attachmentId,
       observations: str(formData, "observations"),
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
+    },
+    p_items: dialogLines,
+  });
+  const invoice = invoiceId ? { id: invoiceId as string } : null;
 
   if (error || !invoice) {
     await cleanupFailedManualUpload();
@@ -369,27 +370,8 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
     }
   }
 
-  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten
-  // juntas en una sola sentencia, antes de cualquier conciliación automática.
-  if (dialogLines.length > 0) {
-    const { error: linesError } = await insertInvoiceItems(supabase, {
-      empresaId,
-      invoiceId: invoice.id as string,
-      items: dialogLines,
-    });
-    if (linesError) {
-      await logAudit(supabase, {
-        action: "invoice.lines_save_failed",
-        invoiceId: invoice.id,
-        detail: { error: linesError },
-      });
-      revalidatePath("/invoices");
-      return {
-        error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió; revisá la factura antes de continuar.",
-        invoiceId: invoice.id as string,
-      };
-    }
-  }
+  // The RPC committed the header and all reviewed lines together. An invalid
+  // line leaves no invoice; identity and matching remain separate safety gates.
 
   // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
   // si no, se intenta la conciliación automática por monto.
