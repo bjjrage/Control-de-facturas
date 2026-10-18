@@ -25,6 +25,12 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
         total: 100, subtotal: 90, vat_amount: 10, cobrado_amount: 0, quotation_version: 4,
         ...fields,
       }];
+      state.tables.sales_document_items = [
+        ...(state.tables.sales_document_items ?? []).filter(item => item.sales_document_id !== id),
+        ...((args.p_items as Array<Record<string, unknown>>) ?? []).map((item, index) => ({
+          id: `${id}-item-${index}`, empresa_id: "tenant", sales_document_id: id, ...item,
+        })),
+      ];
       return { data: id, error: null };
     }
     return { data: null, error: { message: "Unexpected RPC" } };
@@ -64,10 +70,10 @@ function document(id: string, type = "FACTURA", source: string | null = null) {
     status: "BORRADOR", total: 100, subtotal: 90, vat_amount: 10, cobrado_amount: 0,
     acceptance_status: "DRAFT", quotation_version: 4, source_document_id: source };
 }
-function form(type: string, source?: string, ot?: string) {
+function form(type: string, source?: string, ot?: string, quantity = 1) {
   const fd = new FormData();
   fd.set("doc_type", type); fd.set("client_id", "client"); fd.set("currency", "PYG");
-  fd.set("items", JSON.stringify([{ description: "Service", quantity: 1, unit_price: 100, vat_rate: 10 }]));
+  fd.set("items", JSON.stringify([{ description: "Service", quantity, unit_price: 100, vat_rate: 10 }]));
   if (source) fd.set("source_document_id", source);
   if (ot) fd.set("work_order_id", ot);
   return fd;
@@ -111,10 +117,10 @@ describe("Sales server authority (actual actions, authenticated untrusted input)
   it("OT to remision to invoice, multiple descendants, invoice to NC", async () => {
     acceptedQuote(); state.tables.sales_documents.push(document("rem", "REMISION", "quote"));
     for (let i = 0; i < 2; i++) {
-      const result = await createSalesDocument(form("FACTURA", "rem")); expect(result.error).toBeNull();
+      const result = await createSalesDocument(form("FACTURA", "rem", undefined, 0.5)); expect(result.error).toBeNull();
       if (!("id" in result)) throw new Error("Invoice creation failed");
       const created = state.tables.sales_documents.find(row => row.id === result.id)!;
-      Object.assign(created, { status: "BORRADOR", total: 100 });
+      Object.assign(created, { status: "BORRADOR", total: 50 });
       expect(created.source_document_id).toBe("rem");
       expect((await emitSalesDocument(result.id!)).error).toBeNull();
       const nc = await createSalesDocument(form("NOTA_CREDITO", result.id!)); expect(nc.error).toBeNull();
@@ -125,6 +131,30 @@ describe("Sales server authority (actual actions, authenticated untrusted input)
     expect((await deleteSalesDocument("rem")).error).toMatch(/derivados/);
     expect((await voidSalesDocument("rem")).error).toMatch(/derivados/);
     expect(state.tables.sales_documents.filter(row => row.doc_type === "FACTURA" && row.source_document_id === "rem")).toHaveLength(2);
+  });
+  it("#19 refuses an invoice whose lines exceed the accepted OT", async () => {
+    acceptedQuote();
+    state.tables.sales_documents.push({ ...document("invoice", "FACTURA", "quote"), total: 200 });
+    state.tables.sales_document_items = [{
+      id: "invoice-item", empresa_id: "tenant", sales_document_id: "invoice",
+      description: "Service", quantity: 2, unit_price: 100, vat_rate: 10, line_total: 200,
+    }];
+    expect((await emitSalesDocument("invoice")).error).toMatch(/aceptad|OT/i);
+    expect(state.tables.sales_documents.find(row => row.id === "invoice")?.status).toBe("BORRADOR");
+    expect(state.writes).toEqual([]);
+  });
+  it("#19 caps the sum of active invoices derived from one accepted quote", async () => {
+    acceptedQuote();
+    state.tables.sales_documents.push(
+      { ...document("first", "FACTURA", "quote"), status: "EMITIDA", total: 60 },
+      { ...document("second", "FACTURA", "quote"), total: 50 },
+    );
+    state.tables.sales_document_items = [
+      { id: "first-item", empresa_id: "tenant", sales_document_id: "first", description: "Service", quantity: 0.6, unit_price: 100, vat_rate: 10 },
+      { id: "second-item", empresa_id: "tenant", sales_document_id: "second", description: "Service", quantity: 0.5, unit_price: 100, vat_rate: 10 },
+    ];
+    expect((await emitSalesDocument("second")).error).toMatch(/aceptad|OT/i);
+    expect(state.tables.sales_documents.find(row => row.id === "second")?.status).toBe("BORRADOR");
   });
   it.each(["missing", "annulled", "foreign", "version", "items", "totals", "client", "currency", "root-missing"])("blocks issuance with %s chain", async defect => {
     acceptedQuote(); state.tables.sales_documents.push(document("rem", "REMISION", "quote"), document("invoice", "FACTURA", "rem"));
