@@ -26,7 +26,7 @@ import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
 import { logAudit } from "../lib/audit";
 import { sanitizeFileName } from "../lib/storage";
-import { finishInvoiceJobLease, invoiceJobCreationDisposition, invoiceJobMatchingOutcome } from "../lib/invoice-job-worker";
+import { bulkInvoiceCurrency, finishInvoiceJobLease, invoiceJobCreationDisposition, invoiceJobMatchingOutcome } from "../lib/invoice-job-worker";
 
 // Local: toma las credenciales de .env.local. En Railway vienen de las env vars
 // del servicio y esto es no-op.
@@ -156,6 +156,14 @@ async function processJob(job: InvoiceJob) {
   }
 
   // Adjunto: copiar el archivo del inbox a su ubicación definitiva por proveedor.
+  const currency = bulkInvoiceCurrency(parsed.currency);
+  if (!currency) {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
+      status: "needs_review", outcome: "needs_manual", extracted: parsed,
+      provider_id: provider.id,
+      message: "No se pudo confirmar la moneda del original. RevisÃ¡ la factura antes de crearla.",
+    });
+  }
   const finalPath = `${provider.id}/${randomUUID()}-${sanitizeFileName(job.file_name)}`;
   const { error: copyError } = await db.storage.from("invoice-files").copy(job.storage_path, finalPath);
   if (copyError) {
@@ -208,7 +216,7 @@ async function processJob(job: InvoiceJob) {
       invoice_number: parsed.invoice_number,
       invoice_date: parsed.invoice_date ?? job.batch_date,
       due_date: parsed.due_date ?? null,
-      currency: "PYG",
+      currency,
       subtotal: parsed.subtotal,
       vat: parsed.vat,
       total: parsed.total,

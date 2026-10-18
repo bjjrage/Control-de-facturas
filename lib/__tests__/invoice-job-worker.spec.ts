@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bulkInvoiceCurrency,
   finishInvoiceJobLease,
   invoiceJobCreationDisposition,
   invoiceJobMatchingOutcome,
@@ -32,6 +33,12 @@ function leaseDb(initial: Record<string, unknown>) {
 }
 
 describe("invoice job worker fencing", () => {
+  it("#5 uses the extracted currency and refuses to invent PYG when unreadable", () => {
+    expect(bulkInvoiceCurrency("USD")).toBe("USD");
+    expect(bulkInvoiceCurrency("PYG")).toBe("PYG");
+    expect(bulkInvoiceCurrency(null)).toBeNull();
+    expect(bulkInvoiceCurrency("unknown")).toBeNull();
+  });
   it("a worker with an expired attempt cannot overwrite the newer lease", async () => {
     const db = leaseDb({ id: "job-1", status: "processing", attempts: 4, invoice_id: null, message: "winner" });
     const result = await finishInvoiceJobLease(db.client, { id: "job-1", attempts: 3, invoice_id: null }, { status: "failed", message: "stale" });

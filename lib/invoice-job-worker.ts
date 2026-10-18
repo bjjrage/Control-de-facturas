@@ -1,4 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CurrencyCode } from "./types";
+
+export function bulkInvoiceCurrency(value: unknown): CurrencyCode | null {
+  return value === "PYG" || value === "USD" || value === "EUR" || value === "BRL" || value === "ARS"
+    ? value : null;
+}
 
 export type InvoiceJobLease = {
   id: string;
