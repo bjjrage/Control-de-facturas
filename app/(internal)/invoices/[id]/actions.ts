@@ -516,7 +516,7 @@ export async function verifyInvoiceOriginal(invoiceId: string): Promise<{ error:
   const profile = await requireProfile(["administracion", "admin"]);
   const db = await createClient();
   const { data: invoice } = await db.from("invoices")
-    .select("id, attachment_id, provider_id, invoice_number, invoice_date, total, status")
+    .select("id, attachment_id, provider_id, invoice_number, invoice_date, total, currency, status")
     .eq("id", invoiceId).eq("empresa_id", profile.empresa_id).maybeSingle();
   if (!invoice || invoice.status === "PAGADO") return { error: "La factura no está disponible para una nueva verificación." };
   if (!invoice.attachment_id) return { error: "Falta el original de esta factura. No puede verificarse copiando los datos del proveedor." };
@@ -538,6 +538,9 @@ export async function verifyInvoiceOriginal(invoiceId: string): Promise<{ error:
   const result = await extractInvoiceFieldsFromFile(bytes, mime);
   if (result.error || !result.data) return { error: result.error ?? "No se pudo leer el original." };
   if (!invoiceIssuerMatches(result.data.provider_tax_id, provider.tax_id)) return { error: "El RUC del original no coincide con el proveedor de la factura." };
+  if (!result.data.currency || result.data.currency !== invoice.currency) {
+    return { error: "La moneda del original no se pudo confirmar o no coincide con la factura." };
+  }
   if (result.data.invoice_number !== invoice.invoice_number || result.data.invoice_date !== invoice.invoice_date || result.data.total !== Number(invoice.total)) {
     return { error: "Número, fecha o total no coinciden con el original. Revisá la factura antes de autorizarla." };
   }
