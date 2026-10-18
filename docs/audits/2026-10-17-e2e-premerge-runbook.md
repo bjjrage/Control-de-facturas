@@ -5,10 +5,10 @@ Fecha: 17/10/2026. **Estado: preparado para ejecutar la auditoría E2E; todavía
 ## Fuente de verdad
 
 - `main` en GitHub: `953ebba505b38313bd3e18e6cb9fbf31b7e1eb89`.
-- Único candidato a integrar: `codex/compras-ventas-merge-prep`, [PR #38](https://github.com/bjjrage/Control-de-facturas/pull/38), contra `main`. La rama contiene en línea recta los ocho commits de `codex/compras-ventas-integration` y los cuatro commits adicionales publicados de preparación. La rama `integration` es un ancestro, no otro PR que se deba mergear.
+- Único candidato a integrar: `codex/compras-ventas-merge-prep`, [PR #38](https://github.com/bjjrage/Control-de-facturas/pull/38), contra `main`. La rama contiene en línea recta los ocho commits de `codex/compras-ventas-integration` y los commits posteriores de preparación. La rama `integration` es un ancestro, no otro PR que se deba mergear.
 - `recovery/compras-ventas-approved` se separó del mismo `main` por diez commits históricos. No se hace un merge ciego de esa rama: sus contratos de Compras/Ventas se incorporaron parcialmente en `098afbc` y evolucionaron después. Al comparar los 41 archivos de código/pruebas que ambas líneas tocaron, once conservan el mismo blob; los restantes tienen cambios posteriores. Se recuperó la guarda de calentamiento del AppShell en desarrollo que sí faltaba. Sus informes, capturas y fixtures históricos quedan en esa rama como evidencia, sin incorporarlos al runtime final.
-- La atomicidad de facturas manuales se preparó primero en la copia local. Antes de la auditoría, congelar y anotar el SHA remoto final, y comprobar que su árbol contiene el cambio. No correr E2E contra un SHA distinto.
-- Base aislada única: `kyiihlkncatojvlasoag`. Producción `ezucivipgmbvamhugkbj` queda excluida. No se requiere ni se prepara otro proyecto Supabase ni otro despliegue Vercel. El navegador puede usar el build local del candidato conectado a la base aislada.
+- La atomicidad de facturas manuales ya está publicada en el PR: el árbol remoto `fbdb5974988eb257201ac2bbcb2120a0e58f3191` coincidió con el árbol local probado. Antes de la auditoría, congelar y anotar el SHA remoto final y confirmar de nuevo el árbol. No correr E2E contra un SHA distinto.
+- Base aislada única: `kyiihlkncatojvlasoag`. Producción `ezucivipgmbvamhugkbj` queda excluida. No se requiere otro proyecto Supabase ni configurar Vercel. El navegador puede usar el build local del candidato conectado a la base aislada.
 
 ## Preflight reproducible
 
