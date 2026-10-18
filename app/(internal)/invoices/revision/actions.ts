@@ -8,7 +8,7 @@ import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoiceByAmount } from "@/lib/invoice-auto-match";
 import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
-import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
+import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInputStrict } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -71,9 +71,11 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData): Prom
 
   // R3-04: misma validación server-side que el diálogo (los valores finales se
   // recalculan; ante discrepancia se exige confirmación explícita auditada).
-  const jobLinesPreview = parseInvoiceLinesInput(
+  const parsedJobLines = parseInvoiceLinesInputStrict(
     (job.extracted as { items?: unknown } | null)?.items ?? []
   );
+  if (parsedJobLines.error) return { error: parsedJobLines.error };
+  const jobLinesPreview = parsedJobLines.items;
   if (jobLinesPreview.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
     return { error: INVOICE_QUANTITY_ERROR };
   }
@@ -258,9 +260,7 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData): Prom
   // conciliación por ítem sin cambiar el flujo de revisión existente. Un
   // multi-row INSERT garantiza todo-o-nada; ante error el job conserva el
   // invoice_id para impedir duplicarlo en un retry.
-  const jobLines = parseInvoiceLinesInput(
-    (job.extracted as { items?: unknown } | null)?.items ?? []
-  );
+  const jobLines = jobLinesPreview;
   if (jobLines.length > 0) {
     const { error: linesError } = await insertInvoiceItems(supabase, {
       empresaId,

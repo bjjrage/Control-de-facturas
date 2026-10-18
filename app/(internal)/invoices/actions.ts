@@ -10,7 +10,7 @@ import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { calculateInvoiceVat } from "@/lib/invoice-vat";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
-import { applyDeterministicItemMatches, parseInvoiceLinesInput } from "@/lib/invoice-items";
+import { applyDeterministicItemMatches, parseInvoiceLinesInputStrict } from "@/lib/invoice-items";
 import { persistInvoiceIdentity, requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { verifyInvoiceExtractionProof, invoiceIssuerMatches } from "@/lib/invoice-extraction-proof";
 import { revalidatePath } from "next/cache";
@@ -100,7 +100,9 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
   // confirmación explícita de un humano autorizado (checkbox del diálogo), que
   // queda auditada. La carga manual legítima sigue funcionando: con valores
   // consistentes no se pide nada extra.
-  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+  const parsedDialogLines = parseInvoiceLinesInputStrict(formData.get("items_json"));
+  if (parsedDialogLines.error) return { error: parsedDialogLines.error };
+  const dialogLines = parsedDialogLines.items;
   if (dialogLines.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
     return { error: INVOICE_QUANTITY_ERROR };
   }
