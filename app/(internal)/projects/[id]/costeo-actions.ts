@@ -470,6 +470,14 @@ export async function setProjectCostPriceAction(params: {
     }
     const { data: project } = await supabase.from("projects").select("id").eq("id", params.projectId).eq("empresa_id", profile.empresa_id).maybeSingle();
     if (!project) return { error: "Obra no encontrada." };
+    if (params.fuente === "MANUAL") {
+      const { data: product, error: productError } = await supabase.from("productos")
+        .select("id")
+        .eq("id", params.productoId)
+        .eq("empresa_id", profile.empresa_id)
+        .maybeSingle();
+      if (productError || !product) return { error: "El producto no pertenece a esta empresa." };
+    }
 
     let precioUnitario = params.precio;
     let quoteVersionItemId: string | null = null;

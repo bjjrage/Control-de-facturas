@@ -103,6 +103,7 @@ beforeEach(() => {
   userDb = makeMockDb();
   adminDb = makeMockDb();
   seedProject();
+  userDb.respond("productos", response({ id: INPUT.productoId }));
   mocks.createClient.mockResolvedValue(userDb);
   mocks.createAdminClient.mockReturnValue(adminDb);
   mocks.requirePlan.mockResolvedValue(PROFILE);
@@ -234,6 +235,21 @@ describe("setProjectCostPriceAction — provenance de cotizaciones", () => {
       updated_by: PROFILE.id,
     });
     expect(adminDb.calls).toHaveLength(0);
+  });
+
+  it("#24 rechaza precio MANUAL para un producto de otra empresa", async () => {
+    userDb.respond("productos", response(null));
+
+    const result = await setProjectCostPriceAction({
+      projectId: INPUT.projectId,
+      productoId: INPUT.productoId,
+      precio: 77,
+      fuente: "MANUAL",
+    });
+
+    expect(result.error).toMatch(/producto|insumo/i);
+    expect(userDb.upserts).toHaveLength(0);
+    expect(userDb.calls).toContainEqual({ table: "productos", method: "eq", args: ["empresa_id", PROFILE.empresa_id] });
   });
 
   it.each([Number.NaN, Number.POSITIVE_INFINITY, 0, -1])("rechaza MANUAL con precio %s", async (precio) => {
