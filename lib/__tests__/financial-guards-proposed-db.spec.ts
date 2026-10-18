@@ -13,6 +13,7 @@ const sale="77777777-7777-4777-8777-777777777777", client="88888888-8888-4888-88
 const job="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const releaseSql=readFileSync(new URL("../../supabase/migrations/20261017182341_audit_financial_guards.sql",import.meta.url),"utf8");
 const receiptIdempotencySql=readFileSync(new URL("../../supabase/migrations/20261017194800_sales_receipt_idempotency.sql",import.meta.url),"utf8");
+const preventNegativeSql=readFileSync(new URL("../../supabase/migrations/20261018120200_payment_prevent_negative_balance.sql",import.meta.url),"utf8");
 beforeAll(async()=>{
  db=new PGlite();
  await db.exec(`
@@ -42,13 +43,23 @@ beforeAll(async()=>{
  CREATE TABLE sales_document_items(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),empresa_id uuid,sales_document_id uuid,quantity numeric,unit_price numeric,vat_rate numeric,line_total numeric);
  CREATE TABLE cuentas_financieras(id uuid PRIMARY KEY,empresa_id uuid,moneda public.currency_code,saldo numeric);
  CREATE TABLE sales_receipts(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),empresa_id uuid,sales_document_id uuid,amount numeric,receipt_date date,method public.receipt_method,reference text,notes text,cuenta_id uuid,created_by uuid,reversed_at timestamptz);
- CREATE FUNCTION public.registrar_movimiento_tesoreria(p_empresa_id uuid,p_cuenta_id uuid,p_monto numeric,p_tipo text,p_fecha date,p_motivo text,p_sales_receipt_id uuid,p_created_by uuid,p_permitir_negativo boolean) RETURNS void LANGUAGE sql AS $$ UPDATE public.cuentas_financieras SET saldo=saldo+p_monto WHERE id=p_cuenta_id AND empresa_id=p_empresa_id $$;
+ CREATE FUNCTION public.registrar_movimiento_tesoreria(p_empresa_id uuid,p_cuenta_id uuid,p_monto numeric,p_tipo text,p_fecha date DEFAULT NULL,p_motivo text DEFAULT NULL,p_payment_order_id uuid DEFAULT NULL,p_sales_receipt_id uuid DEFAULT NULL,p_project_id uuid DEFAULT NULL,p_created_by uuid DEFAULT NULL,p_permitir_negativo boolean DEFAULT false) RETURNS numeric LANGUAGE plpgsql AS $$
+ DECLARE v_saldo numeric;
+ BEGIN
+   UPDATE public.cuentas_financieras SET saldo=saldo+p_monto
+   WHERE id=p_cuenta_id AND empresa_id=p_empresa_id RETURNING saldo INTO v_saldo;
+   IF p_monto < 0 AND NOT coalesce(p_permitir_negativo,false) AND v_saldo < 0 THEN
+     RAISE EXCEPTION 'Saldo insuficiente';
+   END IF;
+   RETURN v_saldo;
+ END $$;
  CREATE TABLE profiles(id uuid,empresa_id uuid,active boolean DEFAULT true,role public.user_role DEFAULT 'admin');
  CREATE TABLE invoice_jobs(id uuid PRIMARY KEY,empresa_id uuid,created_by uuid,status public.invoice_job_status,attempts integer,invoice_id uuid,provider_id uuid,updated_at timestamptz);
  CREATE TABLE audit_logs(empresa_id uuid,actor_id uuid,actor_type text,actor_label text,action text,invoice_id uuid,detail jsonb);
  `);
  await db.exec(releaseSql);
  await db.exec(receiptIdempotencySql);
+ await db.exec(preventNegativeSql);
 },120000);
 afterAll(async()=>{await db?.close()});
 beforeEach(async()=>{
@@ -185,4 +196,16 @@ it("verified OP executes once and its links cannot be removed after execution",a
  expect((await db.query("SELECT status FROM payment_orders")).rows).toEqual([{status:"EJECUTADA"}]);
  await expect(db.exec("DELETE FROM payment_order_invoices")).rejects.toThrow(/Solo se modifican/);
  await expect(db.query("SELECT ejecutar_orden_pago_atomica($1,$2,NULL,$3)",[tenant,job,actor])).rejects.toThrow(/ya fue ejecutada/);
+});
+
+it("#3 rejects a payment that would leave its treasury account negative",async()=>{
+ await register();await link();await db.exec(`UPDATE invoices SET status='APTO_PARA_PAGO';
+ INSERT INTO payment_orders(id,empresa_id,provider_id,status,code) VALUES('${job}','${tenant}','${provider}','EMITIDA','OP-TEST');
+ INSERT INTO payment_order_invoices VALUES('${invoice}','${job}','${tenant}');
+ UPDATE cuentas_financieras SET saldo=100 WHERE id='${account}';`);
+ await expect(db.query("SELECT ejecutar_orden_pago_atomica($1,$2,$3,$4)",[tenant,job,account,actor]))
+   .rejects.toThrow(/Saldo insuficiente/);
+ expect((await db.query("SELECT status FROM payment_orders WHERE id=$1",[job])).rows).toEqual([{status:"EMITIDA"}]);
+ expect((await db.query("SELECT status FROM invoices WHERE id=$1",[invoice])).rows).toEqual([{status:"APTO_PARA_PAGO"}]);
+ expect((await db.query("SELECT saldo FROM cuentas_financieras WHERE id=$1",[account])).rows).toEqual([{saldo:"100"}]);
 });
