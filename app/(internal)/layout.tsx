@@ -18,7 +18,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
   const administrative = ["administracion", "admin"].includes(profile.role);
-  const purchasing = ["comercial", "administracion", "admin"].includes(profile.role);
+  const purchasing = profile.modulo_compras && ["comercial", "administracion", "admin"].includes(profile.role);
   const warmPaths = [
     "/dashboard",
     ...(administrative ? ["/invoices", "/pagos"] : []),
