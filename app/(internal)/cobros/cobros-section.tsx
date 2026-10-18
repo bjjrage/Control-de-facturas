@@ -3,7 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Client, CurrencyCode, SalesDocument } from "@/lib/types";
-import { docSaldo, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
+import { SALES_DOC_TYPE_LABELS } from "@/lib/sales";
+import { salesReceivables } from "@/lib/sales-receivables";
 import { formatDate, formatMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,10 +74,12 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
 
   const today = new Date().toISOString().slice(0, 10);
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c.name])), [clients]);
+  const account = useMemo(() => salesReceivables(docs), [docs]);
+  const receivableDocs = useMemo(() => docs.filter((doc) => (account.balances.get(doc.id) ?? 0) > 0), [docs, account]);
 
   const filtered = useMemo(() => {
     const term = qFilter.trim().toLowerCase();
-    return docs.filter((d) => {
+    return receivableDocs.filter((d) => {
       if (clientFilter && d.client_id !== clientFilter) return false;
       if (statusFilter && d.status !== statusFilter) return false;
       if (fromFilter && d.issue_date.slice(0, 10) < fromFilter) return false;
@@ -84,7 +87,7 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
       if (term && !d.code.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [docs, clientFilter, statusFilter, qFilter, fromFilter, toFilter]);
+  }, [receivableDocs, clientFilter, statusFilter, qFilter, fromFilter, toFilter]);
 
   const overdueDocs = useMemo(
     () => filtered.filter((d) => d.due_date && d.due_date < today).sort((a, b) => a.due_date!.localeCompare(b.due_date!)),
@@ -106,8 +109,8 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
   const aging = useMemo(() => {
     type AgingRow = { clientId: string; clientName: string; currency: CurrencyCode; corriente: number; b130: number; b3160: number; b60plus: number };
     const agingMap = new Map<string, AgingRow>();
-    for (const d of docs) {
-      const saldo = docSaldo(d.total, d.cobrado_amount);
+    for (const d of receivableDocs) {
+      const saldo = account.balances.get(d.id) ?? 0;
       if (saldo <= 0) continue;
       const key = `${d.client_id}|${d.currency}`;
       if (!agingMap.has(key)) {
@@ -124,12 +127,12 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
       }
     }
     return [...agingMap.values()].sort((a, b) => a.clientName.localeCompare(b.clientName));
-  }, [docs, clientById, today]);
+  }, [receivableDocs, account, clientById, today]);
 
-  const totalPorCobrar = filtered.reduce((sum, d) => sum + docSaldo(d.total, d.cobrado_amount), 0);
+  const totalPorCobrar = filtered.reduce((sum, d) => sum + (account.balances.get(d.id) ?? 0), 0);
 
   function renderRow(d: SalesDocument) {
-    const saldo = docSaldo(d.total, d.cobrado_amount);
+    const saldo = account.balances.get(d.id) ?? 0;
     const overdue = d.due_date && d.due_date < today;
     const days = d.due_date ? daysDiff(d.due_date) : null;
     return (
