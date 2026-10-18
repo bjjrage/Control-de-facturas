@@ -23,7 +23,7 @@ async function resolveLink(token: string) {
     .select("id, empresa_id, location_id, active, expires_at, created_by")
     .eq("token_hash", hashWarehousePortalToken(token))
     .maybeSingle();
-  if (!link || !link.active || (link.expires_at && new Date(link.expires_at).getTime() <= Date.now())) return null;
+  if (!link || !link.active || !link.expires_at || new Date(link.expires_at).getTime() <= Date.now()) return null;
   const { data: location } = await admin
     .from("inventory_locations")
     .select("id, name, project_id, location_type, active")

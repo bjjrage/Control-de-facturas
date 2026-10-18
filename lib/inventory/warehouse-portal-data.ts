@@ -62,7 +62,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     .maybeSingle();
 
   if (linkError || !link || !link.active) return null;
-  if (link.expires_at && new Date(link.expires_at).getTime() <= Date.now()) return null;
+  if (!link.expires_at || new Date(link.expires_at).getTime() <= Date.now()) return null;
 
   const { data: location, error: locError } = await admin
     .from("inventory_locations")

@@ -420,7 +420,7 @@ export function PanolObraSection({
           </div>
         )}
         <label className="mt-3 block max-w-md text-[11px] text-[var(--muted)]">
-          Vencimiento (opcional)
+          Vencimiento (7 dias por defecto)
           <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]" />
         </label>
         {createdLink ? (

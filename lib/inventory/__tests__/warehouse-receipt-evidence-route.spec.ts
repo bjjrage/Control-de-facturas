@@ -6,7 +6,7 @@ const tenant="11111111-1111-4111-8111-111111111111", receipt="22222222-2222-4222
 const state=vi.hoisted(()=>({storageError:false,metadataError:false,calls:[] as {kind:string;value?:unknown}[]}));
 vi.mock("@/lib/supabase/admin",()=>({createAdminClient:()=>({
  from(table:string){
-  const query={select:()=>query,eq:()=>query,limit:()=>query,maybeSingle:async()=>({error:null,data:table==="warehouse_portal_links"?{id:"link",empresa_id:tenant,location_id:"location",active:true,expires_at:null,created_by:"sponsor"}:table==="inventory_locations"?{id:"location",name:"QA",project_id:"project",location_type:"PROJECT",active:true}:table==="authorized_orders"?{id:"order",project_id:"project",status:"AUTORIZADO"}:null}),
+  const query={select:()=>query,eq:()=>query,limit:()=>query,maybeSingle:async()=>({error:null,data:table==="warehouse_portal_links"?{id:"link",empresa_id:tenant,location_id:"location",active:true,expires_at:new Date(Date.now()+86400000).toISOString(),created_by:"sponsor"}:table==="inventory_locations"?{id:"location",name:"QA",project_id:"project",location_type:"PROJECT",active:true}:table==="authorized_orders"?{id:"order",project_id:"project",status:"AUTORIZADO"}:null}),
   insert:async(value:unknown)=>{state.calls.push({kind:"insert",value});return{error:state.metadataError?{message:"injected metadata failure"}:null}}};return query;
  },
  rpc:async(name:string,value:unknown)=>{state.calls.push({kind:name,value});return{data:{receipt_id:receipt,movements:["movement"]},error:null}},

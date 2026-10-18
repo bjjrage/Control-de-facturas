@@ -328,7 +328,7 @@ export async function createWarehousePortalLink(locationId: string, expiresAt?: 
   if (typeof locationId !== "string" || !/^[0-9a-f-]{36}$/i.test(locationId)) {
     return { error: "La ubicación de depósito no es válida.", token: null, url: null };
   }
-  let normalizedExpiry: string | null = null;
+  let normalizedExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   if (expiresAt != null && expiresAt !== "") {
     const parsedExpiry = new Date(expiresAt);
     if (!Number.isFinite(parsedExpiry.getTime()) || parsedExpiry.getTime() <= Date.now()) {
