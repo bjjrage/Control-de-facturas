@@ -131,6 +131,7 @@ export async function markPaymentOrderExecuted(
   cuentaId?: string | null
 ): Promise<{ error: string | null }> {
   const profile = await requireProfile(["administracion", "admin"]);
+  if (!cuentaId) return { error: "Seleccioná una cuenta de tesorería antes de registrar el pago." };
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 
@@ -140,7 +141,7 @@ export async function markPaymentOrderExecuted(
   const { error: rpcError } = await supabase.rpc("ejecutar_orden_pago_atomica", {
     p_empresa_id: empresaId,
     p_op_id: opId,
-    p_cuenta_id: cuentaId ?? null,
+    p_cuenta_id: cuentaId,
     p_created_by: profile.id,
   });
   if (rpcError) return { error: rpcError.message };

@@ -28,7 +28,8 @@ export function ExecuteButton({
   async function confirmar() {
     setLoading(true);
     setError(null);
-    const result = await markPaymentOrderExecuted(opId, cuentaId || null);
+    if (!cuentaId) { setError("Seleccioná una cuenta de tesorería."); setLoading(false); return; }
+    const result = await markPaymentOrderExecuted(opId, cuentaId);
     setLoading(false);
     if (result.error) {
       setError(result.error);
@@ -60,7 +61,7 @@ export function ExecuteButton({
                 value={cuentaId}
                 onChange={(e) => setCuentaId((e.target as HTMLSelectElement).value)}
               >
-                <option value="">— No asentar en tesorería —</option>
+                <option value="">Seleccioná una cuenta</option>
                 {cuentas.map((c) => (
                   <option key={c.id} value={c.id}>{c.nombre} ({c.moneda})</option>
                 ))}
@@ -73,7 +74,7 @@ export function ExecuteButton({
           {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={loading}>Cancelar</Button>
-            <Button onClick={confirmar} disabled={loading}>
+            <Button onClick={confirmar} disabled={loading || !cuentaId || hasMixedCurrencies}>
               {loading ? "Registrando…" : "Confirmar pago"}
             </Button>
           </div>
