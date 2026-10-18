@@ -174,6 +174,9 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setConsumptionError(data.error ?? "No se pudo registrar la salida.");
+      } else if (data.uploadIncomplete) {
+        setConsumptionSuccess(`Salida ${data.movementId} registrada y descontada del stock.`);
+        setConsumptionError("Quedaron adjuntos sin guardar. Reenvia los mismos datos y archivos para completar la evidencia sin duplicar la salida.");
       } else {
         localStorage.removeItem(storageKey);
         consumptionAttempt.current = null;

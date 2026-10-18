@@ -2,11 +2,28 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { displayLocationName } from "@/lib/inventory/display-location-name";
-import { enforceWarehousePortalFileLimit, hashWarehousePortalToken, sha256Bytes } from "@/lib/inventory/portal";
+import { hashWarehousePortalToken, inspectWarehousePortalFile, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 20;
+
+async function validateFiles(formData: FormData, limit: number, allowSheets: boolean): Promise<
+  { files: Array<{ file: File; bytes: Uint8Array<ArrayBuffer>; contentType: string }>; error: null } |
+  { files: []; error: string }
+> {
+  const submitted = formData.getAll("files").filter((value): value is File => value instanceof File && !!value.name);
+  if (submitted.length > limit) return { files: [], error: `Adjunta hasta ${limit} archivos por envio.` };
+  const files: Array<{ file: File; bytes: Uint8Array<ArrayBuffer>; contentType: string }> = [];
+  for (const file of submitted) {
+    if (!file.size || file.size > MAX_FILE_BYTES) return { files: [], error: `${file.name}: el archivo debe tener entre 1 byte y 20 MB.` };
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const inspected = inspectWarehousePortalFile(file.name, file.type, bytes, allowSheets);
+    if (!inspected.ok || !inspected.contentType) return { files: [], error: inspected.error ?? "Archivo no permitido." };
+    files.push({ file, bytes, contentType: inspected.contentType });
+  }
+  return { files, error: null };
+}
 
 function isIsoDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -90,12 +107,8 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "La OC no pertenece a esta obra o empresa." }, { status: 404 });
     }
 
-    const submittedFiles = formData
-      .getAll("files")
-      .filter((v): v is File => v instanceof File && v.size > 0);
-    if (submittedFiles.length > 10 || submittedFiles.some(file => file.size > MAX_FILE_BYTES)) {
-      return NextResponse.json({ error: "Adjuntá hasta 10 archivos de 20 MB como máximo. La recepción no se registró." }, { status: 400 });
-    }
+    const submitted = await validateFiles(formData, 10, false);
+    if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
     const attempt = String(formData.get("idempotency_key") ?? "");
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepción requiere un intento estable." }, { status: 400 });
     const { data: createData, error: createError } = await admin.rpc("inventory_portal_receipt", {
@@ -118,8 +131,7 @@ export async function POST(request: Request, context: RouteContext) {
 
 
     const evidenceWarnings: string[] = [];
-    for (const file of submittedFiles) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+    for (const { file, bytes, contentType } of submitted.files) {
       const sha256 = sha256Bytes(bytes);
       const { data: existing, error: existingError } = await admin.from("inventory_receipt_evidence")
         .select("id").eq("empresa_id", link.empresa_id).eq("receipt_id", receiptId).eq("sha256", sha256).limit(1).maybeSingle();
@@ -127,7 +139,7 @@ export async function POST(request: Request, context: RouteContext) {
       if (existing) continue;
       const path = `receipts/${receiptId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
       const { error: uploadErr } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
+        contentType,
       });
       if (uploadErr) { evidenceWarnings.push(file.name); continue; }
       {
@@ -137,7 +149,7 @@ export async function POST(request: Request, context: RouteContext) {
           storage_bucket: "warehouse-evidence",
           storage_path: path,
           file_name: file.name,
-          mime_type: file.type || null,
+          mime_type: contentType,
           size_bytes: file.size,
           sha256,
           uploaded_by: link.created_by,
@@ -203,6 +215,8 @@ export async function POST(request: Request, context: RouteContext) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt) || !budgetItemId) {
       return NextResponse.json({ error: "La salida requiere partida y un intento estable." }, { status: 400 });
     }
+    const submitted = await validateFiles(formData, 5, false);
+    if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
     const { data: movementId, error: moveError } = await admin.rpc("inventory_portal_consumption", {
       p_token_hash: hashWarehousePortalToken(token),
       p_product: product.id, p_budget: budgetItemId, p_quantity: quantity, p_attempt: attempt,
@@ -214,17 +228,14 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     // Upload photo evidence if attached
-    const submittedFiles = formData
-      .getAll("files")
-      .filter((v): v is File => v instanceof File && v.size > 0);
-
-    for (const file of submittedFiles.slice(0, 5)) {
-      if (file.size > MAX_FILE_BYTES) continue;
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const path = `consumptions/${movementId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
-      await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
+    const pendingEvidence: string[] = [];
+    for (const { file, bytes, contentType } of submitted.files) {
+      const path = `consumptions/${movementId}/${sha256Bytes(bytes)}-${sanitizeFileName(file.name)}`;
+      const { error: uploadError } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
+        contentType,
+        upsert: true,
       });
+      if (uploadError) pendingEvidence.push(file.name);
     }
 
     // Update portal link usage timestamp
@@ -236,7 +247,9 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({
       ok: true,
       movementId,
-      message: "Salida registrada con éxito.",
+      uploadIncomplete: pendingEvidence.length > 0,
+      pendingEvidence,
+      message: pendingEvidence.length ? "Salida registrada, pero faltan adjuntos por guardar." : "Salida registrada con éxito.",
     });
   }
 
@@ -249,23 +262,10 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "El período no es válido." }, { status: 400 });
   }
 
-  const submittedFiles = formData
-    .getAll("files")
-    .filter((value): value is File => value instanceof File && value.size > 0);
-  const fileLimit = enforceWarehousePortalFileLimit(submittedFiles, MAX_FILES);
-  if (!fileLimit.allowed) {
-    return NextResponse.json(
-      { error: `El máximo es ${MAX_FILES} archivos por envío. Reducí la cantidad y volvé a intentar.` },
-      { status: 413 }
-    );
-  }
-  const files = fileLimit.files;
+  const submitted = await validateFiles(formData, MAX_FILES, true);
+  if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
+  const files = submitted.files;
   if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o planilla." }, { status: 400 });
-  for (const file of files) {
-    if (file.size > MAX_FILE_BYTES) {
-      return NextResponse.json({ error: `${file.name}: el archivo supera los 20MB.` }, { status: 400 });
-    }
-  }
 
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const remisionNumber = String(formData.get("remision_number") ?? "").trim() || null;
@@ -308,8 +308,7 @@ export async function POST(request: Request, context: RouteContext) {
   const resolvedSha256: string[] = [];
   const failedUploads: Array<{ sha256: string; file_name: string; reason: string }> = [];
 
-  for (const file of files) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
+  for (const { file, bytes, contentType } of files) {
     const sha256 = sha256Bytes(bytes);
     const { data: existingEvidence } = await admin
       .from("warehouse_submission_evidence")
@@ -324,7 +323,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
     const path = `${link.location_id}/${submission.id}/${randomUUID()}-${sanitizeFileName(file.name)}`;
     const { error: uploadError } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-      contentType: file.type || "application/octet-stream",
+      contentType,
       upsert: false,
     });
     if (uploadError) {
@@ -339,7 +338,7 @@ export async function POST(request: Request, context: RouteContext) {
       storage_bucket: "warehouse-evidence",
       storage_path: path,
       file_name: file.name,
-      mime_type: file.type || null,
+      mime_type: contentType,
       size_bytes: file.size,
       sha256,
       uploaded_external: true,
