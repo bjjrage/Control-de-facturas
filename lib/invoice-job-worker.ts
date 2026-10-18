@@ -6,6 +6,14 @@ export function bulkInvoiceCurrency(value: unknown): CurrencyCode | null {
     ? value : null;
 }
 
+export async function persistBulkIdentityAfterLines(
+  lineSaveError: string | null,
+  persist: () => Promise<{ error: string | null }>,
+): Promise<{ error: string | null }> {
+  if (lineSaveError) return { error: lineSaveError };
+  return persist();
+}
+
 export type InvoiceJobLease = {
   id: string;
   attempts: number;

@@ -26,7 +26,7 @@ import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
 import { logAudit } from "../lib/audit";
 import { sanitizeFileName } from "../lib/storage";
-import { bulkInvoiceCurrency, finishInvoiceJobLease, invoiceJobCreationDisposition, invoiceJobMatchingOutcome } from "../lib/invoice-job-worker";
+import { bulkInvoiceCurrency, finishInvoiceJobLease, invoiceJobCreationDisposition, invoiceJobMatchingOutcome, persistBulkIdentityAfterLines } from "../lib/invoice-job-worker";
 
 // Local: toma las credenciales de .env.local. En Railway vienen de las env vars
 // del servicio y esto es no-op.
@@ -292,10 +292,10 @@ async function processJob(job: InvoiceJob) {
 
   // A partially or wholly failed line batch must remain review-only: even a
   // header-level auto-match could make an incomplete invoice look reconciled.
-  const identity = await persistInvoiceIdentity(db, {
+  const identity = await persistBulkIdentityAfterLines(itemSaveError, () => persistInvoiceIdentity(db, {
     invoiceId: job.invoice_id!, attachmentId: attachment.id,
     sha256: createHash("sha256").update(bytes).digest("hex"), fields: parsed, actorId: job.created_by,
-  });
+  }));
   if (identity.error) return finish(job.id, job.attempts, job.invoice_id!, {
     status: "needs_review", outcome: "needs_manual", extracted: parsed, provider_id: provider.id,
     error: identity.error, message: "Factura pendiente: no se pudo registrar la identidad del original; no se concilió ni habilitó pago.",
