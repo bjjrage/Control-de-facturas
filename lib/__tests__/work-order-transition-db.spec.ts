@@ -9,6 +9,7 @@ const otherActor = "33333333-3333-4333-8333-333333333333";
 const order = "44444444-4444-4444-8444-444444444444";
 const quote = "55555555-5555-4555-8555-555555555555";
 const migration = readFileSync(new URL("../../supabase/migrations/20261017194900_work_order_transition_guards.sql", import.meta.url), "utf8");
+const roleGuardMigration = readFileSync(new URL("../../supabase/migrations/20261018120500_lock_work_order_responsible_role.sql", import.meta.url), "utf8");
 let db: PGlite;
 
 beforeAll(async () => {
@@ -28,6 +29,7 @@ beforeAll(async () => {
     CREATE TABLE public.sales_documents(id uuid, empresa_id uuid, source_document_id uuid, status text);
   `);
   await db.exec(migration);
+  await db.exec(roleGuardMigration);
 }, 120000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -58,10 +60,16 @@ describe("work order transitions", () => {
   it("rejects forged approval and role changes", async () => {
     await expect(db.exec(`UPDATE public.work_orders SET workflow_status='READY_FOR_PRODUCTION' WHERE id='${order}'`)).rejects.toThrow(/responsable autorizado/);
     await expect(db.exec(`UPDATE public.work_orders SET workflow_status='READY_FOR_PRODUCTION',
-      responsible_role='comercial',approved_by='${actor}',approved_at=now() WHERE id='${order}'`)).rejects.toThrow(/responsable autorizado/);
+      responsible_role='comercial',approved_by='${actor}',approved_at=now() WHERE id='${order}'`)).rejects.toThrow(/rol responsable.*inmutable/i);
     await db.exec(`SELECT set_config('test.actor','${otherActor}',false)`);
     await expect(db.exec(`UPDATE public.work_orders SET workflow_status='READY_FOR_PRODUCTION',
       approved_by='${otherActor}',approved_at=now() WHERE id='${order}'`)).rejects.toThrow(/rol responsable/);
+  });
+
+  it("does not allow a separate reassignment before approval", async () => {
+    await expect(db.exec(`UPDATE public.work_orders SET responsible_role='comercial' WHERE id='${order}'`)).rejects.toThrow(/rol responsable.*inmutable/i);
+    await db.exec("SELECT set_config('test.actor','',false)");
+    await expect(db.exec(`UPDATE public.work_orders SET responsible_role='comercial' WHERE id='${order}'`)).rejects.toThrow(/rol responsable.*inmutable/i);
   });
 
   it("blocks cancellation while derived sales documents remain active", async () => {
