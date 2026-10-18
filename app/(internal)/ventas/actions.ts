@@ -230,11 +230,13 @@ export async function voidSalesDocument(id: string) {
     .from("sales_documents")
     .select("cobrado_amount")
     .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
     .single<{ cobrado_amount: number }>();
   if (!doc) return { error: "Documento no encontrado." };
   if (doc.cobrado_amount > 0) return { error: "Tiene cobros registrados: eliminalos antes de anular." };
 
-  const { error } = await supabase.from("sales_documents").update({ status: "ANULADA" }).eq("id", id);
+  const { error } = await supabase.from("sales_documents").update({ status: "ANULADA" })
+    .eq("id", id).eq("empresa_id", profile.empresa_id);
   if (error) return { error: error.message };
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${id}`);
