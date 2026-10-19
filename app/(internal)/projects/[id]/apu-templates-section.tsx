@@ -1,8 +1,10 @@
 "use client";
 
 import { InfoTooltip } from "@/components/ui/info-tooltip";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { listApuTemplatesAction, deleteApuTemplateAction, type ApuTemplateSummary } from "./apu-templates-actions";
 import { ApuPlanillaImport } from "./apu-planilla-import";
 
@@ -10,6 +12,9 @@ export function ApuTemplatesSection() {
   const [templates, setTemplates] = useState<ApuTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<ApuTemplateSummary | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -29,11 +34,20 @@ export function ApuTemplatesSection() {
     refresh();
   }, []);
 
-  async function handleDelete(id: string, nombre: string) {
-    if (!window.confirm(`¿Borrar la plantilla "${nombre}"? Esto no afecta las obras donde ya se aplicó.`)) return;
-    const res = await deleteApuTemplateAction(id);
-    if (res.error) { setError(res.error); return; }
-    await refresh();
+  async function handleDelete() {
+    if (!deleting || deletePending) return;
+    setDeletePending(true);
+    setError(null);
+    try {
+      const res = await deleteApuTemplateAction(deleting.id);
+      if (res.error) { setError(res.error); return; }
+      setDeleting(null);
+      await refresh();
+    } catch {
+      setError("No se pudo borrar la plantilla. Reintentá.");
+    } finally {
+      setDeletePending(false);
+    }
   }
 
   return (
@@ -70,7 +84,7 @@ export function ApuTemplatesSection() {
                   <td className="py-1.5 px-2 text-right">{t.equipoCount}</td>
                   <td className="py-1.5 px-2 text-right">{t.subcontratoCount}</td>
                   <td className="py-1.5 px-2 text-right">
-                    <button onClick={() => handleDelete(t.id, t.nombre)} className="text-[var(--muted)] hover:text-[var(--error)]">
+                    <button type="button" aria-label={`Borrar plantilla ${t.nombre}`} onClick={(event) => { deleteTrigger.current = event.currentTarget; setError(null); setDeleting(t); }} className="rounded p-1 text-[var(--muted)] hover:text-[var(--error)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
                       <Trash2 size={13} />
                     </button>
                   </td>
@@ -80,6 +94,16 @@ export function ApuTemplatesSection() {
           </tbody>
         </table>
       </div>
+      <Dialog open={deleting !== null} onOpenChange={(open) => { if (!open && !deletePending) setDeleting(null); }}>
+        <DialogContent title="Borrar plantilla de APU" onCloseAutoFocus={(event) => { event.preventDefault(); deleteTrigger.current?.focus(); }}>
+          <p className="text-sm">¿Borrar «{deleting?.nombre}»? Las obras donde ya se aplicó conservan sus recetas.</p>
+          {error ? <p role="alert" className="mt-3 text-sm text-[var(--error)]">{error}</p> : null}
+          <div className="mt-4 flex justify-end gap-2">
+            <DialogClose asChild><Button variant="secondary" disabled={deletePending}>Cancelar</Button></DialogClose>
+            <Button variant="danger" disabled={deletePending} onClick={handleDelete}>{deletePending ? "Borrando…" : "Borrar plantilla"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

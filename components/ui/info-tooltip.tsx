@@ -48,8 +48,15 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "Escape") setOpen(false);
-    else if (event.key === "Enter" || event.key === " ") pointerType.current = "keyboard";
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pointerType.current = "keyboard";
+      setOpen(true);
+    }
   }
 
   function handleClick() {
