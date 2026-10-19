@@ -1,4 +1,5 @@
 "use client";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/input";
 
 
@@ -224,7 +225,7 @@ export function ComputoSection({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3 rounded border border-[var(--border)] p-3">
       <div className="flex items-center justify-between">
-        <div className="text-[13px] font-medium">Cómputo métrico (Excel / PDF)</div>
+        <div className="text-[13px] font-medium">Cómputo métrico (Excel / PDF)<InfoTooltip className="ml-1" label="Cómputo métrico" content="Para obras sin modelo BIM, subí la planilla o PDF del cómputo. Revisá y confirmá cada ítem contra tu catálogo; el precio siempre sale del presupuesto." /></div>
         <div className="flex gap-2">
           <input
             ref={excelInputRef}
@@ -255,11 +256,6 @@ export function ComputoSection({ projectId }: { projectId: string }) {
             Importar PDF
           </Button>
         </div>
-      </div>
-      <div className="text-[11px] text-[var(--muted)]">
-        Para proyectos sin modelo BIM: subí el cómputo métrico que ya recibiste (planilla de licitación, informe de
-        calculista) y se consulta contra tu catálogo de presupuesto igual que el BIM — vos confirmás cada ítem, el
-        precio siempre sale del presupuesto.
       </div>
 
       {uploadStatus ? <div className="text-[12px] text-[var(--muted)]">{uploadStatus}</div> : null}

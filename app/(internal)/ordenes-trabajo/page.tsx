@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Client, SalesDocument, SalesQuotationAcceptance, WorkOrder, WorkOrderStatus } from "@/lib/types";
@@ -52,10 +53,7 @@ export default async function OrdenesTrabajoPage() {
       <div>
         <BackButton />
         <div className="mt-1">
-          <h1 className="text-[17px] font-semibold">Órdenes de Trabajo</h1>
-          <p className="text-[12px] text-[var(--muted)] mt-0.5">
-            Documento interno generado automáticamente al aceptar una cotización. No se comparte con el cliente.
-          </p>
+          <h1 className="text-[17px] font-semibold">Órdenes de Trabajo<InfoTooltip className="ml-1" label="Órdenes de Trabajo" content="Documento interno generado al aceptar una cotización. No se comparte con el cliente." /></h1>
         </div>
       </div>
 

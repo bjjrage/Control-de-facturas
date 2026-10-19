@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { FileText, Search, Upload } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -109,8 +110,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       <div className="flex items-end justify-between gap-4 mt-1">
         <div>
           <div className="erp-kicker mb-2">Compras</div>
-          <h1 className="erp-page-title">Facturas de compra</h1>
-          <p className="erp-subtitle mt-1">Controlá conciliación, revisión y pagos sin salir de la misma superficie de trabajo.</p>
+          <h1 className="erp-page-title">Facturas de compra<InfoTooltip className="ml-1" label="Facturas de compra" content="Controlá conciliación, revisión y pagos desde este panel." /></h1>
         </div>
         <div className="flex gap-2">
           {reviewCount && reviewCount > 0 ? (
