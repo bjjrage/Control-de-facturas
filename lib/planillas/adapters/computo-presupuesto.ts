@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
 import type { PlanillaAdapter, PlanillaChanges, PlanillaColumn, PlanillaRowMeta, ApplyResult } from "../types";
-import { PlanillaConcurrencyError } from "../types";
+import { PlanillaConcurrencyError, PlanillaUncertainError } from "../types";
+import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
 import { ownerColumn, type WorkspaceContext, workspaceContextSchema } from "@/lib/workspace/context";
 
 export type ComputoRow = PlanillaRowMeta & {
@@ -108,8 +109,10 @@ export const computoPresupuestoAdapter: PlanillaAdapter<ComputoRow, ComputoConte
     const { data, error } = await supabase.rpc("planilla_confirmar_computo", { p_planilla_id: planillaId });
     if (error) {
       if (error.code === "P0409") throw new PlanillaConcurrencyError(error.message);
+      if (!isDefiniteRpcRejection(error)) throw new PlanillaUncertainError();
       throw new Error(error.message);
     }
+    if (!data || !data.result) throw new PlanillaUncertainError();
     const result = (data?.result ?? { inserted: 0, updated: 0, deleted: 0 }) as Omit<ApplyResult, "alreadyConfirmed">;
     return { ...result, alreadyConfirmed: Boolean(data?.already_confirmed) };
   },

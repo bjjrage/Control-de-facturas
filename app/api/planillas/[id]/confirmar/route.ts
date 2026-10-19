@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { confirmarPlanilla, PlanillaNotFoundError } from "@/lib/planillas/service";
-import { PlanillaConcurrencyError } from "@/lib/planillas/types";
+import { PlanillaConcurrencyError, PlanillaUncertainError } from "@/lib/planillas/types";
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,6 +8,9 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     const { alreadyConfirmed, result } = await confirmarPlanilla(id);
     return NextResponse.json({ alreadyConfirmed, result });
   } catch (e) {
+    if (e instanceof PlanillaUncertainError) {
+      return NextResponse.json({ error: e.message }, { status: 503 });
+    }
     if (e instanceof PlanillaNotFoundError) {
       return NextResponse.json({ error: "Planilla no encontrada." }, { status: 404 });
     }
