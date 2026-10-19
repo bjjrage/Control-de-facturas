@@ -151,7 +151,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const saved = localStorage.getItem(storageKey);
       if (saved) consumptionAttempt.current = JSON.parse(saved);
       if (consumptionAttempt.current && consumptionAttempt.current.payload !== payload) {
-        throw new Error("Reintent? primero la salida pendiente con los mismos datos.");
+        throw new Error("Reintentá primero la salida pendiente con los mismos datos.");
       }
       if (!consumptionAttempt.current) consumptionAttempt.current = { key: crypto.randomUUID(), payload };
       localStorage.setItem(storageKey, JSON.stringify(consumptionAttempt.current));

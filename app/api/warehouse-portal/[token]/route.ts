@@ -398,6 +398,9 @@ export async function POST(request: Request, context: RouteContext) {
     p_failed: failedUploads,
   });
   if (gateError) {
+    if (/rendici[oó]n.*cerrad[ao]/i.test(gateError.message ?? "")) {
+      return NextResponse.json({ ok: false, error: "La rendición ya fue cerrada y no admite cambios.", submissionId: submission.id }, { status: 409 });
+    }
     return NextResponse.json(
       { ok: false, error: "No se pudo actualizar el estado de ingestión.", submissionId: submission.id },
       { status: 500 }

@@ -154,7 +154,11 @@ export async function postManualInventoryMovement(
     p_created_by: input.createdBy ?? null,
     p_metadata: input.metadata ?? {},
   });
-  return { data: (data as string | null) ?? null, error: error?.message ?? null };
+  const message = error?.message ?? null;
+  const openingConflict = message && /Opening count already exists|Opening count identity has different facts|Historic opening count requires reconciliation/i.test(message);
+  return { data: (data as string | null) ?? null, error: openingConflict
+    ? "Ya existe un stock inicial para este producto, ubicación y moneda. Para corregirlo, registrá un ajuste revisado."
+    : message };
 }
 
 export async function createInventoryReceipt(
