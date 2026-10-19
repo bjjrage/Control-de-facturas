@@ -21,20 +21,33 @@ function parseGrid(text: string): string[][] {
 }
 
 /** "1.234,56" | "1,234.56" | "1234.56" -> number */
-function parseNumber(raw: string): number | null {
-  const s = raw.trim().replace(/\s/g, "").replace(/["']/g, "");
+function parseNumber(raw: unknown): number | null {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  if (typeof raw !== "string") return null;
+  let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
   if (!s) return null;
-  let n: number;
+  if (/^[+-]?\d{1,3}(?:\s\d{3})+(?:[,.]\d+)?$/.test(s)) s = s.replace(/\s/g, "");
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(s)) return null;
   if (s.includes(",") && s.includes(".")) {
-    // el último separador es el decimal
-    n = s.lastIndexOf(",") > s.lastIndexOf(".")
-      ? Number(s.replace(/\./g, "").replace(",", "."))
-      : Number(s.replace(/,/g, ""));
-  } else if (s.includes(",")) {
-    n = Number(s.replace(",", "."));
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const group = decimal === "," ? "." : ",";
+    const parts = s.split(decimal);
+    const groups = parts[0].replace(/^[+-]/, "").split(group);
+    if (parts.length !== 2 || groups[0].length > 3 || groups.slice(1).some(p => p.length !== 3)) return null;
+    s = parts[0].split(group).join("") + "." + parts[1];
   } else {
-    n = Number(s);
+    const parts = s.split(/[.,]/);
+    if (parts.length > 2) {
+      if (parts[0].replace(/^[+-]/, "").length > 3 || parts.slice(1).some(p => p.length !== 3)) return null;
+      s = parts.join("");
+    } else if (parts.length === 2) {
+      // A lone separator followed by three digits is ambiguous: require the
+      // user to supply an ungrouped integer or an explicit decimal value.
+      if (parts[1].length === 3 && !/^[+-]?0$/.test(parts[0])) return null;
+      s = parts.join(".");
+    }
   }
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -87,8 +100,23 @@ export function PasteAvanceDialog({
 
   const matched = preview.filter((p) => p.nuevo != null).length;
   const rowMismatch = mode === "orden" && dataRows.length > 0 && dataRows.length !== sortedItems.length;
+  const sourceError = useMemo(() => {
+    const codes = new Set(sortedItems.map(item => (item.codigo ?? "").trim().toLowerCase()));
+    const seen = new Set<string>();
+    for (const [index, row] of dataRows.entries()) {
+      const value = parseNumber(row[col] ?? "");
+      if (value === null || value < 0) return `Fila ${index + 1}: cantidad inválida o ambigua. Aclará el número antes de importar.`;
+      if (mode === "codigo") {
+        const code = (row[codeCol] ?? "").trim().toLowerCase();
+        if (!code || !codes.has(code) || seen.has(code)) return `Fila ${index + 1}: código sin vincular o repetido.`;
+        seen.add(code);
+      }
+    }
+    return rowMismatch ? "La cantidad de filas no coincide con los rubros. No se omitirá ninguna fila." : null;
+  }, [dataRows, col, codeCol, mode, sortedItems, rowMismatch]);
 
   async function apply() {
+    if (sourceError) { setError(sourceError); return; }
     setPending(true);
     setError(null);
     const values = preview
@@ -185,9 +213,9 @@ export function PasteAvanceDialog({
             </div>
           ) : null}
 
-          {error ? (
+          {error || sourceError ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
-              {error}
+              {error ?? sourceError}
             </div>
           ) : null}
 
@@ -227,7 +255,7 @@ export function PasteAvanceDialog({
               <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
                 Cancelar
               </Button>
-              <Button disabled={pending || matched === 0} onClick={apply}>
+              <Button disabled={pending || matched === 0 || Boolean(sourceError)} onClick={apply}>
                 {pending ? "Aplicando…" : `Aplicar a ${matched} rubros`}
               </Button>
             </div>
