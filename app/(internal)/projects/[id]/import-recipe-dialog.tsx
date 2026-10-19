@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { importProductionRecipe, saveProductionRecipe } from "../production-recipe-actions";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
 
 // Mismo patrón que import-budget-dialog (parse PY + detección de columnas).
 function parsePyNumber(raw: unknown): number | null {
@@ -217,7 +218,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = readSpreadsheet(XLSX, buf, file.name);
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
       if (raw.length < 2) {

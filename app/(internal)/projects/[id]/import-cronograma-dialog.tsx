@@ -13,6 +13,7 @@ import {
   type ScheduleInterpretation,
 } from "@/lib/schedule/schedule-import";
 import type { BudgetItem } from "@/lib/types";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
 
 type Step = "upload" | "preview" | "done";
 
@@ -59,7 +60,7 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const wb = readSpreadsheet(XLSX, buf, file.name, { cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
       const interpreted = interpretScheduleSheet(rows, erpItems);

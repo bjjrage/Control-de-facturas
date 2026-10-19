@@ -7,6 +7,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
 
 type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "line_total" | "start_date" | "end_date";
 type ColumnAssignment = FieldKey | "ignore";
@@ -155,7 +156,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = readSpreadsheet(XLSX, buf, file.name);
       setWorkbook(wb);
       setSheetNames(wb.SheetNames);
       const firstSheet = wb.SheetNames[0];
@@ -404,7 +405,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
                     <th>Descripción</th>
                     <th>Unid.</th>
                     <th className="num">Cantidad</th>
-                    <th className="num">P. Unit.</th>
+                    <th className="num">P. Unit.</th><th>Motivo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -417,7 +418,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
                       <td>{r.item.description || (r.reason ?? "—")}</td>
                       <td className="text-[var(--muted)]">{r.item.unit ?? "—"}</td>
                       <td className="num">{r.item.quantity ?? "—"}</td>
-                      <td className="num">{r.item.unit_price ?? "—"}</td>
+                      <td className="num">{r.item.unit_price ?? "—"}</td><td className="text-[var(--error)]">{!r.valid ? (r.reason ?? "Fila inválida") : ""}</td>
                     </tr>
                   ))}
                 </tbody>
