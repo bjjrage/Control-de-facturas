@@ -17,6 +17,11 @@ async function ctx() {
   return { supabase, profile };
 }
 
+async function checkedTenderWrite(query: PromiseLike<{ error: { message: string } | null }>, section: string) {
+  const { error } = await query;
+  if (error) throw new Error(`${section}: ${error.message}`);
+}
+
 /**
  * Trae una licitación de la DNCP por su número y la guarda (o actualiza).
  */
@@ -63,14 +68,15 @@ export async function importarLicitacion(
   // Ingestar el hecho público globalmente en procurement_* (idempotente)
   let processId: string | null = null;
   try {
-    const { data: procIdData } = await supabase.rpc("ingestar_proceso_ocds_global", {
+    const { data: procIdData, error: processError } = await supabase.rpc("ingestar_proceso_ocds_global", {
       p_cr: compiled,
       p_fuente: "DNCP_OCDS",
     });
+    if (processError) return { error: `No se pudo sincronizar el proceso DNCP: ${processError.message}` };
     if (typeof procIdData === "string") {
       processId = procIdData;
       // Registrar seguimiento privado en empresa_licitacion_seguimiento
-      await supabase.from("empresa_licitacion_seguimiento").upsert(
+      await checkedTenderWrite(supabase.from("empresa_licitacion_seguimiento").upsert(
         {
           empresa_id: empresaId,
           process_id: processId,
@@ -78,10 +84,10 @@ export async function importarLicitacion(
           updated_at: new Date().toISOString(),
         },
         { onConflict: "empresa_id,process_id" }
-      );
+      ), "Seguimiento");
     }
-  } catch {
-    // Si la RPC no está aplicada aún en producción remota, continúa con retrocompatibilidad
+  } catch (cause) {
+    return { error: `No se pudo sincronizar el proceso DNCP: ${cause instanceof Error ? cause.message : "fallo de conexión"}` };
   }
 
   // Gate 15: Obtener snapshot previo si existía para detectar cambios (adendas, prórrogas, estados)
@@ -132,18 +138,20 @@ export async function importarLicitacion(
   if (licErr || !lic) return { error: `No se pudo guardar: ${licErr?.message}` };
   const licId = lic.id as string;
 
+  try {
   // Re-sincronizar hijos: no borrar ciegamente oferentes de alta evidencia (ACTA_PDF, CUADRO_PDF, MANUAL)
-  await Promise.all([
+  const deletions = await Promise.all([
     supabase.from("licitacion_lotes").delete().eq("licitacion_id", licId),
     supabase.from("licitacion_items").delete().eq("licitacion_id", licId),
     supabase.from("licitacion_oferentes").delete().eq("licitacion_id", licId).eq("fuente", "API"),
     supabase.from("licitacion_documentos").delete().eq("licitacion_id", licId),
   ]);
+  if (deletions.some(result => result.error)) throw new Error("No se pudieron sincronizar los datos anteriores.");
 
   // Lotes (guardamos el mapa lote_dncp_id → id para los ítems)
   const loteIdByDncp = new Map<string, string>();
   if (parsed.lotes.length > 0) {
-    const { data: lotesRows } = await supabase
+    const { data: lotesRows, error: lotesError } = await supabase
       .from("licitacion_lotes")
       .insert(
         parsed.lotes.map((l) => ({
@@ -156,13 +164,14 @@ export async function importarLicitacion(
         }))
       )
       .select("id, lote_dncp_id");
+    if (lotesError) throw new Error(`Lotes: ${lotesError.message}`);
     for (const r of lotesRows ?? []) {
       if (r.lote_dncp_id) loteIdByDncp.set(r.lote_dncp_id as string, r.id as string);
     }
   }
 
   if (parsed.items.length > 0) {
-    await supabase.from("licitacion_items").insert(
+    await checkedTenderWrite(supabase.from("licitacion_items").insert(
       parsed.items.map((it) => ({
         licitacion_id: licId,
         empresa_id: empresaId,
@@ -175,15 +184,16 @@ export async function importarLicitacion(
         precio_unitario_referencial: it.precio_unitario_referencial,
         sort_order: it.sort_order,
       }))
-    );
+    ), "Ítems");
   }
 
   if (parsed.oferentes.length > 0) {
     // Consultar oferentes de alta evidencia existentes para no duplicar ni degradar
-    const { data: existingOferentes } = await supabase
+    const { data: existingOferentes, error: existingError } = await supabase
       .from("licitacion_oferentes")
       .select("ruc, nombre, fuente")
       .eq("licitacion_id", licId);
+    if (existingError) throw new Error(`Oferentes: ${existingError.message}`);
 
     const existingRucs = new Set((existingOferentes ?? []).map(e => (e.ruc || '').trim().toUpperCase()).filter(Boolean));
     const existingNames = new Set((existingOferentes ?? []).map(e => (e.nombre || '').trim().toUpperCase()));
@@ -197,7 +207,7 @@ export async function importarLicitacion(
     });
 
     if (newOferentes.length > 0) {
-      await supabase.from("licitacion_oferentes").insert(
+      await checkedTenderWrite(supabase.from("licitacion_oferentes").insert(
         newOferentes.map((o) => ({
           licitacion_id: licId,
           empresa_id: empresaId,
@@ -209,7 +219,7 @@ export async function importarLicitacion(
           lotes_ganados: o.lotes_ganados,
           fuente: o.fuente || 'API',
         }))
-      );
+      ), "Oferentes");
     }
   }
 
@@ -222,7 +232,7 @@ export async function importarLicitacion(
       seen.add(k);
       return true;
     });
-    await supabase.from("licitacion_documentos").insert(
+    await checkedTenderWrite(supabase.from("licitacion_documentos").insert(
       docs.map((d) => ({
         licitacion_id: licId,
         empresa_id: empresaId,
@@ -231,7 +241,7 @@ export async function importarLicitacion(
         titulo: d.titulo,
         url_dncp: d.url_dncp,
       }))
-    );
+    ), "Documentos");
   }
 
   // Gate 15: Tender Monitoring Diff Engine (Auditoría de cambios y adendas)
@@ -289,6 +299,10 @@ export async function importarLicitacion(
     }
   }
 
+  } catch (cause) {
+    revalidatePath(`/licitaciones/${licId}`);
+    return { id: licId, nro, error: `Importación incompleta: ${cause instanceof Error ? cause.message : "falló el guardado"}. Revisá la licitación antes de reintentar.` };
+  }
   await logAudit(supabase, { action: "licitacion_importada", detail: { nro, lic_id: licId } });
   revalidatePath("/licitaciones");
   revalidatePath(`/licitaciones/${licId}`);
@@ -1112,6 +1126,7 @@ export async function extraerOfertasDeActa(
 
   let ganadoresCount = 0;
   let revisionCount = 0;
+  let savedCount = 0;
 
   for (const bid of extractedBids) {
     if (bid.estado_oferta === 'GANADORA') ganadoresCount++;
@@ -1123,7 +1138,7 @@ export async function extraerOfertasDeActa(
 
     // Upsert por (licitacion_id, ruc) si RUC existe, o insertar si no
     if (rucFormateado) {
-      await supabase
+      const { error: writeError } = await supabase
         .from("licitacion_oferentes")
         .upsert({
           licitacion_id: lic.id,
@@ -1134,8 +1149,9 @@ export async function extraerOfertasDeActa(
           gano: bid.estado_oferta === 'GANADORA',
           fuente: fuente
         }, { onConflict: 'licitacion_id, ruc' });
+      if (writeError) return { error: `Guardadas ${savedCount} de ${extractedBids.length} ofertas. No se pudo guardar ${bid.oferente_raw ?? "una oferta"}: ${writeError.message}` };
     } else {
-      await supabase
+      const { error: writeError } = await supabase
         .from("licitacion_oferentes")
         .insert({
           licitacion_id: lic.id,
@@ -1146,7 +1162,9 @@ export async function extraerOfertasDeActa(
           gano: bid.estado_oferta === 'GANADORA',
           fuente: fuente
         });
+      if (writeError) return { error: `Guardadas ${savedCount} de ${extractedBids.length} ofertas. No se pudo guardar una oferta: ${writeError.message}` };
     }
+    savedCount++;
   }
 
   await logAudit(supabase, {
