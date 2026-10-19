@@ -32,10 +32,10 @@ export function ProgressForecastSection({ project }: { project: Project }) {
   const [customDays, setCustomDays] = useState<string>("7");
   const [isCustom, setIsCustom] = useState<boolean>(false);
   const [latitude, setLatitude] = useState<string>(
-    project.latitude ? String(project.latitude) : "-25.2867"
+    project.latitude != null ? String(project.latitude) : ""
   );
   const [longitude, setLongitude] = useState<string>(
-    project.longitude ? String(project.longitude) : "-57.6470"
+    project.longitude != null ? String(project.longitude) : ""
   );
   const [showLocationModal, setShowLocationModal] = useState<boolean>(false);
   const [forecastResult, setForecastResult] =
@@ -48,9 +48,14 @@ export function ProgressForecastSection({ project }: { project: Project }) {
 
   const handleRunForecast = () => {
     setErrorMsg(null);
+    const latNum = latitude.trim() ? Number(latitude) : NaN;
+    const lonNum = longitude.trim() ? Number(longitude) : NaN;
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum) || Math.abs(latNum) > 90 || Math.abs(lonNum) > 180) {
+      setErrorMsg("Completá las coordenadas válidas de la obra antes de proyectar.");
+      setShowLocationModal(true);
+      return;
+    }
     startTransition(async () => {
-      const latNum = Number(latitude);
-      const lonNum = Number(longitude);
       const res = await runProgressForecastAction({
         projectId: project.id,
         horizonDays: activeDays,
@@ -90,7 +95,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             title="Configurar coordenadas meteorológicas"
           >
             <MapPin className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-            {project.latitude ? "Ubicación fijada" : "Asunción (predeterminada)"}
+            {project.latitude != null && project.longitude != null ? "Ubicación fijada" : "Configurar ubicación"}
           </Button>
 
           {/* Horizon Selector */}
