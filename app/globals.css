@@ -980,6 +980,7 @@ html[data-theme="claro"] select option, html[data-theme="claro"] select optgroup
   outline: none;
 }
 .erp-info-tooltip__content {
+  display: none;
   position: absolute;
   z-index: 90;
   top: calc(100% + 0.55rem);
@@ -1009,6 +1010,7 @@ html[data-theme="claro"] select option, html[data-theme="claro"] select optgroup
   transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
 }
 .erp-info-tooltip--open .erp-info-tooltip__content {
+  display: block;
   opacity: 1;
   visibility: visible;
   transform: translateY(0);

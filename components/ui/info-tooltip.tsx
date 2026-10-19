@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleHelp } from "lucide-react";
-import { useId, useRef, useState, type PointerEvent, type FocusEvent, type KeyboardEvent } from "react";
+import { useId, useLayoutEffect, useRef, useState, type PointerEvent, type FocusEvent, type KeyboardEvent } from "react";
 
 type InfoTooltipProps = {
   label: string;
@@ -15,6 +15,29 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
   const [open, setOpen] = useState(false);
   const pointerType = useRef<string | null>(null);
   const hovered = useRef(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const bubble = useRef<HTMLSpanElement>(null);
+  const [position, setPosition] = useState({ left: 0, top: "calc(100% + 0.55rem)" });
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    function place() {
+      if (!anchor.current || !bubble.current) return;
+      const rect = anchor.current.getBoundingClientRect();
+      const { width, height } = bubble.current.getBoundingClientRect();
+      const left = Math.max(8 - rect.left, Math.min(0, document.documentElement.clientWidth - 8 - rect.left - width));
+      const top = rect.bottom + height + 8 > window.innerHeight && rect.top > height + 8
+        ? `${-height - 8}px` : "calc(100% + 0.55rem)";
+      setPosition(previous => previous.left === left && previous.top === top ? previous : { left, top });
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
     pointerType.current = event.pointerType;
@@ -64,7 +87,7 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
   }
 
   return (
-    <span className={[
+    <span ref={anchor} className={[
       "erp-info-tooltip",
       open ? "erp-info-tooltip--open" : "",
       className ?? "",
@@ -85,7 +108,7 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
       >
         <CircleHelp aria-hidden="true" size={15} strokeWidth={1.8} />
       </button>
-      <span id={id} role="tooltip" className="erp-info-tooltip__content" aria-hidden={!open}>
+      <span ref={bubble} id={id} role="tooltip" className="erp-info-tooltip__content" aria-hidden={!open} style={position}>
         {content}
       </span>
     </span>
