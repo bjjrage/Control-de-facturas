@@ -76,6 +76,7 @@ export default function NuevoProductoPage() {
             id="p-nombre"
             name="nombre"
             type="text"
+            aria-label="Nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             required
@@ -89,6 +90,7 @@ export default function NuevoProductoPage() {
           <Select
             id="p-categoria"
             name="categoria"
+            aria-label="Categoría"
             value={categoriaId}
             onChange={(e) => setCategoriaId(e.target.value)}
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
@@ -106,6 +108,7 @@ export default function NuevoProductoPage() {
             <Select
               id="p-unidad"
               name="unidad"
+              aria-label="Unidad de compra"
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
@@ -121,6 +124,7 @@ export default function NuevoProductoPage() {
             <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
             <input
               type="text"
+              aria-label="Código"
               value={sku}
               onChange={(e) => setSku(e.target.value)}
               placeholder="Opcional"
@@ -136,6 +140,7 @@ export default function NuevoProductoPage() {
               type="number"
               min="0"
               step="any"
+              aria-label="Contenido por unidad"
               value={contenido}
               onChange={(e) => { setContenido(e.target.value); if (!e.target.value) setUnidadBase(""); }}
               placeholder="Ej: 25"
@@ -145,6 +150,7 @@ export default function NuevoProductoPage() {
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
             <Select
+              aria-label="Unidad base"
               value={unidadBase}
               onChange={(e) => setUnidadBase(e.target.value)}
               disabled={!contenido}
@@ -170,6 +176,7 @@ export default function NuevoProductoPage() {
         <div>
           <label className="block text-[12px] text-[var(--muted)] mb-1">Descripción</label>
           <textarea
+            aria-label="Descripción"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             rows={2}
@@ -185,6 +192,7 @@ export default function NuevoProductoPage() {
               type="number"
               min="0"
               step="any"
+              aria-label="Stock mínimo"
               value={stockMinimo}
               onChange={(e) => setStockMinimo(e.target.value)}
               placeholder="0"

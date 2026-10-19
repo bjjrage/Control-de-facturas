@@ -8,10 +8,10 @@ const TONE_CLASSES: Record<MetricChip["tone"], string> = {
   error: "bg-[var(--error-bg)] text-[var(--error)]",
 };
 
-const TONE_RING: Record<MetricChip["tone"], string> = {
+const TONE_ACCENT: Record<MetricChip["tone"], string> = {
   ok: "",
-  warn: "ring-1 ring-[var(--warn)]/25",
-  error: "ring-1 ring-[var(--error)]/30",
+  warn: "kpi-accent-labor",
+  error: "kpi-accent-outflow",
 };
 
 // Fila de KPIs atómicos de una sección (Administración, Licitaciones) —
@@ -30,7 +30,7 @@ export function MetricChips({ chips }: { chips: MetricChip[] }) {
           <Link
             key={chip.key}
             href={chip.href}
-            className={`group kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5 flex items-center gap-3 ${TONE_RING[chip.tone]}`}
+            className={`group erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5 flex items-center gap-3 ${TONE_ACCENT[chip.tone]}`}
           >
             <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${TONE_CLASSES[chip.tone]}`}>
               <Icon size={16} />

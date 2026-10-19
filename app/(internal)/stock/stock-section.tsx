@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { Producto, CategoriaProducto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,7 +150,7 @@ export function StockSection({
     <div className="max-w-6xl space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">Materiales</h1>
+          <div className="flex items-center gap-1"><h1 className="text-[17px] font-semibold">Materiales</h1><InfoTooltip label="Materiales" content="Este catálogo define nombres y unidades; no implica que haya stock. Las existencias físicas se consultan y registran en Stock e Inventario." /></div>
           <p className="text-[12px] text-[var(--muted)] mt-0.5">
             {activos.length} {activos.length === 1 ? "material activo" : "materiales activos"} ·{" "}
             {categorias.length} {categorias.length === 1 ? "categoría" : "categorías"}
@@ -168,10 +169,7 @@ export function StockSection({
         </div>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[12px] text-[var(--muted)]">
-        Materiales es el maestro de nombres y unidades de la empresa; no implica que haya stock. Las existencias físicas se consultan y registran en{" "}
-        <Link href="/inventario" className="underline font-semibold text-[var(--foreground)]">Stock e Inventario</Link>.
-      </div>
+      <Link href="/inventario" className="text-[12px] text-[var(--primary)]">Ver Stock e Inventario</Link>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
@@ -416,6 +414,7 @@ function Tabla({
               <td>
                 <Link
                   href={`/stock/${p.id}/editar`}
+                  aria-label={`Editar material ${p.nombre}`}
                   className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 >
                   ✏️
@@ -467,13 +466,13 @@ function Kpi({
     return (
       <button
         onClick={onClick}
-        className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-left hover:border-[var(--muted)] transition-colors"
+        className={`erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 text-left ${tone === "error" ? "kpi-accent-outflow" : tone === "warn" ? "kpi-accent-labor" : ""}`}
       >
         {inner}
       </button>
     );
   }
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">{inner}</div>
+    <div className={`erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 ${tone === "error" ? "kpi-accent-outflow" : tone === "warn" ? "kpi-accent-labor" : ""}`}>{inner}</div>
   );
 }

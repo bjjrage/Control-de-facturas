@@ -19,14 +19,15 @@ vi.mock("@/lib/goekua", async importOriginal => ({
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
   rpc: async (_name: string, args: unknown) => { state.audit(args); return { data: "audit-id", error: state.auditFails ? {message:"failure"} : null }; },
   from(table: string) {
-    const filters: [string, unknown][] = []; let values: Record<string, unknown> | null = null;
+    const filters: [string, unknown][] = []; const setFilters: [string, unknown[]][] = []; let values: Record<string, unknown> | null = null;
     const query = {
       select: () => query, order: () => query,
       eq: (key: string, value: unknown) => { filters.push([key, value]); return query; },
+      in: (key: string, values: unknown[]) => { setFilters.push([key, values]); return query; },
       update: (value: Record<string, unknown>) => { values = value; return query; },
       async run(single = false) {
         state.events.push((values ? "persist:" : "read:") + table);
-        const rows = (state.tables[table] ?? []).filter(row => filters.every(([key,value]) => row[key] === value));
+        const rows = (state.tables[table] ?? []).filter(row => filters.every(([key,value]) => row[key] === value) && setFilters.every(([key, values]) => values.includes(row[key])));
         if (values && state.persistFails) return { data: null, error: { message: "simulated database failure" } };
         if (values) rows.forEach(row => Object.assign(row, values));
         return { data: single ? rows[0] ?? null : rows, error: null };

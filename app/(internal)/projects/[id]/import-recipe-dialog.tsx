@@ -5,20 +5,40 @@ import { Select } from "@/components/ui/select";
 import { useMemo, useState } from "react";
 import { Upload, RefreshCw, CheckCircle2, AlertTriangle, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { importProductionRecipe, saveProductionRecipe } from "../production-recipe-actions";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
+import { parseParaguayNumber, type SpreadsheetNumberFormat } from "@/lib/spreadsheet-number-format";
+import { SpreadsheetNumberFormatSelect } from "@/components/ui/spreadsheet-number-format-select";
 
 // Mismo patrón que import-budget-dialog (parse PY + detección de columnas).
-function parsePyNumber(raw: unknown): number | null {
+function parsePyNumber(raw: unknown, format: SpreadsheetNumberFormat = "strict"): number | null {
+  if (format === "py") return parseParaguayNumber(raw);
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
-  let s = raw.trim();
+  let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
   if (!s) return null;
-  s = s.replace(/gs\.?/gi, "").replace(/\s/g, "");
-  if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
+  if (/^[+-]?\d{1,3}(?:\s\d{3})+(?:[,.]\d+)?$/.test(s)) s = s.replace(/\s/g, "");
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(s)) return null;
+  if (s.includes(",") && s.includes(".")) {
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const group = decimal === "," ? "." : ",";
+    const parts = s.split(decimal);
+    const groups = parts[0].replace(/^[+-]/, "").split(group);
+    if (parts.length !== 2 || groups[0].length > 3 || groups.slice(1).some(p => p.length !== 3)) return null;
+    s = parts[0].split(group).join("") + "." + parts[1];
   } else {
-    s = s.replace(/\./g, "");
+    const parts = s.split(/[.,]/);
+    if (parts.length > 2) {
+      if (parts[0].replace(/^[+-]/, "").length > 3 || parts.slice(1).some(p => p.length !== 3)) return null;
+      s = parts.join("");
+    } else if (parts.length === 2) {
+      // A lone separator followed by three digits is ambiguous: require the
+      // user to supply an ungrouped integer or an explicit decimal value.
+      if (parts[1].length === 3 && !/^[+-]?0$/.test(parts[0])) return null;
+      s = parts.join(".");
+    }
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -60,6 +80,7 @@ interface ParsedRow {
   unidadProduccion: string;
   partidaCodigo: string;
   cantidad: number | null;
+  rawCantidad?: unknown;
   unidad: string;
   manualItemId: string;
 }
@@ -84,6 +105,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [manualRows, setManualRows] = useState<ManualRow[]>([{ ...EMPTY_MANUAL_ROW }]);
+  const [numberFormat, setNumberFormat] = useState<SpreadsheetNumberFormat>("strict");
 
   function updateManualRow(idx: number, field: keyof ManualRow, value: string) {
     setManualRows((prev) =>
@@ -105,12 +127,16 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     setManualRows((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const manualValidRows = manualRows.filter((r) => r.budgetItemId && Number(r.quantity) > 0);
+  const manualValidRows = manualRows.filter((r) => r.budgetItemId && r.quantity.trim() && Number.isFinite(Number(r.quantity)) && Number(r.quantity) > 0);
 
   async function handleConfirmManual() {
     setSaveError(null);
     if (!recipeCode.trim() || !recipeName.trim() || !prodUnit.trim()) {
       setSaveError("Completá código, nombre y unidad de producción de la receta.");
+      return;
+    }
+    if (manualValidRows.length !== manualRows.length || manualRows.some(r => !budgetItems.some(item => item.id === r.budgetItemId))) {
+      setSaveError("Completá o eliminá todas las filas incompletas antes de guardar. No se omitirá ninguna.");
       return;
     }
     if (manualValidRows.length === 0) {
@@ -162,6 +188,8 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
   }, [budgetItems]);
 
   function matchStatus(r: ParsedRow): { kind: "ok" | "manual" | "error"; reason?: string; itemId?: string } {
+    if (r.cantidad === null || !Number.isFinite(r.cantidad) || r.cantidad <= 0)
+      return { kind: "error", reason: "Cantidad inválida o ambigua: corregí el archivo." };
     if (r.manualItemId) {
       const found = budgetItems.find((b) => b.id === r.manualItemId);
       if (!found) return { kind: "error", reason: "Selección manual inválida." };
@@ -183,7 +211,10 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     return { kind: "ok", itemId: found[0].id };
   }
 
-  const preview = useMemo(() => rows.map((r) => ({ row: r, st: matchStatus(r) })), [rows, byCode, budgetItems]);
+  const preview = useMemo(() => rows.map((r) => {
+    const row = { ...r, cantidad: parsePyNumber(r.rawCantidad ?? r.cantidad, numberFormat) };
+    return { row, st: matchStatus(row) };
+  }), [rows, byCode, budgetItems, numberFormat]);
   const okCount = preview.filter((p) => p.st.kind !== "error").length;
   const errCount = preview.length - okCount;
 
@@ -195,7 +226,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = readSpreadsheet(XLSX, buf, file.name);
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
       if (raw.length < 2) {
@@ -219,14 +250,15 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
         const r = raw[i] as unknown[];
         const get = (f: string) => (colIdx[f] === undefined ? "" : r[colIdx[f]]);
         const partidaCodigo = String(get("partidaCodigo") ?? "").trim();
-        const cantidad = parsePyNumber(get("cantidad"));
-        if (!partidaCodigo && cantidad === null) continue; // fila vacía
+        const cantidad = parsePyNumber(get("cantidad"), numberFormat);
+        if (r.every(cell => !String(cell ?? "").trim())) continue;
         parsed.push({
           idx: i,
           recetaCodigo: String(get("recetaCodigo") ?? "").trim(),
           unidadProduccion: String(get("unidadProduccion") ?? "").trim(),
           partidaCodigo,
           cantidad,
+          rawCantidad: get("cantidad"),
           unidad: String(get("unidad") ?? "").trim(),
           manualItemId: "",
         });
@@ -295,7 +327,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="importar-receta-dialog">
       <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta<InfoTooltip className="ml-1" label="Importar receta" content="Excel: columnas RECETA, UNIDAD_PRODUCCION, PARTIDA_CODIGO, PARTIDA, CANTIDAD y UNIDAD. El vínculo usa el código exacto; los casos ambiguos se eligen a mano. Nada se crea sin confirmar. Manual: cargá cabecera y partidas." /></h4>
           <button type="button" onClick={onClose} className="p-1 text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
             <X className="h-4 w-4" />
           </button>
@@ -320,11 +352,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
 
         {mode === "excel" && (
         <>
-        <p className="text-[11px] text-[var(--muted)]">
-          Columnas esperadas: RECETA | UNIDAD_PRODUCCION | PARTIDA_CODIGO | PARTIDA | CANTIDAD | UNIDAD.
-          El mapeo es por código exacto; lo ambiguo se elige manual. Nada se crea sin confirmar.
-        </p>
-
+        <SpreadsheetNumberFormatSelect id="recipe-number-format" value={numberFormat} onChange={setNumberFormat} />
         <label className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] p-3 text-xs cursor-pointer hover:bg-[var(--panel-2)]">
           <Upload className="h-4 w-4 text-[var(--muted)]" />
           <span className="text-[var(--muted)]">{fileName || "Elegir archivo .xlsx / .csv"}</span>
@@ -432,9 +460,6 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
 
         {mode === "manual" && (
         <>
-          <p className="text-[11px] text-[var(--muted)]">
-            Cargá la receta a mano: cabecera + filas de partida/cantidad. Sin Excel.
-          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <label className="block text-[11px] text-[var(--muted)]">Código receta</label>

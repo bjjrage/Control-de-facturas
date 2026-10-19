@@ -1,0 +1,16 @@
+{
+  "id": "warehouse-evidence",
+  "name": "warehouse-evidence",
+  "owner": "",
+  "public": false,
+  "file_size_limit": 20971520,
+  "allowed_mime_types": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "application/pdf"
+  ],
+  "created_at": "2026-10-15T02:00:52.863Z",
+  "updated_at": "2026-10-15T02:00:52.863Z"
+}

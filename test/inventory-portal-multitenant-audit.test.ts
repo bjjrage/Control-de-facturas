@@ -22,7 +22,7 @@ describe("eslabones de la app (service_role)", () => {
   it("el token se resuelve por hash y solo enlaces activos y no vencidos", () => {
     expect(route).toContain('from("warehouse_portal_links")');
     expect(route).toContain('.eq("token_hash", hashWarehousePortalToken(token))');
-    expect(route).toContain("!link || !link.active || (link.expires_at && new Date(link.expires_at).getTime() <= Date.now())");
+    expect(route).toContain("!link || !link.active || !link.expires_at || new Date(link.expires_at).getTime() <= Date.now()");
   });
 
   it("la ubicación del enlace debe pertenecer a la empresa del enlace", () => {

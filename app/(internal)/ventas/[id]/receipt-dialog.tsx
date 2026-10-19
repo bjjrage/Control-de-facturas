@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -27,6 +28,8 @@ export function ReceiptDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
+  const router = useRouter();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -34,20 +37,36 @@ export function ReceiptDialog({
       <DialogContent title="Registrar cobro">
         <form
           className="space-y-3"
-          action={async (formData: FormData) => {
-            setPending(true);
-            const result = await addReceipt(docId, formData);
-            setPending(false);
-            if (result?.error) {
-              setError(result.error);
-              return;
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (submitting.current) return;
+            const formData = new FormData(event.currentTarget);
+            const attemptStorageKey = `sales-receipt-attempt:${docId}`;
+            let idempotencyKey = sessionStorage.getItem(attemptStorageKey);
+            if (!idempotencyKey) {
+              idempotencyKey = crypto.randomUUID();
+              sessionStorage.setItem(attemptStorageKey, idempotencyKey);
             }
+            formData.set("idempotency_key", idempotencyKey);
+            submitting.current = true;
+            setPending(true);
             setError(null);
-            setOpen(false);
+            try {
+              const result = await addReceipt(docId, formData);
+              if (result.error) { setError(result.error); return; }
+              sessionStorage.removeItem(attemptStorageKey);
+              setOpen(false);
+              router.refresh();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "No se pudo registrar el cobro.");
+            } finally {
+              submitting.current = false;
+              setPending(false);
+            }
           }}
         >
           {error ? (
-            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+            <div role="alert" className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}
             </div>
           ) : null}

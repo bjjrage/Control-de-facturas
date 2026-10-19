@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Invoice, InvoiceException, Provider } from "@/lib/types";
@@ -16,6 +16,7 @@ import { InvoiceLinesSection, type InvoiceLineView, type OrderLineView } from ".
 import { markAptoYCrearOp } from "./actions";
 import { UnmatchOrderButton } from "./unmatch-button";
 import { DeleteInvoiceButton } from "./delete-button";
+import { VerifyOriginalButton } from "./verify-original-button";
 import { CreateOpButton } from "./create-op-button";
 
 export default async function InvoiceDetailPage({
@@ -23,15 +24,16 @@ export default async function InvoiceDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ autoMatched?: string; created?: string }>;
+  searchParams: Promise<{ autoMatched?: string; created?: string; error?: string }>;
 }) {
   const { id } = await params;
-  const { autoMatched, created } = await searchParams;
+  const { autoMatched, created, error: actionError } = await searchParams;
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
 
   const { data: invoice } = await supabase.from("invoices").select("*").eq("id", id).single<Invoice>();
   if (!invoice) notFound();
+  const { data: identity } = await supabase.from("invoice_identity_evidence").select("invoice_id").eq("invoice_id", id).eq("empresa_id", profile.empresa_id).maybeSingle();
 
   const { data: provider } = await supabase
     .from("providers")
@@ -156,10 +158,11 @@ export default async function InvoiceDetailPage({
       >
         <ArrowLeft size={13} /> Volver a Facturas
       </Link>
+      {actionError ? <p role="alert" className="text-[13px] text-[var(--error)]">{actionError}</p> : null}
+      {!identity && invoice.status !== "PAGADO" ? <div className="space-y-2 rounded border border-[var(--warn)]/40 p-3 text-[13px]">La identidad del original está pendiente de verificación antes de conciliar o habilitar pagos.<VerifyOriginalButton invoiceId={invoice.id} /></div> : null}
       {autoMatched === "1" ? (
         <div className="rounded border border-[var(--ok)]/30 bg-[var(--ok-bg)] px-2.5 py-1.5 text-[12px] text-[var(--ok)]">
-          Factura guardada y vinculada automáticamente: el monto coincidió con una única orden autorizada pendiente de
-          este proveedor.
+          Factura guardada y vinculada: el proveedor, la moneda y el producto documentado coinciden con la orden autorizada.
         </div>
       ) : created === "1" ? (
         <div className="rounded border border-[var(--ok)]/30 bg-[var(--ok-bg)] px-2.5 py-1.5 text-[12px] text-[var(--ok)]">
@@ -185,11 +188,11 @@ export default async function InvoiceDetailPage({
             <Link href={`/pagos/${linkedOp.id}`}>
               <Button variant="secondary">Ver OP →</Button>
             </Link>
-          ) : invoice.status === "MATCH" ? (
-            <form action={async () => { "use server"; await markAptoYCrearOp(invoice.id); }}>
+          ) : identity && invoice.status === "MATCH" ? (
+            <form action={async () => { "use server"; const result = await markAptoYCrearOp(invoice.id); if (result?.error) redirect(`/invoices/${invoice.id}?error=${encodeURIComponent(result.error)}`); }}>
               <Button type="submit">Marcar apto para pago</Button>
             </form>
-          ) : invoice.status === "APTO_PARA_PAGO" ? (
+          ) : identity && invoice.status === "APTO_PARA_PAGO" ? (
             <CreateOpButton invoiceId={invoice.id} />
           ) : null}
           {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} status={invoice.status} redirectTo="/invoices" /> : null}

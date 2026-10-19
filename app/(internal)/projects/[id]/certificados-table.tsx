@@ -88,6 +88,7 @@ export function CertificadosTable({
   focusCertificateId?: string | null;
 }) {
   const [expanded, setExpanded] = useState<string | null>(focusCertificateId ?? certificates[0]?.id ?? null);
+  const expandedCertificate = certificates.find(certificate => certificate.id === expanded);
 
   useEffect(() => {
     if (!focusCertificateId || !certificates.some((certificate) => certificate.id === focusCertificateId)) return;
@@ -172,15 +173,15 @@ export function CertificadosTable({
         </table>
       </div>
 
-      {expanded ? (
+      {expandedCertificate ? (
         <CertificadoDetalle
-          key={expanded}
+          key={expandedCertificate.id}
           project={project}
-          certificate={certificates.find((c) => c.id === expanded)!}
-          items={itemsByCert[expanded] ?? []}
-          staff={staffByCert[expanded] ?? []}
+          certificate={expandedCertificate}
+          items={itemsByCert[expandedCertificate.id] ?? []}
+          staff={staffByCert[expandedCertificate.id] ?? []}
           projectUnits={projectUnits}
-          unitProgress={unitProgressByCert[expanded] ?? []}
+          unitProgress={unitProgressByCert[expandedCertificate.id] ?? []}
           isAdmin={isAdmin}
         />
       ) : null}
@@ -698,6 +699,7 @@ function LiqRow({
           min="0"
           defaultValue={Math.abs(value)}
           onBlur={(e) => {
+            if (!e.target.value.trim()) { e.target.value = String(Math.abs(value)); return; }
             const v = Number(e.target.value);
             if (Number.isFinite(v) && v !== Math.abs(value)) onSave(v);
           }}
@@ -721,6 +723,7 @@ function QtyInput({ value, onSave }: { value: number; onSave: (v: number) => voi
       min="0"
       defaultValue={value}
       onBlur={(e) => {
+        if (!e.target.value.trim()) { e.target.value = String(value); return; }
         const v = Number(e.target.value);
         if (Number.isFinite(v) && v >= 0 && v !== value) onSave(v);
       }}
@@ -731,7 +734,7 @@ function QtyInput({ value, onSave }: { value: number; onSave: (v: number) => voi
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
+    <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-2.5">
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="mt-0.5 text-[13px] font-semibold">{value}</div>
       {sub ? <div className="text-[10px] text-[var(--muted)]">{sub}</div> : null}
@@ -756,6 +759,7 @@ function UnitAvanceSection({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [localPct, setLocalPct] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const p of progress) init[p.unit_id] = String(p.pct_avance);
@@ -765,12 +769,15 @@ function UnitAvanceSection({
   const progressByUnit = new Map(progress.map((p) => [p.unit_id, p]));
 
   function saveUnit(unitId: string, raw: string) {
-    const v = parseFloat(raw);
+    if (!raw.trim()) return;
+    const v = Number(raw);
     if (!Number.isFinite(v) || v < 0 || v > 100) return;
     const current = progressByUnit.get(unitId)?.pct_avance ?? 0;
     if (v === current) return;
     startTransition(async () => {
-      await upsertCertificateUnitProgress(certificateId, [{ unit_id: unitId, pct_avance: v }]);
+      setSaveError(null);
+      const result = await upsertCertificateUnitProgress(certificateId, [{ unit_id: unitId, pct_avance: v }]);
+      if (result.error) { setSaveError(result.error); return; }
       router.refresh();
     });
   }
@@ -785,6 +792,7 @@ function UnitAvanceSection({
           </Button>
         ) : null}
       </div>
+      {saveError ? <p role="alert" className="mb-2 text-xs text-[var(--error)]">{saveError}</p> : null}
       <div className="overflow-x-auto rounded border border-[var(--border)]">
         <table className="text-[12px]">
           <thead>

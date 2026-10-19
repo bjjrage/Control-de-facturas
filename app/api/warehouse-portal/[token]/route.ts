@@ -2,11 +2,30 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { displayLocationName } from "@/lib/inventory/display-location-name";
-import { enforceWarehousePortalFileLimit, hashWarehousePortalToken, sha256Bytes } from "@/lib/inventory/portal";
+import { hashWarehousePortalToken, inspectWarehousePortalFile, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
+import { updateOpenWarehouseSubmission } from "@/lib/inventory/update-open-warehouse-submission";
+import { classifyPortalRpcError } from "@/lib/inventory/portal-rpc-error";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 20;
+
+async function validateFiles(formData: FormData, limit: number, allowSheets: boolean): Promise<
+  { files: Array<{ file: File; bytes: Uint8Array<ArrayBuffer>; contentType: string }>; error: null } |
+  { files: []; error: string }
+> {
+  const submitted = formData.getAll("files").filter((value): value is File => value instanceof File && !!value.name);
+  if (submitted.length > limit) return { files: [], error: `Adjunta hasta ${limit} archivos por envio.` };
+  const files: Array<{ file: File; bytes: Uint8Array<ArrayBuffer>; contentType: string }> = [];
+  for (const file of submitted) {
+    if (!file.size || file.size > MAX_FILE_BYTES) return { files: [], error: `${file.name}: el archivo debe tener entre 1 byte y 20 MB.` };
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const inspected = inspectWarehousePortalFile(file.name, file.type, bytes, allowSheets);
+    if (!inspected.ok || !inspected.contentType) return { files: [], error: inspected.error ?? "Archivo no permitido." };
+    files.push({ file, bytes, contentType: inspected.contentType });
+  }
+  return { files, error: null };
+}
 
 function isIsoDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -23,7 +42,7 @@ async function resolveLink(token: string) {
     .select("id, empresa_id, location_id, active, expires_at, created_by")
     .eq("token_hash", hashWarehousePortalToken(token))
     .maybeSingle();
-  if (!link || !link.active || (link.expires_at && new Date(link.expires_at).getTime() <= Date.now())) return null;
+  if (!link || !link.active || !link.expires_at || new Date(link.expires_at).getTime() <= Date.now()) return null;
   const { data: location } = await admin
     .from("inventory_locations")
     .select("id, name, project_id, location_type, active")
@@ -51,7 +70,15 @@ export async function POST(request: Request, context: RouteContext) {
   if (!resolved) return NextResponse.json({ error: "Enlace inválido o vencido." }, { status: 404 });
 
   const { admin, link, location } = resolved;
-  const formData = await request.formData();
+  if (Number(request.headers.get("content-length") ?? 0) > 21 * 1024 * 1024) {
+    return NextResponse.json({ error: "El envío supera el límite de 20 MB. Dividí los archivos en varios envíos." }, { status: 413 });
+  }
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "No se pudo leer el envío. Revisá los archivos y el límite de 20 MB." }, { status: 400 });
+  }
   const action = String(formData.get("action") ?? "").trim().toLowerCase();
 
   // =========================================================================
@@ -90,8 +117,10 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "La OC no pertenece a esta obra o empresa." }, { status: 404 });
     }
 
+    const submitted = await validateFiles(formData, 10, false);
+    if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
     const attempt = String(formData.get("idempotency_key") ?? "");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepci?n requiere un intento estable." }, { status: 400 });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepción requiere un intento estable." }, { status: 400 });
     const { data: createData, error: createError } = await admin.rpc("inventory_portal_receipt", {
       p_token_hash: hashWarehousePortalToken(token), p_order: order.id, p_date: fecha,
       p_received_by: recibidoPor, p_remision: remisionNumber, p_attempt: attempt, p_notes: notas,
@@ -99,7 +128,8 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (createError) {
-      return NextResponse.json({ error: createError.message ?? "No se pudo registrar la recepción." }, { status: 400 });
+      const failure = classifyPortalRpcError(createError, "No se pudo registrar la recepción.");
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
     const receiptResult = createData as { receipt_id?: string } | null;
@@ -108,35 +138,56 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "No se pudo generar el borrador de recepción." }, { status: 500 });
     }
 
-    // 2. Upload photo evidence if provided
-    const submittedFiles = formData
-      .getAll("files")
-      .filter((v): v is File => v instanceof File && v.size > 0);
-
-    for (const file of submittedFiles.slice(0, 10)) {
-      if (file.size > MAX_FILE_BYTES) continue;
-      const bytes = new Uint8Array(await file.arrayBuffer());
+    // Save all evidence before stock is posted. A failed upload leaves the
+    // idempotent receipt in DRAFT so the same attempt can be retried safely.
+    const evidenceWarnings: string[] = [];
+    for (const { file, bytes, contentType } of submitted.files) {
       const sha256 = sha256Bytes(bytes);
+      const { data: existing, error: existingError } = await admin.from("inventory_receipt_evidence")
+        .select("id").eq("empresa_id", link.empresa_id).eq("receipt_id", receiptId).eq("sha256", sha256).limit(1).maybeSingle();
+      if (existingError) { evidenceWarnings.push(file.name); continue; }
+      if (existing) continue;
       const path = `receipts/${receiptId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
       const { error: uploadErr } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
+        contentType,
       });
-      if (!uploadErr) {
-        await admin.from("inventory_receipt_evidence").insert({
+      if (uploadErr) { evidenceWarnings.push(file.name); continue; }
+      {
+        const { error: evidenceError } = await admin.from("inventory_receipt_evidence").insert({
           empresa_id: link.empresa_id,
           receipt_id: receiptId,
           storage_bucket: "warehouse-evidence",
           storage_path: path,
           file_name: file.name,
-          mime_type: file.type || null,
+          mime_type: contentType,
           size_bytes: file.size,
           sha256,
           uploaded_by: link.created_by,
         });
+        if (evidenceError) {
+          evidenceWarnings.push(file.name);
+          await admin.storage.from("warehouse-evidence").remove([path]);
+        }
       }
     }
 
-    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", movements: (createData as { movements?: string[] }).movements });
+    if (evidenceWarnings.length) {
+      return NextResponse.json({
+        ok: false, receiptId, status: "DRAFT", pendingEvidence: evidenceWarnings,
+        error: "No se guardaron todos los adjuntos. Reintentá con los mismos datos; el stock todavía no se confirmó.",
+      }, { status: 503 });
+    }
+    const { data: movements, error: confirmationError } = await admin.rpc("inventory_confirm_receipt", {
+      p_empresa_id: link.empresa_id, p_receipt_id: receiptId,
+      p_delivery_location_id: location.id,
+      p_idempotency_key: `warehouse-portal-receipt:${link.id}:${attempt}`,
+      p_confirmed_by: null,
+    });
+    if (confirmationError) {
+      const failure = classifyPortalRpcError(confirmationError, "No se pudo confirmar la recepción. Reintentá con los mismos datos.", 409);
+      return NextResponse.json({ ok: false, receiptId, status: "DRAFT", error: failure.error }, { status: failure.status });
+    }
+    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", uploadIncomplete: false, pendingEvidence: [], movements });
   }
 
 
@@ -190,6 +241,8 @@ export async function POST(request: Request, context: RouteContext) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt) || !budgetItemId) {
       return NextResponse.json({ error: "La salida requiere partida y un intento estable." }, { status: 400 });
     }
+    const submitted = await validateFiles(formData, 5, false);
+    if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
     const { data: movementId, error: moveError } = await admin.rpc("inventory_portal_consumption", {
       p_token_hash: hashWarehousePortalToken(token),
       p_product: product.id, p_budget: budgetItemId, p_quantity: quantity, p_attempt: attempt,
@@ -197,21 +250,19 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (moveError) {
-      return NextResponse.json({ error: moveError.message ?? "No se pudo registrar la salida en el stock." }, { status: 400 });
+      const failure = classifyPortalRpcError(moveError, "No se pudo registrar la salida en el stock.");
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
     // Upload photo evidence if attached
-    const submittedFiles = formData
-      .getAll("files")
-      .filter((v): v is File => v instanceof File && v.size > 0);
-
-    for (const file of submittedFiles.slice(0, 5)) {
-      if (file.size > MAX_FILE_BYTES) continue;
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const path = `consumptions/${movementId}/${randomUUID()}-${sanitizeFileName(file.name)}`;
-      await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
+    const pendingEvidence: string[] = [];
+    for (const { file, bytes, contentType } of submitted.files) {
+      const path = `consumptions/${movementId}/${sha256Bytes(bytes)}-${sanitizeFileName(file.name)}`;
+      const { error: uploadError } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
+        contentType,
+        upsert: true,
       });
+      if (uploadError) pendingEvidence.push(file.name);
     }
 
     // Update portal link usage timestamp
@@ -223,12 +274,14 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({
       ok: true,
       movementId,
-      message: "Salida registrada con éxito.",
+      uploadIncomplete: pendingEvidence.length > 0,
+      pendingEvidence,
+      message: pendingEvidence.length ? "Salida registrada, pero faltan adjuntos por guardar." : "Salida registrada con éxito.",
     });
   }
 
   // =========================================================================
-  // ACTION: SUBMISSION (Rendición periódica / carga de evidencias o planilla)
+  // ACTION: SUBMISSION (Rendición periódica / carga de fotos o PDF)
   // =========================================================================
   const periodStart = String(formData.get("period_start") ?? "").trim();
   const periodEnd = String(formData.get("period_end") ?? "").trim();
@@ -236,23 +289,10 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "El período no es válido." }, { status: 400 });
   }
 
-  const submittedFiles = formData
-    .getAll("files")
-    .filter((value): value is File => value instanceof File && value.size > 0);
-  const fileLimit = enforceWarehousePortalFileLimit(submittedFiles, MAX_FILES);
-  if (!fileLimit.allowed) {
-    return NextResponse.json(
-      { error: `El máximo es ${MAX_FILES} archivos por envío. Reducí la cantidad y volvé a intentar.` },
-      { status: 413 }
-    );
-  }
-  const files = fileLimit.files;
-  if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o planilla." }, { status: 400 });
-  for (const file of files) {
-    if (file.size > MAX_FILE_BYTES) {
-      return NextResponse.json({ error: `${file.name}: el archivo supera los 20MB.` }, { status: 400 });
-    }
-  }
+  const submitted = await validateFiles(formData, MAX_FILES, true);
+  if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
+  const files = submitted.files;
+  if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o PDF." }, { status: 400 });
 
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const remisionNumber = String(formData.get("remision_number") ?? "").trim() || null;
@@ -295,8 +335,7 @@ export async function POST(request: Request, context: RouteContext) {
   const resolvedSha256: string[] = [];
   const failedUploads: Array<{ sha256: string; file_name: string; reason: string }> = [];
 
-  for (const file of files) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
+  for (const { file, bytes, contentType } of files) {
     const sha256 = sha256Bytes(bytes);
     const { data: existingEvidence } = await admin
       .from("warehouse_submission_evidence")
@@ -311,7 +350,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
     const path = `${link.location_id}/${submission.id}/${randomUUID()}-${sanitizeFileName(file.name)}`;
     const { error: uploadError } = await admin.storage.from("warehouse-evidence").upload(path, bytes, {
-      contentType: file.type || "application/octet-stream",
+      contentType,
       upsert: false,
     });
     if (uploadError) {
@@ -326,7 +365,7 @@ export async function POST(request: Request, context: RouteContext) {
       storage_bucket: "warehouse-evidence",
       storage_path: path,
       file_name: file.name,
-      mime_type: file.type || null,
+      mime_type: contentType,
       size_bytes: file.size,
       sha256,
       uploaded_external: true,
@@ -360,6 +399,9 @@ export async function POST(request: Request, context: RouteContext) {
     p_failed: failedUploads,
   });
   if (gateError) {
+    if (/rendici[oó]n.*cerrad[ao]/i.test(gateError.message ?? "")) {
+      return NextResponse.json({ ok: false, error: "La rendición ya fue cerrada y no admite cambios.", submissionId: submission.id }, { status: 409 });
+    }
     return NextResponse.json(
       { ok: false, error: "No se pudo actualizar el estado de ingestión.", submissionId: submission.id },
       { status: 500 }
@@ -380,15 +422,11 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (accepted.length === 0) {
     const allFailedMsg = `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: uploadIncomplete && pendingSummary ? `${allFailedMsg} | Pendientes: ${pendingSummary}` : allFailedMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: false,
@@ -405,15 +443,11 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (rejected.length > 0) {
     const partialMsg = `Carga parcial (${accepted.length}/${files.length}). Fallaron: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: pendingSummary ? `${partialMsg} | Pendientes: ${pendingSummary}` : partialMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: false,
@@ -432,15 +466,11 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   if (uploadIncomplete) {
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: pendingSummary ? `Quedan pendientes: ${pendingSummary}` : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: true,
@@ -457,14 +487,8 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  await admin
-    .from("warehouse_submissions")
-    .update({
-      processing_error: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", submission.id)
-    .eq("empresa_id", link.empresa_id);
+  const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, { processing_error: null });
+  if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
 
   return NextResponse.json({
     ok: true,

@@ -1,0 +1,50 @@
+[
+  {
+    "view": "v_procurement_competitor_contextual",
+    "anonymousRows": 2,
+    "authenticatedRows": 2,
+    "equal": true,
+    "columns": [
+      "supplier_id",
+      "supplier_nombre",
+      "ruc_clean",
+      "comitente_nombre",
+      "categoria",
+      "size_bracket",
+      "total_participaciones",
+      "total_ganadas",
+      "win_rate_pct",
+      "total_monto_ganado",
+      "avg_discount_pct",
+      "stddev_discount_pct",
+      "sample_size_with_price",
+      "certainty_tier"
+    ],
+    "scope": "Public national procurement data; SQL dependency evidence is required in addition to row equality."
+  },
+  {
+    "view": "v_procurement_competitor_global",
+    "anonymousRows": 8,
+    "authenticatedRows": 8,
+    "equal": true,
+    "columns": [
+      "supplier_id",
+      "nombre",
+      "nombre_normalizado",
+      "ruc_clean",
+      "ruc_raw",
+      "dv",
+      "tipo_entidad",
+      "tamano",
+      "total_bids",
+      "total_wins",
+      "global_win_rate_pct",
+      "total_awarded_amount",
+      "global_avg_discount_pct",
+      "certainty_tier",
+      "first_seen_at",
+      "last_seen_at"
+    ],
+    "scope": "Public national procurement data; SQL dependency evidence is required in addition to row equality."
+  }
+]

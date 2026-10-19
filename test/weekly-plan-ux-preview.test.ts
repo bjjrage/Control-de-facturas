@@ -537,7 +537,7 @@ describe("J. UX legible en 1366×768 con panel lateral abierto", () => {
 
   it("flujo legible: período → metas → CALCULAR → resultado → guardar", () => {
     const src = ui();
-    expect(src).toContain("Plan Semanal de Obra");
+    expect(src).toContain("Plan semanal de obra");
     expect(src).toContain("Período:");
     expect(src).toContain("Clima OFF");
     expect(src).toContain("Clima ON");

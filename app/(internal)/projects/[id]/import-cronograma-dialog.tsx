@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { applyScheduleImport } from "../actions";
 import {
@@ -12,6 +13,7 @@ import {
   type ScheduleInterpretation,
 } from "@/lib/schedule/schedule-import";
 import type { BudgetItem } from "@/lib/types";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
 
 type Step = "upload" | "preview" | "done";
 
@@ -58,7 +60,7 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const wb = readSpreadsheet(XLSX, buf, file.name, { cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
       const interpreted = interpretScheduleSheet(rows, erpItems);
@@ -76,6 +78,15 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
 
   function confirmImport() {
     if (!interpretation || updates.length === 0) return;
+    const invalidRows = interpretation.rows.filter((row, index) => !row.match || !row.start || !row.end ||
+      row.end < row.start || row.warnings.length > 0 || (row.predecessorRef && !predecessors.has(index)));
+    const uniqueItems = new Set(updates.map(row => row.itemId));
+    if (invalidRows.length || updates.length !== interpretation.rows.length || uniqueItems.size !== updates.length) {
+      setError("Corregí las filas sin vincular, fechas, predecesoras o partidas repetidas en el archivo. No se omitirá ninguna fila.");
+      return;
+    }
+    const inferred = interpretation.rows.filter(row => row.match?.method === "fuzzy-desc");
+    if (inferred.length && !window.confirm(`Hay ${inferred.length} vínculo(s) por similitud. Revisá las partidas del preview. ¿Confirmás expresamente esos vínculos?`)) return;
     startTransition(async () => {
       const res = await applyScheduleImport(projectId, updates);
       if (res.failed.length > 0 && res.applied === 0) {
@@ -99,14 +110,10 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
       <DialogTrigger asChild>
         <Button type="button" variant="secondary" className="h-9 px-3 text-[12px]">Importar cronograma</Button>
       </DialogTrigger>
-      <DialogContent title="Importar cronograma" className="max-w-6xl">
+      <DialogContent title={<span>Importar cronograma<InfoTooltip className="ml-1" label="Importar cronograma" content="Subí un XLSX con partida, descripción, fechas, duración o predecesora. Solo se actualizan fechas y predecesoras; cantidades, precios y avance se conservan." /></span>} className="max-w-6xl">
         <div className="space-y-3">
           {step === "upload" ? (
             <>
-              <p className="text-[12px] text-[var(--muted)]">
-                Subí el XLSX de cronograma (partida, descripción, inicio, fin, duración, predecesora o nombres
-                equivalentes). Solo se actualizan fechas y predecesoras: cantidades, precios y avance no se tocan.
-              </p>
               {error ? <p role="alert" className="rounded border border-[var(--border)] px-3 py-2 text-[12px]">{error}</p> : null}
               <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[var(--border)] px-4 py-8 text-[12px] text-[var(--muted)]">
                 <input

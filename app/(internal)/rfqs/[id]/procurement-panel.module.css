@@ -1,0 +1,229 @@
+.page {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+.page h1 { font-size: 26px; line-height: 1.3; }
+.page h2 { font-size: 18px; line-height: 1.4; }
+.page th { color: #b9c2d0; font-size: 12px; }
+.page td { font-size: 13px; padding-block: 14px; }
+.page tbody tr { transition: background 150ms ease; }
+.page tbody tr:hover { background: #ffffff06; }
+.page button, .page a { transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+.page :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid #e5b75c; outline-offset: 3px; }
+.page summary { cursor: pointer; }
+.page summary:hover { color: #f3ca7a; }
+.progress {
+  composes: erp-card from global;
+  border: 1px solid #665635;
+  border-left: 4px solid #e5b75c;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 20px;
+}
+.steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.step { border: 1px solid #4b4d51; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #bfc5ce; }
+.current { background: #e5b75c; color: #191713; border-color: #e5b75c; font-weight: 700; }
+.section { composes: erp-card from global; border: 1px solid var(--interactive-border); background: var(--panel); border-radius: 14px; padding: 20px; scroll-margin-top: 80px; }
+.sectionTitle { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 18px; font-weight: 650; }
+.number { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: var(--panel-2); color: #f1ca7f; font-size: 14px; flex-shrink: 0; }
+.muted { color: #b5bdca; font-size: 13px; line-height: 1.6; }
+.notice { border-left: 3px solid #e5b75c; background: #e5b75c0c; color: #f2d393; border-radius: 6px; padding: 12px 14px; font-size: 13px; line-height: 1.6; }
+.review { composes: erp-card from global; border: 1px solid var(--interactive-border); background: var(--panel); border-radius: 10px; padding: 16px; scroll-margin-top: 80px; }
+.review > summary { font-size: 14px; font-weight: 650; padding-block: 4px; }
+.review[open] > summary { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--interactive-border); }
+.reviewBody { display: grid; gap: 16px; }
+.reviewBody pre { background: var(--panel-2); padding: 14px; border-radius: 8px; font-size: 12px; }
+.proposal { composes: erp-card from global; border: 1px solid var(--interactive-border); border-radius: 10px; background: var(--panel); padding: 16px; display: grid; gap: 10px; }
+.proposal:hover { border-color: var(--interactive-border-hover); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 640px) {
+  .section, .progress { padding: 14px; }
+  .page h1 { font-size: 22px; }
+}
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.back { color: var(--muted); font-size: 12px; }
+.request { font-size: 18px; margin-block: 8px 3px; font-weight: 500; }
+.page .muted, .dialog .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.offerToolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.offerToolbar > div { display: flex; align-items: baseline; gap: 12px; }
+.sortControl { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+.sortControl select { background: var(--panel-2); color: #f4f7fc; border: 1px solid var(--interactive-border); border-radius: 7px; padding: 7px 28px 7px 10px; }
+.offerTableWrap { composes: erp-card from global; overflow-x: auto; border: 1px solid var(--interactive-border); border-radius: 10px; box-shadow: 0 8px 24px #0003; }
+.page .offerTable { width: 100%; min-width: 860px; border-collapse: collapse; color: #f4f7fc; }
+.page .offerTable thead th { background: var(--panel-2); color: #e0e8f3; padding: 11px 14px; font-size: 12px; text-align: left; font-weight: 500; }
+.page .offerTable tbody tr { background: var(--panel); transition: background 150ms; }
+.page .offerTable tbody tr:nth-child(even) { background: var(--panel-2); }
+.page .offerTable tbody tr:hover, .page .offerTable tbody tr:focus-within { background: var(--hover); }
+.page .offerTable tbody :is(th, td) { padding: 15px 14px; border-top: 1px solid var(--interactive-border); text-align: left; vertical-align: top; font-size: 13px; font-weight: 400; }
+.page .offerTable tbody th { min-width: 190px; max-width: 290px; }
+.providerCell { display: flex; gap: 10px; align-items: flex-start; }
+.providerCell strong { font-size: 14px; font-weight: 650; }
+.offerRank { color: #b6c6db; min-width: 15px; font-size: 12px; padding-top: 2px; }
+.rowTotal { display: block; white-space: nowrap; font-size: 18px; line-height: 1.25; font-weight: 700; }
+.rowSecondary { display: block; color: #c2cfe0; font-size: 11px; margin-top: 5px; }
+.lowestLabel { display: inline-block; margin-left: 7px; padding: 2px 6px; border-radius: 4px; background: #184b40; color: #b5f5d8; font-size: 10px; font-weight: 500; }
+.rowDetail { margin-top: 5px; font-size: 12px; line-height: 1.5; }
+.rowDetail summary { color: #c2cfe0; font-size: 11px; cursor: pointer; }
+.rowActions { display: flex; justify-content: flex-end; align-items: center; gap: 7px; white-space: nowrap; }
+.rowActions :is(button, a) { font-size: 11px; }
+.rowWarning { display: block; color: #ffdc93; font-size: 11px; margin-top: 5px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 18px 22px; }
+.facts dt { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.facts dd { font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+.detail { margin-top: 16px; font-size: 13px; }
+.detail summary, .secondarySection summary { cursor: pointer; color: var(--muted); }
+.detail summary:hover, .secondarySection summary:hover { color: var(--text); }
+.secondarySection { composes: erp-card erp-interactive-card from global; border: 1px solid var(--interactive-border); border-radius: 9px; background: var(--panel); padding: 14px 16px; font-size: 13px; }
+.secondarySection > summary { color: #e4edf9; font-weight: 600; padding-block: 3px; }
+.secondarySection[open] > summary { padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--interactive-border); }
+.invitedList { display: grid; gap: 14px; margin-top: 18px; }
+.invitedRow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.purchaseStatus { composes: erp-card from global; border: 1px solid var(--border); border-left: 3px solid var(--ok); background: var(--panel); border-radius: 12px; padding: 18px; display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 14px; }
+.dialog { composes: erp-card from global; font-size: 13px; background: var(--popover, rgba(13, 26, 44, .95)); border-color: var(--interactive-border); padding: 0; display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+.dialog > h2 { flex-shrink: 0; margin: 0; padding: 17px 20px; background: var(--panel-2); border-bottom: 1px solid var(--interactive-border); font-size: 18px; font-weight: 700; }
+.dialogBody { min-height: 0; overflow-y: auto; padding: 20px; }
+.footerHelp { width: 100%; font-size: 12px; color: #ffe3af; }
+.dialog :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { background: var(--input-bg, #17253a); border-color: var(--interactive-border); }
+.dialog :is(input, textarea)::placeholder { color: #a6b7ce; }
+.dialog h3 { font-size: 15px; font-weight: 650; }
+.selectionSummary { composes: erp-card from global; background: var(--panel-2); border: 1px solid var(--interactive-border); border-radius: 9px; padding: 16px; margin-bottom: 18px; }
+.selectionSummary h3 { font-size: 16px; }
+.selectionSummary > div > strong { font-size: 18px; }
+.selectionSummary ul { display: grid; gap: 6px; margin-top: 10px; }
+.selectionSummary li { display: flex; justify-content: space-between; gap: 12px; }
+.reviewCompact { composes: erp-card from global; background: var(--panel-2); padding: 16px; border: 1px solid var(--interactive-border); border-radius: 9px; margin-top: 18px; }
+.reviewCompact > div:first-child { padding-bottom: 10px; border-bottom: 1px solid var(--interactive-border); margin-bottom: 12px; }
+.reviewCompact label { color: #e1eaf7; }
+.reviewCompact textarea { min-height: 70px; }
+.reviewSelect { width: 100%; border: 1px solid var(--interactive-border); border-radius: 8px; padding: 10px; color: #f4f7fc; }
+.reconciliationWrap { overflow-x: auto; margin-top: 12px; border: 1px solid var(--interactive-border); border-radius: 8px; }
+.reconciliationTable { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; background: var(--panel-2); }
+.reconciliationTable caption { text-align: left; padding: 10px; font-weight: 650; color: #ffe3af; background: var(--panel-2); }
+.reconciliationTable :is(th, td) { padding: 8px; border-bottom: 1px solid var(--interactive-border); vertical-align: top; }
+.reconciliationTable thead { background: var(--panel-2); }
+.reconciliationTable tbody tr:hover { background: var(--hover); }
+.reconciliationTable th small { display: block; font-weight: 400; color: #c7d7ec; }
+.reconciliationTable select { min-width: 175px; padding: 7px; font-size: 11px; }
+.check { display: flex; gap: 9px; align-items: flex-start; margin-top: 12px; line-height: 1.6; }
+.check input { margin-top: 4px; flex-shrink: 0; }
+.reasonOptions { display: flex; flex-wrap: wrap; gap: 8px; }
+.reasonOptions label { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.reasonOptions label:has(input:checked) { border-color: var(--accent); background: var(--surface-highlight); }
+.modalFooter { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 0; padding: 16px 20px; border-top: 1px solid var(--interactive-border); background: var(--panel-2); }
+.businessNotice { border-left: 3px solid var(--warn, #e5b75c); background: #493b25; color: #ffe3af; padding: 10px 12px; border-radius: 5px; font-size: 12px; line-height: 1.6; margin-block: 10px; }
+.success { color: var(--ok); font-size: 12px; }
+.quantitySection { composes: erp-card from global; border: 1px solid var(--interactive-border); border-radius: 9px; background: var(--panel); padding: 8px 16px 16px; margin-block: 18px; }
+.quantitySection legend { font-size: 14px; font-weight: 650; padding: 0 6px; }
+.quantityRow { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; padding-top: 10px; margin-top: 6px; border-top: 1px solid var(--interactive-border); }
+.quantityRow:first-of-type { border-top: 0; }
+@media (max-width: 640px) { .heading { flex-direction: column; } .sortControl { width: 100%; justify-content: space-between; } }
+/* Light mode surface overrides. */
+:global(html[data-theme="claro"]) .page th { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .page tbody tr:hover { background: var(--surface-highlight);
+}
+:global(html[data-theme="claro"]) .page :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid var(--warn);
+}
+:global(html[data-theme="claro"]) .page summary:hover { color: var(--warn);
+}
+:global(html[data-theme="claro"]) .progress {
+  border: 1px solid var(--warn);
+  border-left: 4px solid var(--warn);
+  background: var(--warn-bg);
+}
+:global(html[data-theme="claro"]) .step { border: 1px solid var(--border); color: var(--muted);
+}
+:global(html[data-theme="claro"]) .current { background: var(--warn); color: var(--background); border-color: var(--warn);
+}
+:global(html[data-theme="claro"]) .section { border: 1px solid var(--border); background: var(--panel);
+}
+:global(html[data-theme="claro"]) .number { background: var(--panel-2); color: var(--warn);
+}
+:global(html[data-theme="claro"]) .muted { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .notice { border-left: 3px solid var(--warn); background: var(--warn-bg); color: var(--warn);
+}
+:global(html[data-theme="claro"]) .review { border: 1px solid var(--border); background: var(--panel);
+}
+:global(html[data-theme="claro"]) .review[open] > summary { border-bottom: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .reviewBody pre { background: var(--input-bg);
+}
+:global(html[data-theme="claro"]) .proposal { border: 1px solid var(--border); background: var(--panel);
+}
+:global(html[data-theme="claro"]) .proposal:hover { border-color: var(--border-strong);
+}
+:global(html[data-theme="claro"]) .sortControl select { background: var(--panel-2); color: var(--foreground); border: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .offerTableWrap { border: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .page .offerTable { color: var(--foreground);
+}
+:global(html[data-theme="claro"]) .page .offerTable thead th { background: var(--panel-2); color: var(--foreground);
+}
+:global(html[data-theme="claro"]) .page .offerTable tbody tr { background: var(--panel);
+}
+:global(html[data-theme="claro"]) .page .offerTable tbody tr:nth-child(even) { background: var(--panel-2);
+}
+:global(html[data-theme="claro"]) .page .offerTable tbody tr:hover, :global(html[data-theme="claro"]) .page .offerTable tbody tr:focus-within { background: var(--hover);
+}
+:global(html[data-theme="claro"]) .page .offerTable tbody :is(th, td) { border-top: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .offerRank { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .rowSecondary { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .lowestLabel { background: var(--ok-bg); color: var(--ok);
+}
+:global(html[data-theme="claro"]) .rowDetail summary { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .rowWarning { color: var(--warn);
+}
+:global(html[data-theme="claro"]) .secondarySection { border: 1px solid var(--border); background: var(--panel);
+}
+:global(html[data-theme="claro"]) .secondarySection > summary { color: var(--foreground);
+}
+:global(html[data-theme="claro"]) .secondarySection[open] > summary { border-bottom: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .dialog { background: var(--panel); border-color: var(--border-strong);
+}
+:global(html[data-theme="claro"]) .dialog > h2 { background: var(--panel-2); border-bottom: 1px solid var(--border-strong);
+}
+:global(html[data-theme="claro"]) .footerHelp { color: var(--warn);
+}
+:global(html[data-theme="claro"]) .dialog :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { background: var(--input-bg); border-color: var(--border);
+}
+:global(html[data-theme="claro"]) .dialog :is(input, textarea)::placeholder { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .selectionSummary { background: var(--panel-2); border: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .reviewCompact { background: var(--panel-2); border: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .reviewCompact > div:first-child { border-bottom: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .reviewCompact label { color: var(--foreground);
+}
+:global(html[data-theme="claro"]) .reviewSelect { border: 1px solid var(--border); color: var(--foreground);
+}
+:global(html[data-theme="claro"]) .reconciliationWrap { border: 1px solid var(--border-strong);
+}
+:global(html[data-theme="claro"]) .reconciliationTable { background: var(--panel-2);
+}
+:global(html[data-theme="claro"]) .reconciliationTable caption { color: var(--warn); background: var(--section-bg);
+}
+:global(html[data-theme="claro"]) .reconciliationTable :is(th, td) { border-bottom: 1px solid var(--border);
+}
+:global(html[data-theme="claro"]) .reconciliationTable thead { background: var(--panel);
+}
+:global(html[data-theme="claro"]) .reconciliationTable tbody tr:hover { background: var(--hover);
+}
+:global(html[data-theme="claro"]) .reconciliationTable th small { color: var(--muted);
+}
+:global(html[data-theme="claro"]) .modalFooter { border-top: 1px solid var(--border); background: var(--input-bg);
+}
+:global(html[data-theme="claro"]) .businessNotice { border-left: 3px solid var(--warn); background: var(--warn-bg); color: var(--warn);
+}
+:global(html[data-theme="claro"]) .quantitySection { border: 1px solid var(--border); background: var(--panel);
+}
+:global(html[data-theme="claro"]) .quantityRow { border-top: 1px solid var(--border);
+}

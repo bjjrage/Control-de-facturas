@@ -332,7 +332,7 @@ describe("F. Modo manual por partida sigue disponible", () => {
 
   it("re-aplicar el bloque avisa que reemplaza metas existentes (no silencioso)", () => {
     const ui = readSource("app/(internal)/projects/[id]/weekly-plan-section.tsx");
-    expect(ui).toContain("reemplaza las metas existentes de estas partidas");
+    expect(ui).toContain("Cambiar pp o frente reemplaza sus metas");
     expect(ui).toContain("quita sus metas del plan local");
   });
 });

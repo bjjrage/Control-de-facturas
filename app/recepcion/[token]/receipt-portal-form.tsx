@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { formatNumber } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import type { ReceiptPortalOrder } from "@/lib/inventory/receipt-portal-data";
 
 export function ReceiptPortalForm({ token, order }: { token: string; order: ReceiptPortalOrder }) {
@@ -31,8 +32,8 @@ export function ReceiptPortalForm({ token, order }: { token: string; order: Rece
         body: form,
         cache: "no-store",
       });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) setError(result.error ?? "No se pudo enviar la recepción.");
+      const result = await response.json() as { error?: string; status?: string };
+      if (!response.ok || result.status !== "CONFIRMED") setError(result.error ?? "No se pudo confirmar la recepción.");
       else setSubmitted(true);
     } catch {
       setError("No se pudo conectar. Revisá tu conexión e intentá nuevamente.");
@@ -44,9 +45,9 @@ export function ReceiptPortalForm({ token, order }: { token: string; order: Rece
   if (submitted) {
     return (
       <section role="status" className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-center">
-        <h2 className="text-lg font-semibold">Recepción enviada</h2>
+        <h2 className="text-lg font-semibold">Recepción confirmada</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          La empresa recibió las cantidades y la evidencia. El inventario se actualizará únicamente después de su revisión y confirmación.
+          La mercadería ya ingresó al stock de {order.destinationName}. El remito y tu nombre quedaron registrados.
         </p>
       </section>
     );
@@ -71,7 +72,7 @@ export function ReceiptPortalForm({ token, order }: { token: string; order: Rece
           <div key={item.id} className="rounded border border-[var(--border)] p-3">
             <p className="text-sm font-medium">{item.product}</p>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Ordenada {formatNumber(item.ordered, 2)} {item.unit} · Ya cargada {formatNumber(item.received, 2)} · Pendiente {formatNumber(item.pending, 2)} {item.unit}
+              Ordenada {formatNumber(item.ordered, 2)} {item.unit} · Registrada {formatNumber(item.received, 2)} · Pendiente {formatNumber(item.pending, 2)} {item.unit}
             </p>
             <label className="mt-2 block text-xs">
               Cantidad recibida ahora
@@ -107,13 +108,13 @@ export function ReceiptPortalForm({ token, order }: { token: string; order: Rece
       </label>
 
       {error ? <p role="alert" className="rounded border border-[var(--error)]/30 px-3 py-2 text-xs text-[var(--error)]">{error}</p> : null}
-      <button
-        className="w-full rounded bg-[var(--foreground)] px-4 py-3 text-sm font-medium text-[var(--background)] disabled:cursor-not-allowed disabled:opacity-60"
+      <Button
+        className="w-full"
         type="submit"
         disabled={submitting || order.items.every((item) => item.pending <= 0)}
       >
-        {submitting ? "Enviando…" : "Enviar recepción"}
-      </button>
+        {submitting ? "Confirmando…" : "Confirmar recepción e ingresar al stock"}
+      </Button>
     </form>
   );
 }

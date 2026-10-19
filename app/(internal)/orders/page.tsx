@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Provider } from "@/lib/types";
@@ -64,10 +65,7 @@ export default async function OrdersPage({
       <BackButton />
       <div className="flex items-start justify-between gap-4 mt-1">
         <div>
-          <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
-          <p className="text-[12px] text-[var(--muted)] mt-0.5">
-            Todas tus compras y en qué etapa están.
-          </p>
+          <h1 className="text-[17px] font-semibold">Órdenes de compra<InfoTooltip className="ml-1" label="Órdenes de compra" content="Consultá tus compras y la etapa en que se encuentran." /></h1>
         </div>
         <Link
           href="/orders?nueva=1"

@@ -1,0 +1,71 @@
+[
+  {
+    "kind": "ruc-mismatch",
+    "response": {
+      "status": 200,
+      "data": {
+        "error": "El RUC del original no coincide con el proveedor de la factura.",
+        "invoiceId": "6d792300-c43f-4433-8f5f-5a1190d672b8"
+      }
+    },
+    "job": {
+      "id": "c2f87871-437b-4c0e-8cda-f678d0e3770b",
+      "status": "needs_review",
+      "invoice_id": "6d792300-c43f-4433-8f5f-5a1190d672b8",
+      "outcome": "needs_manual",
+      "message": "Factura creada, pendiente de verificar su original; no se vinculó ni concilió."
+    },
+    "invoice": {
+      "id": "6d792300-c43f-4433-8f5f-5a1190d672b8",
+      "status": "PENDIENTE",
+      "attachment_id": "29c72092-5bcc-4dfe-8fd9-dc60293a0ad3"
+    },
+    "matches": []
+  },
+  {
+    "kind": "unreadable",
+    "response": {
+      "status": 200,
+      "data": {
+        "error": "No se pudo abrir el PDF (¿está dañado o protegido con contraseña?).",
+        "invoiceId": "ff4b5cc2-9d97-4eda-a19f-93f0c4da28f3"
+      }
+    },
+    "job": {
+      "id": "879d954e-be3a-49f7-9f38-cfc8f466929c",
+      "status": "needs_review",
+      "invoice_id": "ff4b5cc2-9d97-4eda-a19f-93f0c4da28f3",
+      "outcome": "needs_manual",
+      "message": "Factura creada, pendiente de verificar su original; no se vinculó ni concilió."
+    },
+    "invoice": {
+      "id": "ff4b5cc2-9d97-4eda-a19f-93f0c4da28f3",
+      "status": "PENDIENTE",
+      "attachment_id": "52cbf6a9-30fb-47d9-b160-b2d8d26d330c"
+    },
+    "matches": []
+  },
+  {
+    "kind": "blank-image",
+    "response": {
+      "status": 200,
+      "data": {
+        "error": "El RUC del original no coincide con el proveedor de la factura.",
+        "invoiceId": "a1caac79-6bad-45d5-afc0-88c9b3adcc01"
+      }
+    },
+    "job": {
+      "id": "2456e5a9-bce8-4539-8c2a-b09e8ea1c5b3",
+      "status": "needs_review",
+      "invoice_id": "a1caac79-6bad-45d5-afc0-88c9b3adcc01",
+      "outcome": "needs_manual",
+      "message": "Factura creada, pendiente de verificar su original; no se vinculó ni concilió."
+    },
+    "invoice": {
+      "id": "a1caac79-6bad-45d5-afc0-88c9b3adcc01",
+      "status": "PENDIENTE",
+      "attachment_id": "34feeb23-4346-401f-b9e7-1842006a05b7"
+    },
+    "matches": []
+  }
+]

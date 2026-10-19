@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatMoney, formatNumber } from "@/lib/format";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { displayLocationName } from "@/lib/inventory/display-location-name";
 
 export type StockProyectoRow = {
@@ -54,14 +55,11 @@ export function ProyectoStockSection({
       <div className="space-y-3">
         {panolBanner}
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-10 text-center text-[13px] text-[var(--muted)]">
-          Aún no hay movimientos de stock imputados a esta obra.
-          <div className="mt-2 text-[12px]">
-            Al registrar una{" "}
-            <span className="font-medium text-[var(--foreground)]">Entrada</span> o{" "}
-            <span className="font-medium text-[var(--foreground)]">Salida</span> de stock,
-            elegí este proyecto para que aparezca aquí.{" "}
-            <Link href="/stock" className="text-action">Ir a Stock →</Link>
+          <div className="flex items-center justify-center gap-1 font-medium text-[var(--foreground)]">
+            Sin movimientos de stock
+            <InfoTooltip label="Stock imputado a esta obra" content="Al registrar una entrada o salida, seleccioná este proyecto. El saldo disponible puede ser negativo si se consumió más de lo comprado para la obra." />
           </div>
+          <Link href="/stock" className="mt-2 inline-block text-action">Ir a Stock →</Link>
         </div>
       </div>
     );
@@ -81,7 +79,7 @@ export function ProyectoStockSection({
   const totalComprado  = rows.reduce((s, r) => s + r.costo_comprado,  0);
   const totalConsumido = rows.reduce((s, r) => s + r.costo_consumido, 0);
 
-  function Th({ k, label, right }: { k: SortKey; label: string; right?: boolean }) {
+  function renderHeader(k: SortKey, label: string, right = false) {
     const active = sortKey === k;
     return (
       <th
@@ -100,22 +98,19 @@ export function ProyectoStockSection({
     <div className="space-y-3">
       {panolBanner}
       <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold">Stock imputado a esta obra</h3>
-        <span className="text-[11px] text-[var(--muted)]">
-          Al registrar movimientos de stock, seleccioná este proyecto para ver el seguimiento aquí.
-        </span>
+        <h3 className="text-[13px] font-semibold">Stock imputado a esta obra<InfoTooltip className="ml-1" label="Stock imputado a esta obra" content="La tabla agrupa entradas y salidas vinculadas al proyecto. El saldo disponible puede ser negativo si se consumió más de lo comprado para la obra." /></h3>
       </div>
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <Th k="producto" label="Producto" />
+              {renderHeader("producto", "Producto")}
               <th>Unidad</th>
-              <Th k="qty_comprada"  label="Comprado"  right />
-              <Th k="qty_consumida" label="Consumido" right />
-              <Th k="qty_disponible" label="Disponible" right />
-              <Th k="costo_comprado"  label="Valor comprado"  right />
-              <Th k="costo_consumido" label="Valor consumido" right />
+              {renderHeader("qty_comprada", "Comprado", true)}
+              {renderHeader("qty_consumida", "Consumido", true)}
+              {renderHeader("qty_disponible", "Disponible", true)}
+              {renderHeader("costo_comprado", "Valor comprado", true)}
+              {renderHeader("costo_consumido", "Valor consumido", true)}
             </tr>
           </thead>
           <tbody>
@@ -145,10 +140,6 @@ export function ProyectoStockSection({
           </tfoot>
         </table>
       </div>
-      <p className="text-[11px] text-[var(--muted)]">
-        Entradas y salidas de stock con este proyecto seleccionado. "Disponible" puede ser negativo si
-        se consumió más de lo que se compró para la obra.
-      </p>
     </div>
   );
 }

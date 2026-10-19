@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { InvoiceJob, Provider } from "@/lib/types";
@@ -28,11 +29,7 @@ export default async function RevisionPage() {
         <Link href="/invoices" className="text-action text-[12px] text-[var(--muted)]">
           ← Volver a Facturas
         </Link>
-        <h1 className="text-[17px] font-semibold mt-1">Revisión manual</h1>
-        <p className="text-[13px] text-[var(--muted)] mt-1">
-          Facturas del bulk que el sistema no pudo leer del todo (proveedor no identificado, número o monto
-          ilegible, o un error al procesar). Completá los datos y creá la factura, o descartá el archivo.
-        </p>
+        <h1 className="text-[17px] font-semibold mt-1">Revisión manual<InfoTooltip className="ml-1" label="Revisión manual" content="Acá aparecen facturas que no se pudieron leer por proveedor, número, monto o error de procesamiento. Completá los datos para crear la factura o descartá el archivo." /></h1>
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">

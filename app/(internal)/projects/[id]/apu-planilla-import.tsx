@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useState } from "react";
 import { Upload, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,18 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
 
   async function confirm() {
     if (!preview) return;
+    if (preview.unresolved.length) {
+      setError(`Corregí ${preview.unresolved.length} fila(s) sin resolver y volvé a subir la planilla. No se importará una parte del archivo.`);
+      return;
+    }
+    const differences = preview.recipes.filter(r => r.totalMismatch);
+    if ((differences.length || preview.questions.length || preview.warnings.length) &&
+      !window.confirm([
+        ...differences.map(r => `${r.name}: total del archivo ${r.declaredTotal}, calculado ${r.computedTotal}.`),
+        ...preview.questions, ...preview.warnings,
+        "¿Confirmás expresamente importar los valores del preview con estas observaciones?",
+      ].join("\n"))) return;
+    if (!preview.recipes.length) return;
     setStage("saving");
     const res = await importApuPlanillaAction({
       createMissingProducts: createMissing,
@@ -86,11 +99,8 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
       <div>
-        <h3 className="text-[13px] font-semibold">Importar planilla de APU</h3>
-        <p className="text-[12px] text-[var(--muted)]">
-          Subí la planilla tal cual la tiene la empresa, con el formato que sea. Luna la lee entera (todas las hojas) e identifica las
-          partidas y sus insumos. Antes de guardar vas a ver qué entendió y qué filas quedaron dudosas.
-        </p>
+        <h3 className="text-[13px] font-semibold">Importar planilla de APU<InfoTooltip className="ml-1" label={"Importar planilla de APU"} content={"Subí la planilla tal cual la tiene la empresa, con el formato que sea. Luna la lee entera (todas las hojas) e identifica las partidas y sus insumos. Antes de guardar vas a ver qué entendió y qué filas quedaron dudosas."} /></h3>
+
       </div>
 
       {stage === "idle" || stage === "analyzing" ? (
@@ -153,7 +163,7 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
           {preview.unresolved.length > 0 ? (
             <details className="rounded-lg border border-[var(--border)] p-2.5 text-[12px]">
               <summary className="cursor-pointer font-medium text-amber-500">
-                {preview.unresolved.length} filas sin resolver (no se van a importar)
+                {preview.unresolved.length} filas sin resolver (importación bloqueada)
               </summary>
               <ul className="mt-2 space-y-1 max-h-48 overflow-y-auto">
                 {preview.unresolved.slice(0, 200).map((u, i) => (
@@ -193,7 +203,7 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
             <Button type="button" variant="secondary" onClick={reset} disabled={stage === "saving"}>
               Cancelar
             </Button>
-            <Button type="button" onClick={confirm} disabled={stage === "saving" || preview.recipes.length === 0}>
+            <Button type="button" onClick={confirm} disabled={stage === "saving" || preview.recipes.length === 0 || preview.unresolved.length > 0}>
               {stage === "saving" ? "Guardando…" : `Importar ${preview.stats.recipes} partidas`}
             </Button>
           </div>

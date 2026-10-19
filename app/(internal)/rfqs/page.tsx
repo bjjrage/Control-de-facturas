@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Rfq } from "@/lib/types";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/format";
 import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
-import { RfqDialog } from "./rfq-dialog";
+import { AdministrativeRfqDialog } from "./administrative-rfq-dialog";
 import { BackButton } from "@/components/ui/back-button";
 
 type Filters = {
@@ -24,6 +25,11 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
   await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
   const filters = await searchParams;
+  // Old cost-discovery bookmarks now lead to their dedicated project surface.
+  if (filters.nueva === "obra") {
+    redirect(filters.obra && /^[0-9a-f-]{36}$/i.test(filters.obra)
+      ? `/projects/${filters.obra}?tab=costeo` : "/projects");
+  }
   const { q, product, open, from, to } = filters;
   const hasFilters = !!(q || product || open || from || to);
 
@@ -46,12 +52,13 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
   // que el filtro siempre matchee data real. Va en paralelo con la query principal.
   const [{ data: allMatching }, { data: allRfqs }] = await Promise.all([
     query.returns<Rfq[]>(),
-    supabase.from("rfqs").select("product"),
+    supabase.from("rfqs").select("product").or("purpose.eq.PROCUREMENT,purpose.is.null"),
   ]);
   const products = [...new Set((allRfqs ?? []).map((r) => r.product))].sort();
   // "Abierta/Cerrada" depends on expires_at, not just a DB column, so this
   // last filter runs in JS rather than as a query condition.
   const rfqs = (allMatching ?? []).filter((r) => {
+    if (r.purpose === "COST_DISCOVERY") return false;
     if (open === "1") return isRfqOpen(r);
     if (open === "0") return !isRfqOpen(r);
     return true;
@@ -62,11 +69,10 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
       <BackButton />
       <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Cotizaciones</h1>
-        <RfqDialog
-          key={filters.nueva ? `open-${filters.obra ?? ""}` : "closed"}
+        <AdministrativeRfqDialog
+          key={filters.nueva ? "open-admin" : "closed-admin"}
           trigger={<Button>+ Nueva cotización</Button>}
-          defaultOpen={filters.nueva === "1" || filters.nueva === "obra"}
-          defaultFromProject={filters.nueva === "obra" ? filters.obra : undefined}
+          defaultOpen={filters.nueva === "1"}
         />
       </div>
 

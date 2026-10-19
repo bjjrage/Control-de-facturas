@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input, Label } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { CurrencyCode } from "@/lib/types";
@@ -31,17 +32,14 @@ export function CreateOrderFromInvoiceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title="Crear OC con esta factura">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Crear OC<InfoTooltip label="Crear OC con esta factura" content="Vincula la factura a una nueva orden para este proveedor. Usalo si la compra no pasó por una solicitud de presupuesto." /></span>}>
         <div className="space-y-3">
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}
             </div>
           ) : null}
-          <p className="text-[12px] text-[var(--muted)]">
-            Se crea una OC por {formatMoney(total, currency as CurrencyCode)} para este proveedor y la factura
-            queda vinculada. Usá esto cuando la compra no pasó por una solicitud de presupuesto.
-          </p>
+          <p className="text-[12px] font-medium text-[var(--muted)]">Importe de factura: {formatMoney(total, currency as CurrencyCode)}</p>
           <div>
             <Label htmlFor="cof_product">Producto / servicio</Label>
             <Input id="cof_product" value={product} onChange={(e) => setProduct(e.target.value)} required />

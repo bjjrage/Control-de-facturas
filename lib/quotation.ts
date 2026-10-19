@@ -25,6 +25,19 @@ export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
   CANCELADA: "Cancelada",
 };
 
+export function allowedWorkOrderTransitions(
+  status: WorkOrderStatus,
+  workflowStatus: string
+): WorkOrderStatus[] {
+  if (status === "PENDIENTE") {
+    return workflowStatus === "READY_FOR_PRODUCTION"
+      ? ["EN_CURSO", "CANCELADA"]
+      : ["CANCELADA"];
+  }
+  if (status === "EN_CURSO") return ["COMPLETADA", "CANCELADA"];
+  return [];
+}
+
 /** Ruta pública del portal del cliente. La OT nunca tiene portal. */
 export function quotationPortalPath(token: string) {
   return `/cotizacion/${token}`;

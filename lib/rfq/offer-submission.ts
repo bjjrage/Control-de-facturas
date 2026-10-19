@@ -5,7 +5,8 @@ import {
   offerLineSchema,
   type OfferLine,
 } from "./domain";
-import { submitCanonicalOffer } from "./service";
+import { loadRfqWorkspace, submitCanonicalOffer } from "./service";
+import { analyzeQuoteDocument } from "./document-analysis";
 import { uploadQuoteAttachment } from "@/lib/costing/quote-version-service";
 import { buildQuoteCostObservations } from "@/lib/costing/quote-observations";
 export async function resolveSupplierInvitation(
@@ -122,10 +123,30 @@ export async function submitOfferForm(
         lines.find((l) => l.rfq_item_id === i.id)?.precio_unitario ?? null,
     })),
   });
-  if (observations.length) {
-    const saved = await db.from("cost_observations").insert(observations);
-    if (saved.error)
-      console.error("RFQ market observations:", saved.error.message);
+  // The version is committed. A later analysis/market-signal failure must not
+  // report a failed submission and invite the supplier to duplicate the version.
+  try {
+    if (observations.length) {
+      const saved = await db.from("cost_observations").insert(observations);
+      if (saved.error) console.error("RFQ market observations:", saved.error.message);
+    }
+  } catch {
+    console.error("RFQ market observations could not be saved");
   }
-  return result;
+  let analysis: { status: "PREPARED" | "REVIEW_REQUIRED" | "UNAVAILABLE"; discrepancies: number | null };
+  try {
+    // Read back canonical facts; never compare a fabricated/preloaded extraction.
+    const workspace = await loadRfqWorkspace(db, rp.empresa_id, rp.rfq_id);
+    const prepared = await analyzeQuoteDocument(db, rp.empresa_id, workspace.items,
+      workspace.offers.filter((o) => o.quote_version_id === result.versionId));
+    analysis = {
+      status: prepared.comparison.length || prepared.extraction.warnings.length || prepared.extraction.requiresVision
+        ? "REVIEW_REQUIRED" : "PREPARED",
+      discrepancies: prepared.comparison.length,
+    };
+  } catch {
+    analysis = { status: "UNAVAILABLE", discrepancies: null };
+  }
+  // No other provider's offer/document or internal diagnostics reach the portal.
+  return { ...result, analysis };
 }

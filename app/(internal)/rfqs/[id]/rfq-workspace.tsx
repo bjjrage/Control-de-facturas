@@ -1,6 +1,8 @@
 "use client";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { formatDateTime } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -25,6 +27,9 @@ import {
   saveAllocationAction,
 } from "./workflow-actions";
 import { setProjectCostPriceAction } from "@/app/(internal)/projects/[id]/costeo-actions";
+import type { QuoteDocumentAnalysisResult } from "@/lib/rfq/document-analysis";
+import styles from "./procurement-panel.module.css";
+import { WorkflowJump } from "./workflow-jump";
 
 export function RfqWorkspace({
   rfqId,
@@ -32,16 +37,20 @@ export function RfqWorkspace({
   projectId,
   items,
   offers,
+  analyses,
   allocations,
   canAdopt,
+  administrative = false,
 }: {
   rfqId: string;
   purpose: RfqPurpose | null;
   projectId: string | null;
   items: RfqItem[];
   offers: ComparativeLine[];
+  analyses: Record<string, QuoteDocumentAnalysisResult>;
   allocations: RfqAllocation[];
   canAdopt: boolean;
+  administrative?: boolean;
 }) {
   const router = useRouter();
   const latest = allocations[0];
@@ -74,6 +83,7 @@ export function RfqWorkspace({
         scenarios: proposeAllocations(items, offers, {
           weights,
           termScores: Object.keys(terms).length ? terms : undefined,
+          preliminary: true,
         }),
         error: null,
       };
@@ -85,9 +95,17 @@ export function RfqWorkspace({
     }
   }, [items, offers, weights, terms]);
   const scenarios = proposalResult.scenarios;
+  function applyProposal(proposalLines: AllocationLine[]) {
+    setQuantities(Object.fromEntries(proposalLines.map(l => [l.quote_version_item_id, String(l.quantity)])));
+    setPreview(null);
+    setAuthorizationConfirmed(false);
+    setOrderConfirmed(false);
+  }
   const lines: AllocationLine[] = Object.entries(quantities)
     .filter(([, q]) => q.trim() !== "" && Number(q) !== 0)
     .map(([id, q]) => ({ quote_version_item_id: id, quantity: Number(q) }));
+  const pendingReview = offers.find(o => !o.review_id && lines.some(l => l.quote_version_item_id === o.id))
+    ?? (!lines.length && !offers.some(o => o.review_id) ? offers.find(o => !o.review_id) : undefined);
   let remaining: ReturnType<typeof validateAllocation> | null = null;
   let validation = "";
   try {
@@ -113,14 +131,11 @@ export function RfqWorkspace({
   }
   return (
     <section className="space-y-6">
+      {!administrative && <>
       <h2 className="text-lg font-semibold">
         Comparativo — señales de mercado
-      </h2>
-      <p>
-        Las cotizaciones no reemplazan la última compra efectiva. No se comparan
-        monedas distintas sin un tipo de cambio verificado.
-      </p>
-      <div className="overflow-x-auto">
+      <InfoTooltip className="ml-1" label={"Comparativo — señales de mercado"} content={"Las cotizaciones no reemplazan la última compra efectiva. No se comparan monedas distintas sin un tipo de cambio verificado."} /></h2>
+<div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
@@ -167,7 +182,7 @@ export function RfqWorkspace({
                   <br />
                   {o.observations}
                   <br />
-                  {o.valid_until ?? "Sin vigencia verificable"}
+                  {o.valid_until ? formatDateTime(o.valid_until) : "Sin vigencia verificable"}
                   {o.revoked && <strong> Revocada</strong>}
                 </td>
                 <td>
@@ -186,7 +201,7 @@ export function RfqWorkspace({
                   {o.review_resolution && <p>Resolución humana: {o.review_resolution}</p>}
                   {canAdopt &&
                     o.currency === "PYG" &&
-                    eligibleLine(o, Date.now(), false) &&
+                    eligibleLine(o, undefined, false) &&
                     projectId &&
                     items.find((i) => i.id === o.rfq_item_id)?.producto_id && (
                       <Button
@@ -217,6 +232,9 @@ export function RfqWorkspace({
           </tbody>
         </table>
       </div>
+      </>}
+      <section className={styles.section} aria-label="Revisión documental">
+        <h2 className={styles.sectionTitle}><span className={styles.number}>1</span> Revisar presupuestos<InfoTooltip className="ml-1" label="Revisar presupuestos" content="Revisá el análisis y registrá discrepancias antes de adjudicar. Se conservan la oferta y el documento original." /></h2>
       {[...new Set(offers.map((o) => o.quote_version_id))].map((version) => (
         <QuoteReview
           key={version}
@@ -224,24 +242,24 @@ export function RfqWorkspace({
           versionId={version}
           items={items}
           offers={offers.filter((o) => o.quote_version_id === version)}
+          initialAnalysis={analyses[version]}
         />
       ))}
+      </section>
       {purpose === null ? (
         <p>
-          RFQ histórica con propósito sin definir. No se puede generar OC. Creá
-          una solicitud nueva eligiendo explícitamente el propósito.
+          RFQ histórica con propósito sin definir. Sus datos y documentos se conservan.
+          No se puede generar OC sin resolver explícitamente su propósito; no se infiere ni se modifica el histórico.
         </p>
       ) : purpose === "COST_DISCOVERY" ? (
         <div className="rounded border p-4">
-          <h2>Descubrimiento de costos</h2>
-          <p>
-            La comparación y la adopción humana de precios cierran este
-            circuito. No hay adjudicación ni generación de OCs.
-          </p>
-        </div>
+          <h2>Descubrimiento de costos<InfoTooltip className="ml-1" label={"Descubrimiento de costos"} content={"La comparación y la adopción humana de precios cierran este circuito. No hay adjudicación ni generación de OCs."} /></h2>
+</div>
       ) : (
         <>
-          <h2 className="font-semibold">Propuestas del sistema</h2>
+          <details className={styles.section}>
+          <summary className="font-semibold text-base">Propuestas del sistema y criterios de comparación</summary>
+          <div className="space-y-4 mt-4">
           <p>
             Aplicar una propuesta solamente carga el editor. Guardar, autorizar
             y confirmar son decisiones humanas separadas.
@@ -306,7 +324,7 @@ export function RfqWorkspace({
           {proposalResult.error && <p role="alert">{proposalResult.error}</p>}
           <div className="grid gap-3 md:grid-cols-2">
             {scenarios.map((s, index) => (
-              <div key={index} className="border rounded p-3">
+              <div key={index} className={styles.proposal}>
                 <strong>
                   {s.label} — {s.currency}
                 </strong>
@@ -315,17 +333,7 @@ export function RfqWorkspace({
                   variant="secondary"
                   disabled={busy}
                   onClick={() => {
-                    setQuantities(
-                      Object.fromEntries(
-                        s.lines.map((l) => [
-                          l.quote_version_item_id,
-                          String(l.quantity),
-                        ]),
-                      ),
-                    );
-                    setPreview(null);
-                    setAuthorizationConfirmed(false);
-                    setOrderConfirmed(false);
+                    applyProposal(s.lines);
                   }}
                 >
                   Usar como propuesta editable
@@ -333,11 +341,20 @@ export function RfqWorkspace({
               </div>
             ))}
           </div>
-          <h2 className="font-semibold">Asignación humana</h2>
-          <p>
-            Podés dividir cantidades entre proveedores o dejar cantidades sin
-            asignar.
-          </p>
+          </div>
+          </details>
+          <section id="adjudication" tabIndex={-1} className={`${styles.section} space-y-4`}>
+          <h2 className={styles.sectionTitle}><span className={styles.number}>2</span> Adjudicar oferta</h2>
+          <p className={styles.muted}>Prepará la adjudicación; guardar este paso todavía no emite una OC.</p>
+          {pendingReview && <div className={styles.notice}>
+            <p className="mb-2">Falta registrar la revisión del presupuesto de {pendingReview.provider_name}. Por eso todavía no podés guardar la adjudicación.</p>
+            <WorkflowJump targetId={`review-${pendingReview.quote_version_id}`}>Revisar presupuesto pendiente</WorkflowJump>
+          </div>}
+          {!latest?.confirmed_at && <div className={styles.actions}>
+            {scenarios.filter(s => s.kind === "ONE_SUPPLIER").map((s, index) => <Button key={index} variant="secondary" disabled={busy} onClick={() => applyProposal(s.lines)}>
+              Elegir {offers.find(o => o.id === s.lines[0]?.quote_version_item_id)?.provider_name ?? "proveedor"} · {s.currency}
+            </Button>)}
+          </div>}
           {offers.map((o) => (
             <label key={o.id} className="flex gap-3 items-center">
               {items.find((i) => i.id === o.rfq_item_id)?.descripcion} —{" "}
@@ -363,8 +380,9 @@ export function RfqWorkspace({
             </p>
           ))}
           {validation && <p role="alert">{validation}</p>}
-          <Label>Justificación humana de la asignación</Label>
+          <Label htmlFor={`allocation-reason-${rfqId}`}>Justificación de la adjudicación (mínimo 10 caracteres)</Label>
           <Textarea
+            id={`allocation-reason-${rfqId}`}
             value={justification}
             onChange={(e) => setJustification(e.target.value)}
             minLength={10}
@@ -390,10 +408,13 @@ export function RfqWorkspace({
               )
             }
           >
-            Guardar nueva revisión de asignación
+            Guardar adjudicación
           </Button>
+          {!latest?.confirmed_at && <p className={styles.muted}>{validation || (!lines.length ? "Elegí un proveedor o ingresá las cantidades a adjudicar." : justification.trim().length < 10 ? "Completá la justificación para habilitar Guardar adjudicación." : "La adjudicación está lista para guardar.")}</p>}
+          </section>
           {latest && !latest.confirmed_at && (
-            <div className="border rounded p-4 space-y-3">
+            <div id="authorization" tabIndex={-1} className={`${styles.section} space-y-4`}>
+              <h2 className={styles.sectionTitle}><span className={styles.number}>3</span> Autorizar adjudicación</h2>
               <p>
                 Revisión guardada {latest.revision}. Las acciones siguientes
                 operan sobre esa revisión guardada.
@@ -424,7 +445,7 @@ export function RfqWorkspace({
                       )
                     }
                   >
-                    Autorizar asignación guardada
+                    Autorizar adjudicación
                   </Button>
                 </>
               ) : (
@@ -443,16 +464,16 @@ export function RfqWorkspace({
                       }, "Preview preparado; ninguna OC creada")
                     }
                   >
-                    Generar preview de OCs
+                    Revisar órdenes antes de emitir
                   </Button>
                 </>
               )}
             </div>
           )}
           {preview && (
-            <div className="border rounded p-4 space-y-4">
-              <h2 className="font-semibold">
-                Preview exacto — {preview.orders.length} OC(s)
+            <div className={`${styles.section} space-y-4`}>
+              <h2 className={styles.sectionTitle}>
+                <span className={styles.number}>4</span> Revisar y emitir — {preview.orders.length} OC(s)
               </h2>
               {preview.orders.map((o) => (
                 <div
@@ -538,7 +559,7 @@ export function RfqWorkspace({
                   }, "OCs confirmadas")
                 }
               >
-                Confirmar y crear OCs
+                Confirmar y emitir órdenes de compra
               </Button>
             </div>
           )}
@@ -582,32 +603,34 @@ function QuoteReview({
   versionId,
   items,
   offers,
+  initialAnalysis,
 }: {
   rfqId: string;
   versionId: string;
   items: RfqItem[];
   offers: ComparativeLine[];
+  initialAnalysis: QuoteDocumentAnalysisResult | undefined;
 }) {
   const router = useRouter();
   const [extraction, setExtraction] =
     useState<Awaited<ReturnType<typeof extractQuoteDocumentAction>>["data"]>(
-      null,
+      initialAnalysis?.data ?? null,
     );
-  const [facts, setFacts] = useState<DocumentFact[]>([]);
+  const [facts, setFacts] = useState<DocumentFact[]>(initialAnalysis?.data?.facts ?? []);
   const [resolution, setResolution] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialAnalysis?.error ?? "");
   const [pending, setPending] = useState(false);
   return (
-    <details className="border rounded p-3">
+    <details id={`review-${versionId}`} tabIndex={-1} className={`${styles.review} mb-3`}>
       <summary>
-        Reconciliación {offers[0]?.provider_name} v{offers[0]?.version_number} —{" "}
-        {offers[0]?.review_id ? "revisada" : "pendiente"}
+        {offers[0]?.review_id ? "✓ Presupuesto revisado" : "Revisar presupuesto"} · {offers[0]?.provider_name} · versión {offers[0]?.version_number}
       </summary>
-      <p>
+      <div className={styles.reviewBody}>
+      <p className={styles.muted}>
         El documento y la oferta se conservan. Diferencias o campos no extraídos
         requieren revisión humana; no se corrigen precios automáticamente.
       </p>
-      <Button
+      {!extraction && <Button
         disabled={pending}
         onClick={async () => {
           setPending(true);
@@ -618,15 +641,19 @@ function QuoteReview({
               setFacts(r.data.facts);
             }
             setMessage(r.error ?? "Documento extraído; revisá las diferencias");
+          } catch (e) {
+            setMessage(e instanceof Error ? e.message : "No se pudo analizar el documento");
           } finally {
             setPending(false);
           }
         }}
       >
-        Extraer y comparar documento
-      </Button>
+        Reintentar análisis del documento
+      </Button>}
       {extraction && (
         <>
+          <details>
+          <summary className="text-sm font-medium">Ver contenido leído del documento original</summary>
           <pre className="whitespace-pre-wrap max-h-64 overflow-auto">
             {extraction.extraction.text ??
               extraction.extraction.structured?.sheets
@@ -641,9 +668,12 @@ function QuoteReview({
                       .join("\n")}`,
                 )
                 .join("\n") ??
-              "Documento visual: abrir original y transcribir manualmente"}
+              "El lector no pudo extraer datos de este documento; requiere revisión del original"}
           </pre>
-          <p>{extraction.extraction.warnings.join(" · ")}</p>
+          </details>
+          {extraction.extraction.warnings.length > 0 && <p className={styles.notice}>{extraction.extraction.warnings.join(" · ")}</p>}
+          <div className={extraction.comparison.length ? styles.notice : styles.muted}>
+          <h3 className="font-semibold mb-2">{extraction.comparison.length ? "Diferencias que necesitan tu revisión" : "Sin diferencias detectadas en los campos verificables"}</h3>
           {extraction.comparison.map((d, i) => (
             <p key={i}>
               {items.find((it) => it.id === d.itemId)?.descripcion}: {d.field} —
@@ -651,13 +681,18 @@ function QuoteReview({
               {String(d.document ?? "desconocido")} ({d.reason})
             </p>
           ))}
+          {!extraction.facts.length && <p>No se identificaron datos de esta oferta en el documento. Revisá el original y justificá la falta de evidencia antes de continuar.</p>}
+          </div>
+          <details>
+          <summary className="text-sm font-medium">Datos extraídos y excepciones verificables</summary>
           <p>
-            Transcripción humana del documento (campos vacíos conservan ausencia
-            de evidencia):
+            Datos extraídos automáticamente. Revisá las diferencias y completá
+            solamente las excepciones verificables en el original. Los campos
+            vacíos conservan ausencia de evidencia:
           </p>
           {offers.map((o) => (
-            <div key={o.id} className="grid grid-cols-3 gap-2 border p-2">
-              <p>{items.find((i) => i.id === o.rfq_item_id)?.descripcion}</p>
+            <div key={o.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border border-white/10 rounded-lg p-4 mt-3">
+              <p className="col-span-full font-medium">{items.find((i) => i.id === o.rfq_item_id)?.descripcion}</p>
               {(
                 [
                   "precio_unitario",
@@ -720,11 +755,13 @@ function QuoteReview({
               ))}
             </div>
           ))}
-          <Label>
-            Resolución / justificación de discrepancias y campos no verificables
-            (mínimo 10 caracteres)
+          </details>
+          <Label htmlFor={`review-reason-${versionId}`}>
+            Resolución de diferencias o falta de evidencia (mínimo 10 caracteres)
           </Label>
           <Textarea
+            id={`review-reason-${versionId}`}
+            placeholder="Dejá constancia de qué verificaste en el original y cómo resolvés las diferencias."
             value={resolution}
             onChange={(e) => setResolution(e.target.value)}
           />
@@ -743,6 +780,8 @@ function QuoteReview({
                   r.error ?? "Revisión registrada sin modificar la oferta",
                 );
                 if (!r.error) router.refresh();
+              } catch (e) {
+                setMessage(e instanceof Error ? e.message : "No se pudo registrar la revisión");
               } finally {
                 setPending(false);
               }
@@ -753,6 +792,8 @@ function QuoteReview({
         </>
       )}
       {message && <p role="status">{message}</p>}
+      {offers[0]?.review_id && <WorkflowJump targetId="adjudication">Continuar a adjudicar</WorkflowJump>}
+      </div>
     </details>
   );
 }

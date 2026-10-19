@@ -13,13 +13,6 @@ const TONE_CLASSES: Record<DomainTone, string> = {
   neutral: "bg-[var(--panel-2)] text-[var(--muted)]",
 };
 
-const TONE_RING: Record<DomainTone, string> = {
-  ok: "border-[var(--border)]",
-  warn: "border-[var(--warn)]/40 shadow-[0_0_12px_rgba(245,158,11,0.08)]",
-  error: "border-[var(--error)]/40 shadow-[0_0_12px_rgba(239,68,68,0.12)]",
-  neutral: "border-[var(--border)]",
-};
-
 const TREND_TONE_CLASSES: Record<"up" | "down" | "neutral", string> = {
   up: "text-[var(--ok)] bg-[var(--ok-bg)]",
   down: "text-[var(--error)] bg-[var(--error-bg)]",
@@ -59,11 +52,11 @@ export function MetricCard({ card, compact = false, accentClass }: { card: Metri
 
   return (
     <MetricSurface card={card}
-      className={`${card.informational ? "cursor-default" : "group kpi-hover cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--primary)]"} relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
+      className={`erp-kpi group ${card.informational ? "cursor-default" : "cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--primary)]"} relative flex flex-col justify-between overflow-hidden rounded-xl border bg-[var(--panel)] ${accentClass ?? ACCENT_BY_KEY[card.key] ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
           : "min-h-[92px] p-2 sm:min-h-[96px] sm:p-2.5"
-      } ${TONE_RING[card.tone]}`}
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">

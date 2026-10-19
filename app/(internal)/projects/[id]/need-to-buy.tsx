@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { AdministrativeRfqDialog } from "@/app/(internal)/rfqs/administrative-rfq-dialog";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { createClient } from "@/lib/supabase/browser";
 import type { Provider } from "@/lib/types";
@@ -27,7 +28,7 @@ export function NeedToBuy({projectId,planId,disabled,seen}: {
   const shown = Array.isArray(seen.coverage) ? seen.coverage as Array<{producto_id:string;comprar:number}> : [];
   const changed = current?.coverage.lines.some(l=>shown.find(s=>s.producto_id===l.producto_id)?.comprar!==l.comprar);
   return <section className="space-y-2">
-    <p>Necesidad de compra: verificá las fuentes actuales y elegí cotizar o compra directa. El cálculo no crea RFQ ni OC.</p>
+    <h3 className="flex items-center text-[13px] font-semibold">Necesidad de compra<InfoTooltip className="ml-1" label="Necesidad de compra" content="Verifica obra, stock central y suministros autorizados. Después podés cotizar o iniciar una compra directa; calcular no crea RFQ ni OC." /></h3>
     {!planId && <p>Guardá el plan para conservar la necesidad y su provenance.</p>}
     {disabled && <p>Guardá y recalculá las metas actuales antes de comprar.</p>}
     <Button variant="secondary" disabled={!planId || disabled || pending} onClick={async()=>{
@@ -38,16 +39,16 @@ export function NeedToBuy({projectId,planId,disabled,seen}: {
       finally {setPending(false);}
     }}>Verificar necesidad actual</Button>
     {current && !disabled && <div>
-      <p>Necesidad verificada: obra + central disponible + suministro autorizado a tiempo. Revisá las cantidades actuales antes de continuar.</p>
+      <p className="text-[11px] text-[var(--muted)]">Necesidad verificada · revisá las cantidades actuales antes de continuar.</p>
       {changed && <p role="status">El faltante cambió desde el cálculo mostrado. Las acciones usarán las cantidades actuales de abajo.</p>}
       {current.coverage.lines.map(l=>{const n=current.needs.find(n=>n.producto_id===l.producto_id);return <p key={l.producto_id}>
         {l.producto_nombre}: requerido {l.requerido}, obra {l.cubierto_obra}, central {l.cubierto_central}, entrante {l.cubierto_inbound}, faltante {l.comprar} {l.unidad_medida}.
         {n?.decision?.rfq_id && <> RFQ existente: <a href={"/rfqs/"+n.decision.rfq_id}>Abrir</a>.</>}
         {n?.decision?.direct_purchase_preview_id && <> Compra directa iniciada. Reabrí el preview con COMPRA DIRECTA o revisá la OC en Compras.</>}
       </p>})}
-      {current.history?.map(d=><p key={d.id}>Decisión anterior: {d.kind}. {d.rfq_id && <a href={"/rfqs/"+d.rfq_id}>RFQ</a>} {d.order_id && <a href={"/orders/"+d.order_id}>OC confirmada</a>}</p>)}
+      {current.history?.map(d=><p key={d.id}>Decisión anterior: {d.kind}. {d.rfq_id && <a href={"/projects/"+projectId+"/rfqs/"+d.rfq_id}>RFQ</a>} {d.order_id && <a href={"/projects/"+projectId+"/orders/"+d.order_id}>OC confirmada</a>}</p>)}
       {origin && <>
-        <RfqDialog key={"rfq-"+current.snapshot_id} projectId={projectId} initialItems={items} needOrigin={origin}
+        <AdministrativeRfqDialog key={"rfq-"+current.snapshot_id} projectId={projectId} initialItems={items} needOrigin={origin}
           trigger={<Button variant="secondary">COTIZAR</Button>}/>
         <Button variant="secondary" disabled={pending} onClick={async()=>{
           setPending(true);setError("");

@@ -65,10 +65,10 @@ export default async function ImprimirOPPage({ params }: { params: Promise<{ id:
           <div className="text-[22px] font-bold">{op.code}</div>
           <div className="text-[10px] text-gray-500 mt-1">Emitida: {formatDate(op.created_at)}</div>
           {op.executed_at && <div className="text-[10px] text-gray-500">Ejecutada: {formatDate(op.executed_at)}</div>}
-          <div className={`mt-1.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded border ${
+          <div style={{ color: op.status === "EJECUTADA" ? "#14532d" : "#713f12" }} className={`mt-1.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded border ${
             op.status === "EJECUTADA"
-              ? "bg-green-100 text-green-800 border-green-400"
-              : "bg-yellow-100 text-yellow-800 border-yellow-400"
+              ? "bg-green-100 border-green-400"
+              : "bg-yellow-100 border-yellow-400"
           }`}>
             {op.status === "EJECUTADA" ? "Ejecutada" : "Emitida"}
           </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input, Label } from "@/components/ui/input";
 import { createCertificate } from "../certificado-actions";
 
@@ -26,7 +27,7 @@ export function AddCertificadoDialog({
       <DialogTrigger asChild>
         <Button variant="secondary">Nuevo certificado</Button>
       </DialogTrigger>
-      <DialogContent title={`Certificado N° ${nextNumero}`}>
+      <DialogContent title={<span>Certificado N° {nextNumero}<InfoTooltip className="ml-1" label="Certificado de ejecución" content="El acumulado anterior toma certificados cerrados; el ejecutado del período sale de las entradas de avance. Podés ajustar cada rubro antes de cerrar." /></span>}>
         <form
           className="space-y-3"
           action={async (formData: FormData) => {
@@ -48,11 +49,6 @@ export function AddCertificadoDialog({
             </div>
           ) : null}
 
-          <p className="text-[12px] text-[var(--muted)]">
-            Las líneas se arman solas: el <strong>acumulado anterior</strong> sale de los certificados ya
-            cerrados y lo <strong>ejecutado en el período</strong> de las entradas de avance. Después podés
-            ajustar cada rubro antes de cerrar.
-          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

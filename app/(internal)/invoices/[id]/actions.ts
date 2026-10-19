@@ -12,6 +12,9 @@ import {
   insertValidatedItemMatches,
   parseInvoiceLinesInput,
 } from "@/lib/invoice-items";
+import { extractInvoiceFieldsFromFile, MAX_INVOICE_FILE_BYTES } from "@/lib/invoice-extraction";
+import { invoiceFileHash, invoiceIssuerMatches } from "@/lib/invoice-extraction-proof";
+import { persistInvoiceIdentity, requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -22,6 +25,8 @@ function itemMutationsAllowed(status: string): boolean {
 export async function matchOrder(invoiceId: string, authorizedOrderId: string): Promise<{ error: string | null; warning?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
+  const identityCheck = await requireInvoiceIdentity(supabase, invoiceId, profile.empresa_id);
+  if (identityCheck.error) return identityCheck;
 
   const { error } = await supabase
     .from("invoice_order_matches")
@@ -114,6 +119,8 @@ export async function unmatchOrder(invoiceId: string, matchId: string, authorize
 export async function approveException(invoiceId: string, reason: string, comment: string | null) {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
+  const identityCheck = await requireInvoiceIdentity(supabase, invoiceId, profile.empresa_id);
+  if (identityCheck.error) return identityCheck;
 
   const { data: invoice } = await supabase.from("invoices").select("*").eq("id", invoiceId).single();
   if (!invoice) return { error: "Factura no encontrada." };
@@ -147,8 +154,10 @@ export async function approveException(invoiceId: string, reason: string, commen
 }
 
 export async function markAptoParaPago(invoiceId: string) {
-  await requireProfile(["administracion", "admin"]);
+  const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
+  const identityCheck = await requireInvoiceIdentity(supabase, invoiceId, profile.empresa_id);
+  if (identityCheck.error) return identityCheck;
   const { error } = await supabase.rpc("mark_invoice_apto_para_pago", { p_invoice_id: invoiceId });
   if (error) return { error: error.message };
   await logAudit(supabase, { action: "invoice.marked_apto_para_pago", invoiceId });
@@ -162,43 +171,21 @@ export async function markAptoYCrearOp(invoiceId: string) {
 
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
+  const identityCheck = await requireInvoiceIdentity(supabase, invoiceId, profile.empresa_id);
+  if (identityCheck.error) return identityCheck;
   const empresaId = profile.empresa_id;
 
-  // 1. Cambiar estado
-  const { error: markError } = await supabase.rpc("mark_invoice_apto_para_pago", { p_invoice_id: invoiceId });
-  if (markError) return { error: markError.message };
+  const { data: opId, error: opError } = await supabase.rpc("mark_apto_y_crear_op_atomica", {
+    p_empresa_id: empresaId,
+    p_invoice_id: invoiceId,
+    p_created_by: profile.id,
+  });
+  if (opError || !opId) return { error: opError?.message ?? "No se pudo crear la OP." };
 
-  // 2. Obtener proveedor
-  const { data: invoice } = await supabase
-    .from("invoices")
-    .select("provider_id")
-    .eq("id", invoiceId)
-    .eq("empresa_id", empresaId)
-    .single();
-  if (!invoice) return { error: "Factura no encontrada." };
-
-  // 3. Crear OP
-  const { data: code } = await supabase.rpc("next_op_code");
-  const { data: op, error: opError } = await supabase
-    .from("payment_orders")
-    .insert({ empresa_id: empresaId, code: code as string, provider_id: invoice.provider_id, status: "EMITIDA", created_by: profile.id })
-    .select("id")
-    .single();
-  if (opError || !op) return { error: "No se pudo crear la OP." };
-
-  // 4. Vincular
-  const { error: linkError } = await supabase
-    .from("payment_order_invoices")
-    .insert({ empresa_id: empresaId, payment_order_id: op.id, invoice_id: invoiceId });
-  if (linkError) {
-    await supabase.from("payment_orders").delete().eq("id", op.id);
-    return { error: "No se pudo vincular la factura." };
-  }
-
-  await logAudit(supabase, { action: "payment_order.created", detail: { op_id: op.id, from_invoice: invoiceId } });
+  await logAudit(supabase, { action: "payment_order.created", detail: { op_id: opId, from_invoice: invoiceId } });
   revalidatePath("/invoices");
   revalidatePath("/pagos");
-  redirect(`/pagos/${op.id}`);
+  redirect(`/pagos/${opId}`);
 }
 
 /**
@@ -498,4 +485,47 @@ export async function deleteInvoiceItemMatch(matchId: string, invoiceId: string)
   await logAudit(supabase, { action: "invoice.item_unmatched", invoiceId });
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };
+}
+
+/** Explicit re-reading of a legacy original; never invent evidence from provider data. */
+export async function verifyInvoiceOriginal(invoiceId: string): Promise<{ error: string | null }> {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const db = await createClient();
+  const { data: invoice } = await db.from("invoices")
+    .select("id, attachment_id, provider_id, invoice_number, invoice_date, total, currency, status")
+    .eq("id", invoiceId).eq("empresa_id", profile.empresa_id).maybeSingle();
+  if (!invoice || invoice.status === "PAGADO") return { error: "La factura no está disponible para una nueva verificación." };
+  if (!invoice.attachment_id) return { error: "Falta el original de esta factura. No puede verificarse copiando los datos del proveedor." };
+  const [{ data: attachment }, { data: provider }] = await Promise.all([
+    db.from("attachments").select("bucket, path, mime_type, file_name, size_bytes").eq("id", invoice.attachment_id).eq("empresa_id", profile.empresa_id).maybeSingle(),
+    db.from("providers").select("tax_id").eq("id", invoice.provider_id).eq("empresa_id", profile.empresa_id).maybeSingle(),
+  ]);
+  if (!attachment || !provider || attachment.bucket !== "invoice-files" || attachment.size_bytes > MAX_INVOICE_FILE_BYTES ||
+    !(attachment.path.startsWith(invoice.provider_id + "/") || attachment.path.startsWith(profile.empresa_id + "/"))) {
+    return { error: "El original no está disponible dentro del destino autorizado de esta factura." };
+  }
+  const admin = createAdminClient();
+  const { data: original, error: downloadError } = await admin.storage.from(attachment.bucket).download(attachment.path);
+  if (downloadError || !original) return { error: "No se pudo descargar el original para verificarlo." };
+  const bytes = Buffer.from(await original.arrayBuffer());
+  if (bytes.length > MAX_INVOICE_FILE_BYTES) return { error: "El original supera el límite de lectura." };
+  const mime = bytes.subarray(0,5).toString() === "%PDF-" ? "application/pdf" : attachment.mime_type;
+  if (!mime || !["application/pdf","image/jpeg","image/png","image/webp"].includes(mime)) return { error: "El formato del original no admite lectura automática." };
+  const result = await extractInvoiceFieldsFromFile(bytes, mime);
+  if (result.error || !result.data) return { error: result.error ?? "No se pudo leer el original." };
+  if (!invoiceIssuerMatches(result.data.provider_tax_id, provider.tax_id)) return { error: "El RUC del original no coincide con el proveedor de la factura." };
+  if (!result.data.currency || result.data.currency !== invoice.currency) {
+    return { error: "La moneda del original no se pudo confirmar o no coincide con la factura." };
+  }
+  if (result.data.invoice_number !== invoice.invoice_number || result.data.invoice_date !== invoice.invoice_date || result.data.total !== Number(invoice.total)) {
+    return { error: "Número, fecha o total no coinciden con el original. Revisá la factura antes de autorizarla." };
+  }
+  const persisted = await persistInvoiceIdentity(admin, { invoiceId, attachmentId: invoice.attachment_id,
+    sha256: invoiceFileHash(bytes), fields: result.data, actorId: profile.id });
+  if (persisted.error) return persisted;
+  await logAudit(db, { action: "invoice.original_verified", invoiceId,
+    detail: { file_sha256: invoiceFileHash(bytes), document_tax_id: result.data.provider_tax_id, verifier: profile.id } });
+  const { error: reconcileError } = await db.rpc("recompute_invoice_status", { p_invoice_id: invoiceId });
+  revalidatePath(`/invoices/${invoiceId}`); revalidatePath("/invoices");
+  return { error: reconcileError ? "El emisor fue verificado; falta corregir la vinculación documental: " + reconcileError.message : null };
 }

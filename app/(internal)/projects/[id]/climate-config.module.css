@@ -1,0 +1,9 @@
+.dialog { composes: erp-card from global; padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; border: 1px solid var(--interactive-border); background: var(--popover, rgba(13, 26, 44, .95)); }
+.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: var(--panel-2); border-bottom: 1px solid var(--interactive-border); }
+.form { display: flex; flex-direction: column; min-height: 0; }
+.body { padding: 18px; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.footer { flex-shrink: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--interactive-border); background: var(--panel-2); }
+/* Light mode surface overrides. */
+:global(html[data-theme="claro"]) .dialog { border: 1px solid var(--border-strong); background: var(--panel); }
+:global(html[data-theme="claro"]) .dialog > h2 { background: var(--panel-2); border-bottom: 1px solid var(--border-strong); }
+:global(html[data-theme="claro"]) .footer { border-top: 1px solid var(--border-strong); background: var(--input-bg); }

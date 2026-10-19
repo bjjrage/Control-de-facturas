@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
-  docSaldo,
+  isCollectibleSalesType,
   canIssueSalesFiscalDocument,
   isOverdue,
   RECEIPT_METHOD_LABELS,
@@ -17,6 +17,7 @@ import {
   SALES_DOC_PANEL_PATH,
   SALES_DOC_PANEL_TITLE,
 } from "@/lib/sales";
+import { salesReceivables } from "@/lib/sales-receivables";
 import { ReceiptDialog } from "./receipt-dialog";
 import { SifenButton } from "./sifen-button";
 import { QuotationPanel } from "./quotation-panel";
@@ -67,9 +68,12 @@ export default async function VentaDetailPage({ params, searchParams }: { params
     ? await supabase.from("sales_document_items").select("id, description").eq("sales_document_id", doc.source_document_id).eq("empresa_id", profile.empresa_id).order("created_at").returns<Pick<SalesDocumentItem, "id" | "description">[]>()
     : { data: [] };
 
-  const saldo = docSaldo(doc.total, doc.cobrado_amount);
+  const { data: accountDocs, error: accountError } = await supabase.from("sales_documents")
+    .select("id, empresa_id, client_id, currency, source_document_id, doc_type, status, total, cobrado_amount")
+    .eq("empresa_id", profile.empresa_id).eq("client_id", doc.client_id).eq("currency", doc.currency);
+  const saldo = accountError ? 0 : (salesReceivables(accountDocs ?? []).balances.get(doc.id) ?? 0);
   const isDraft = doc.status === "BORRADOR";
-  const canCollect = doc.status === "EMITIDA" || doc.status === "COBRADA_PARCIAL";
+  const canCollect = !accountError && saldo > 0 && isCollectibleSalesType(doc.doc_type) && (doc.status === "EMITIDA" || doc.status === "COBRADA_PARCIAL");
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -201,7 +205,7 @@ export default async function VentaDetailPage({ params, searchParams }: { params
         </div>
         <div>
           <div className="text-[11px] text-[var(--muted)] mb-0.5">Saldo por cobrar</div>
-          <div className={`num ${saldo > 0 ? "text-[var(--warn)]" : "text-[var(--ok)]"}`}>{formatMoney(saldo, doc.currency)}</div>
+          <div className={`num ${accountError ? "text-[var(--error)]" : saldo > 0 ? "text-[var(--warn)]" : "text-[var(--ok)]"}`}>{accountError ? "Saldo no disponible" : formatMoney(saldo, doc.currency)}</div>
         </div>
       </div>
 
@@ -300,7 +304,8 @@ export default async function VentaDetailPage({ params, searchParams }: { params
                         <form
                           action={async () => {
                             "use server";
-                            await reverseReceipt(r.id, doc.id);
+                            const result = await reverseReceipt(r.id, doc.id);
+                            if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
                           }}
                         >
                           <button className="text-[12px] text-[var(--muted)] hover:text-[var(--error)]" title="Registra una reversa; conserva el cobro y su auditoría">Revertir</button>

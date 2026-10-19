@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Client, CurrencyCode, Empresa, SalesDocument, SalesReceipt } from "@/lib/types";
+import { Client, Empresa, SalesDocument, SalesReceipt } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
-import { docSaldo, SALES_DOC_TYPE_LABELS, SALES_DOC_STATUS_LABELS } from "@/lib/sales";
+import { salesReceivables } from "@/lib/sales-receivables";
+import { SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 import { LOGO_STORAGE_PATH } from "@/components/layout/branding-constants";
 import { PrintTrigger } from "@/app/(print)/ventas/[id]/imprimir/print-trigger";
+import { PrintLogo } from "@/components/ui/print-logo";
 
 export default async function EstadoCuentaPage({
   params,
@@ -28,6 +30,7 @@ export default async function EstadoCuentaPage({
       .from("sales_documents")
       .select("*")
       .eq("client_id", id)
+      .eq("empresa_id", profile.empresa_id)
       .order("issue_date", { ascending: true })
       .returns<SalesDocument[]>(),
     supabase
@@ -67,17 +70,9 @@ export default async function EstadoCuentaPage({
     year: "numeric",
   });
 
-  // Totals by currency for pending docs
-  const pendingByCurrency = new Map<CurrencyCode, number>();
-  for (const d of allDocs) {
-    if (d.status !== "EMITIDA" && d.status !== "COBRADA_PARCIAL") continue;
-    const saldo = docSaldo(d.total, d.cobrado_amount);
-    if (saldo <= 0) continue;
-    pendingByCurrency.set(
-      d.currency,
-      (pendingByCurrency.get(d.currency) ?? 0) + saldo
-    );
-  }
+  // Same financial model used by the client detail.
+  const account = salesReceivables(allDocs);
+  const pendingByCurrency = new Map([...account.pendingByCurrency].filter(([, amount]) => amount > 0));
 
   return (
     <div
@@ -87,13 +82,11 @@ export default async function EstadoCuentaPage({
       <PrintTrigger />
 
       {/* Header */}
-      <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-4">
-        <div>
+      <div className="flex justify-between items-start gap-6 border-b-2 border-black pb-3 mb-4">
+        <div className="min-w-0 flex-1 break-words">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <PrintLogo
               src={logoUrl}
-              alt="Logo"
               className="h-10 max-w-[140px] object-contain mb-1"
             />
           ) : null}
@@ -102,7 +95,7 @@ export default async function EstadoCuentaPage({
           {empresa?.direccion ? <div>{empresa.direccion}</div> : null}
           {empresa?.telefono ? <div>Tel: {empresa.telefono}</div> : null}
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <div className="text-[18px] font-bold">ESTADO DE CUENTA</div>
           <div className="text-[11px] text-black/60 mt-0.5">
             Al {today}
@@ -135,7 +128,7 @@ export default async function EstadoCuentaPage({
           </thead>
           <tbody>
             {allDocs.map((d) => {
-              const saldo = docSaldo(d.total, d.cobrado_amount);
+              const saldo = account.signedBalances.get(d.id) ?? 0;
               const isPending =
                 d.status === "EMITIDA" || d.status === "COBRADA_PARCIAL";
               const isAnulada = d.status === "ANULADA";
@@ -165,7 +158,7 @@ export default async function EstadoCuentaPage({
                   >
                     {isAnulada
                       ? "Anulada"
-                      : saldo > 0
+                      : saldo !== 0
                         ? formatMoney(saldo, d.currency)
                         : d.status === "COBRADA"
                           ? "✓ Cobrado"
@@ -201,6 +194,7 @@ export default async function EstadoCuentaPage({
         </div>
       ) : null}
 
+      {[...account.creditByCurrency].filter(([, amount]) => amount > 0).map(([currency, amount]) => <div key={currency} className="mt-2 text-right font-semibold">Saldo a favor: {formatMoney(amount, currency)}</div>)}
       {/* Receipts detail */}
       {(receipts ?? []).length > 0 ? (
         <div className="mt-6">
@@ -214,6 +208,7 @@ export default async function EstadoCuentaPage({
                 <th className="py-1 pr-2 text-[11px]">Fecha</th>
                 <th className="py-1 pr-2 text-[11px]">Método</th>
                 <th className="py-1 pr-2 text-[11px]">Referencia</th>
+                <th className="py-1 pr-2 text-[11px]">Estado</th>
                 <th className="py-1 text-right text-[11px]">Monto</th>
               </tr>
             </thead>
@@ -230,6 +225,10 @@ export default async function EstadoCuentaPage({
                     </td>
                     <td className="py-0.5 pr-2 text-[11px]">
                       {r.reference ?? "—"}
+                    </td>
+                    <td className="py-0.5 pr-2 text-[11px]" title={r.reversal_reason ?? undefined}>
+                      {r.reversed_at ? <span>Revertido</span> : <span>Activo</span>}
+                      {r.reversed_at ? <div>{formatDate(r.reversed_at)} · {r.reversal_reason ?? "Sin motivo informado"}</div> : null}
                     </td>
                     <td className="py-0.5 text-right text-[11px]">
                       {formatMoney(r.amount, d.currency)}

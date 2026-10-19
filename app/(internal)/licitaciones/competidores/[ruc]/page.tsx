@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/ui/back-button";
@@ -94,7 +95,7 @@ export default async function CompetidorProfilePage({
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5">
           <div className="flex items-center justify-between text-[var(--muted)]">
             <span className="text-xs font-semibold uppercase tracking-wider">Tasa de Éxito (Win Rate)</span>
             <Award className="h-4 w-4 text-emerald-400" />
@@ -105,7 +106,7 @@ export default async function CompetidorProfilePage({
           </p>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5">
           <div className="flex items-center justify-between text-[var(--muted)]">
             <span className="text-xs font-semibold uppercase tracking-wider">Total Adjudicado</span>
             <Building2 className="h-4 w-4 text-blue-400" />
@@ -116,7 +117,7 @@ export default async function CompetidorProfilePage({
           <p className="mt-1 text-xs text-[var(--muted)]">Volumen histórico adjudicado</p>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5">
           <div className="flex items-center justify-between text-[var(--muted)]">
             <span className="text-xs font-semibold uppercase tracking-wider">Agresividad de Precio</span>
             <Percent className="h-4 w-4 text-purple-400" />
@@ -127,7 +128,7 @@ export default async function CompetidorProfilePage({
           <p className="mt-1 text-xs text-[var(--muted)]">Descuento promedio vs presupuesto referencial</p>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
+        <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5">
           <div className="flex items-center justify-between text-[var(--muted)]">
             <span className="text-xs font-semibold uppercase tracking-wider">Red de Consorcios</span>
             <Users2 className="h-4 w-4 text-amber-400" />
@@ -143,8 +144,8 @@ export default async function CompetidorProfilePage({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Convocantes Principales */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Organismos Convocantes Principales</h2>
-          <p className="text-xs text-[var(--muted)]">Entidades a las que más suele ofertar y adjudicar contratos</p>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Organismos principales<InfoTooltip className="ml-1" label={"Organismos principales"} content={"Entidades a las que más suele ofertar y adjudicar contratos"} /></h2>
+
 
           <div className="mt-4 divide-y divide-[var(--border)]">
             {profile.top_convocantes.length === 0 ? (
@@ -169,8 +170,8 @@ export default async function CompetidorProfilePage({
 
         {/* Aliados y Consorcios */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Aliados y Consorcios Habituales</h2>
-          <p className="text-xs text-[var(--muted)]">Socios detectados en UTEs y acuerdos consorciales</p>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Consorcios frecuentes<InfoTooltip className="ml-1" label={"Consorcios frecuentes"} content={"Socios detectados en UTEs y acuerdos consorciales"} /></h2>
+
 
           <div className="mt-4 divide-y divide-[var(--border)]">
             {profile.consortium_network.length === 0 ? (
@@ -192,8 +193,8 @@ export default async function CompetidorProfilePage({
       {/* Historial Reciente de Licitaciones */}
       <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-xs">
         <div className="border-b border-[var(--border)] px-5 py-4">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Historial Reciente de Ofertas en Licitaciones</h2>
-          <p className="text-xs text-[var(--muted)]">Comportamiento competitivo en los últimos llamados públicos auditados</p>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Ofertas recientes<InfoTooltip className="ml-1" label={"Ofertas recientes"} content={"Comportamiento competitivo en los últimos llamados públicos auditados"} /></h2>
+
         </div>
 
         <div className="overflow-x-auto">

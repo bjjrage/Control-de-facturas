@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import Link from "next/link";
 
 import { requirePlan } from "@/lib/auth";
@@ -27,10 +28,8 @@ export default async function PrebidIndexPage() {
     <div className="max-w-none space-y-4">
       <PrebidWorkspace data={displayData} />
       <header id="licitacion-prebid" className="scroll-mt-20">
-        <h2 className="section-accent-licitaciones text-[12px] font-bold uppercase tracking-widest">Licitación vinculada</h2>
-        <p className="mt-1 text-[13px] text-[var(--muted)]">
-          Elegí una licitación para trabajar con sus datos y guardar su oferta.
-        </p>
+        <h2 className="section-accent-licitaciones text-[12px] font-bold uppercase tracking-widest">Licitación vinculada<InfoTooltip className="ml-1" label={"Licitación vinculada"} content={"Elegí una licitación para trabajar con sus datos y guardar su oferta."} /></h2>
+
       </header>
 
       {licitaciones.length === 0 ? (

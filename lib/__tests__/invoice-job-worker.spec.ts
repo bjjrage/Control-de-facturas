@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  bulkInvoiceCurrency,
+  persistBulkIdentityAfterLines,
   finishInvoiceJobLease,
   invoiceJobCreationDisposition,
   invoiceJobMatchingOutcome,
@@ -32,6 +34,21 @@ function leaseDb(initial: Record<string, unknown>) {
 }
 
 describe("invoice job worker fencing", () => {
+  it("#5 uses the extracted currency and refuses to invent PYG when unreadable", () => {
+    expect(bulkInvoiceCurrency("USD")).toBe("USD");
+    expect(bulkInvoiceCurrency("PYG")).toBe("PYG");
+    expect(bulkInvoiceCurrency(null)).toBeNull();
+    expect(bulkInvoiceCurrency("unknown")).toBeNull();
+  });
+
+  it("#7 never records verified identity after a line insert failure", async () => {
+    const persist = vi.fn(async () => ({ error: null }));
+    const result = await persistBulkIdentityAfterLines("line insert failed", persist);
+    expect(result.error).toMatch(/line insert failed/);
+    expect(persist).not.toHaveBeenCalled();
+    expect(await persistBulkIdentityAfterLines(null, persist)).toEqual({ error: null });
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
   it("a worker with an expired attempt cannot overwrite the newer lease", async () => {
     const db = leaseDb({ id: "job-1", status: "processing", attempts: 4, invoice_id: null, message: "winner" });
     const result = await finishInvoiceJobLease(db.client, { id: "job-1", attempts: 3, invoice_id: null }, { status: "failed", message: "stale" });

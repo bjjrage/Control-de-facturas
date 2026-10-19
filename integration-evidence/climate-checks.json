@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-14",
+  "branch": "codex/compras-ventas-integration",
+  "database": "kyiihlkncatojvlasoag",
+  "buildId": "WA3OD-V0LNivwHFLV6GxL",
+  "build": true,
+  "typecheck": true,
+  "lint": true,
+  "tests": {
+    "files": 6,
+    "passed": 79
+  },
+  "runtime": {
+    "port": 3003,
+    "pid": 9352
+  },
+  "scope": "User-requested climate correction; separate from purchases/sales migration selection",
+  "files": [
+    "app/(internal)/projects/climate-actions.ts",
+    "app/(internal)/projects/[id]/climate-workdays-panel.tsx",
+    "app/(internal)/projects/[id]/climate-config-dialog.tsx",
+    "app/(internal)/projects/[id]/climate-config.module.css",
+    "lib/projects/climate-config-action.test.ts"
+  ],
+  "originalProject": {
+    "id": "86b8a8d7-0b15-4e30-b623-c1d3cfe260f8",
+    "latitude": -25.28,
+    "longitude": -57.64,
+    "tracking": true,
+    "startDate": "2026-10-21",
+    "datesChanged": false,
+    "futureStartNoticeVerified": true
+  },
+  "testProject": {
+    "id": "a8801fa8-8b91-4521-bdc5-f05563f9a79c",
+    "code": "QA-CLIMA-20261014",
+    "createdThroughUi": true,
+    "startDate": "2026-10-14",
+    "endDate": "2026-10-15",
+    "coordinates": "Synthetic Asuncion reference",
+    "configuredThroughUi": true
+  },
+  "realWeatherQuery": {
+    "date": "2026-10-14",
+    "eventId": "bbb97d14-d37c-4ae0-95f6-76d318e530b4",
+    "source": "dmh-dinac",
+    "stationId": "0000086217",
+    "stationName": "Centro Meteorologico Nacional",
+    "observedAt": "2026-10-14T03:30:00Z",
+    "distanceKm": 1.694,
+    "precipitationMm": 0,
+    "thresholdMm": 15,
+    "status": "OBSERVED",
+    "workdayCount": 0,
+    "verifiedInUiAndDatabase": true
+  },
+  "limits": [
+    "Live rain-over-threshold confirmation not exercised in this phase; domain regressions passed",
+    "Automatic scheduler execution not certified in local preview",
+    "PBC adjustment, annex emission and forecast recalculation not rerun E2E",
+    "Existing weather providers unchanged"
+  ],
+  "schemaChanged": false,
+  "receiptPermissionSqlApplied": false,
+  "productionTouched": false,
+  "mainTouched": false,
+  "pushed": false
+}

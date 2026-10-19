@@ -40,14 +40,15 @@ function photoForm(): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.OPENAI_API_KEY = "test-key";
+  vi.stubEnv("OPENAI_API_KEY", "test-key");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "unit-test-signing-secret");
   mocks.requireProfile.mockResolvedValue({ id: "user-1", empresa_id: "emp-1" });
   mocks.findProvider.mockResolvedValue({ id: "prov-1" });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.OPENAI_API_KEY;
+  vi.unstubAllEnvs();
 });
 
 describe("extractInvoiceFromPhoto con validación aritmética", () => {

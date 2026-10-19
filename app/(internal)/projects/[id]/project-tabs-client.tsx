@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Pencil } from "lucide-react";
+import { Activity, Pencil, ShoppingCart, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { BackButton } from "@/components/ui/back-button";
 import { formatMoney } from "@/lib/format";
 import {
@@ -60,7 +61,7 @@ import { SubcontratistasTable } from "./subcontratistas-table";
 import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
-import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { AdministrativeRfqDialog } from "@/app/(internal)/rfqs/administrative-rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
@@ -118,6 +119,7 @@ type Props = {
   consumoCanonico: ConsumoCanonicoRow[];
   budgetItemLabelById: Record<string, string>;
   recepciones: RecepcionRow[];
+  receiptsPanel: React.ReactNode;
   panolSubmissions: PanolSubmissionRow[];
   warehouseLocations: { id: string; name: string }[];
   warehousePortalLinks: WarehousePortalLinkRow[];
@@ -169,6 +171,7 @@ export function ProjectTabsClient({
   consumoCanonico,
   budgetItemLabelById: budgetItemLabelByIdRecord,
   recepciones,
+  receiptsPanel,
   panolSubmissions,
   warehouseLocations,
   warehousePortalLinks,
@@ -278,24 +281,24 @@ export function ProjectTabsClient({
       </div>
 
       <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-4" : "grid-cols-3"}`}>
-        <div className="kpi-hover kpi-accent-budget rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div>
+        <div className="erp-kpi kpi-accent-budget rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+          <div className="flex items-center justify-between gap-2"><div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div><span className="erp-kpi-marker" aria-hidden="true"><Wallet size={15} /></span></div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(presupuestoTotal, "PYG")}</div>
         </div>
-        <div className="kpi-hover kpi-accent-purchases rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Compras realizadas</div>
+        <div className="erp-kpi kpi-accent-purchases rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+          <div className="flex items-center justify-between gap-2"><div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Compras realizadas</div><span className="erp-kpi-marker" aria-hidden="true"><ShoppingCart size={15} /></span></div>
           <div className={`text-[16px] font-bold mt-1 ${comprasPct > 100 ? "text-[var(--error)]" : ""}`}>
             {formatMoney(comprasTotal, "PYG")}
           </div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">{comprasPct}% del presupuesto</div>
         </div>
-        <div className="kpi-hover kpi-accent-progress rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Ítems / entradas de avance</div>
+        <div className="erp-kpi kpi-accent-progress rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+          <div className="flex items-center justify-between gap-2"><div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Ítems / entradas de avance</div><span className="erp-kpi-marker" aria-hidden="true"><Activity size={15} /></span></div>
           <div className="text-[16px] font-bold mt-1">{items.length} / {entries.length}</div>
         </div>
         {isCaterpillar ? (
-          <div className="kpi-hover kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-            <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
+          <div className="erp-kpi kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+            <div className="flex items-center justify-between gap-2"><div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div><span className="erp-kpi-marker" aria-hidden="true"><Users size={15} /></span></div>
             <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
             <div className="text-[11px] text-[var(--muted)] mt-0.5">Pagos y partes · {laborHoursTotal} h en partes</div>
           </div>
@@ -412,11 +415,12 @@ export function ProjectTabsClient({
 
       {tab === "cotizaciones" ? (
         <div className="space-y-3">
-          <RfqDialog
+          <AdministrativeRfqDialog
             projectId={project.id}
-            trigger={<Button>+ Nueva cotización</Button>}
+            projectName={project.name}
+            trigger={<Button>+ Nueva compra</Button>}
           />
-          <ProyectoRfqsTable rows={projectRfqs} />
+          <ProyectoRfqsTable rows={projectRfqs.filter((rfq) => rfq.purpose !== "COST_DISCOVERY")} />
         </div>
       ) : null}
 
@@ -447,7 +451,9 @@ export function ProjectTabsClient({
         <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
       ) : null}
 
-      {tab === "panol" || tab === "recepciones" ? (
+      {tab === "recepciones" ? receiptsPanel : null}
+
+      {tab === "panol" ? (
         <PanolObraSection
           projectId={project.id}
           locations={warehouseLocations}
@@ -525,10 +531,7 @@ export function ProjectTabsClient({
       {tab === "certificados" && isCaterpillar ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[12px] text-[var(--muted)]">
-              Certificados de ejecución para cobrar al comitente. El acumulado anterior sale de los
-              certificados cerrados; el presente, del avance del período.
-            </p>
+            <h3 className="text-sm font-semibold">Certificados<InfoTooltip className="ml-1" label="Certificados de ejecución" content="El acumulado anterior toma certificados cerrados; el actual corresponde al avance del período. Se usan para cobrar al comitente." /></h3>
             <div className="flex flex-wrap items-center gap-2">
               <ImportCertificadoDialog projectId={project.id} onImported={setCertificateToOpen} />
               <AddCertificadoDialog

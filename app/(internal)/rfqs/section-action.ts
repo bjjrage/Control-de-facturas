@@ -20,9 +20,10 @@ export async function getRfqsData(): Promise<RfqsSectionData> {
     supabase
       .from("rfqs")
       .select("*")
+      .or("purpose.eq.PROCUREMENT,purpose.is.null")
       .order("created_at", { ascending: false })
       .returns<Rfq[]>(),
-    supabase.from("rfqs").select("product"),
+    supabase.from("rfqs").select("product").or("purpose.eq.PROCUREMENT,purpose.is.null"),
   ]);
 
   const products = [

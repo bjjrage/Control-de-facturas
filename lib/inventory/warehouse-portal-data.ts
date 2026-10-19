@@ -29,6 +29,25 @@ export type WarehousePortalStockItem = {
   quantity: number;
 };
 
+export function aggregateWarehouseStock(rows: Array<{
+  producto_id: string; producto: string; unidad: string; quantity: number | null;
+}>): WarehousePortalStockItem[] {
+  const totals = new Map<string, WarehousePortalStockItem>();
+  for (const row of rows) {
+    const previous = totals.get(row.producto_id);
+    const quantity = Number(row.quantity ?? 0);
+    if (previous) {
+      previous.quantity += quantity;
+    } else {
+      totals.set(row.producto_id, {
+        productId: row.producto_id, productName: row.producto,
+        unit: row.unidad, quantity,
+      });
+    }
+  }
+  return [...totals.values()];
+}
+
 export type WarehousePortalBudgetItem = {
   id: string;
   code: string;
@@ -45,6 +64,7 @@ export type WarehousePortalContext = {
   projectCode: string;
   empresaId: string;
   orders: WarehousePortalOrder[];
+  orderLoadError?: boolean;
   stock: WarehousePortalStockItem[];
   allProducts: Array<{ id: string; name: string; unit: string }>;
   budgetItems: WarehousePortalBudgetItem[];
@@ -61,7 +81,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     .maybeSingle();
 
   if (linkError || !link || !link.active) return null;
-  if (link.expires_at && new Date(link.expires_at).getTime() <= Date.now()) return null;
+  if (!link.expires_at || new Date(link.expires_at).getTime() <= Date.now()) return null;
 
   const { data: location, error: locError } = await admin
     .from("inventory_locations")
@@ -84,7 +104,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
   if (projError || !project) return null;
 
   // 1. Fetch authorized orders for this project
-  const { data: ordersData } = await admin
+  const { data: ordersData, error: ordersError } = await admin
     .from("authorized_orders")
     .select(`
       id,
@@ -96,7 +116,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
       authorized_order_items (
         id,
         producto_id,
-        description,
+        description:product,
         unit,
         quantity,
         productos (nombre)
@@ -104,13 +124,13 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     `)
     .eq("project_id", project.id)
     .eq("empresa_id", link.empresa_id)
-    .in("status", ["AUTORIZADA", "RECIBIDA_PARCIAL", "EMITIDA"])
+    .in("status", ["AUTORIZADO", "FACTURADO", "CONCILIADO", "APTO_PARA_PAGO", "PAGADO"])
     .order("authorized_at", { ascending: false });
 
   const orderIds = (ordersData ?? []).map((o) => o.id);
 
   // 2. Fetch received quantities per order item
-  let receivedByOrderItem = new Map<string, number>();
+  const receivedByOrderItem = new Map<string, number>();
   if (orderIds.length > 0) {
     const { data: receiptItems } = await admin
       .from("oc_recepcion_items")
@@ -120,7 +140,9 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
         oc_recepciones!inner (status)
       `)
       .eq("empresa_id", link.empresa_id)
-      .in("oc_recepciones.status", ["DRAFT", "CONFIRMED"]);
+      // A staged receipt has not received stock yet. Confirmation rechecks the
+      // real remaining quantity under the OC lock, including on retries.
+      .eq("oc_recepciones.status", "CONFIRMED");
 
     for (const ri of receiptItems ?? []) {
       const current = receivedByOrderItem.get(ri.order_item_id) ?? 0;
@@ -170,12 +192,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     .eq("location_id", location.id)
     .eq("empresa_id", link.empresa_id);
 
-  const stock: WarehousePortalStockItem[] = (balancesData ?? []).map((b) => ({
-    productId: b.producto_id,
-    productName: b.producto,
-    unit: b.unidad,
-    quantity: Number(b.quantity || 0),
-  }));
+  const stock = aggregateWarehouseStock(balancesData ?? []);
 
   // 4. Fetch all active products for the company
   const { data: allProductsData } = await admin
@@ -220,6 +237,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     projectCode: project.code,
     empresaId: link.empresa_id,
     orders,
+    orderLoadError: Boolean(ordersError),
     stock,
     allProducts,
     budgetItems,

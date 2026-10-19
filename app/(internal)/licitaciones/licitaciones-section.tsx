@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -385,9 +386,7 @@ function ImportarCostosDialog() {
       </DialogTrigger>
       <DialogContent title="Base histórica del Cost Engine">
         <div className="space-y-3">
-          <p className="text-[12px] text-[var(--muted)]">
-            Importá APUs, cómputos o costos reales de obras anteriores para alimentar la evidencia histórica del Cost Engine. Podés subir planillas Excel o CSV; el sistema inferirá las columnas, categorías de insumo y precios unitarios.
-          </p>
+          <p className="text-[12px] text-[var(--muted)]">Costos de obras anteriores<InfoTooltip className="ml-1" label="Importar costos históricos" content="Importá APUs, cómputos o costos reales desde Excel o CSV. Se infieren columnas, categorías de insumo y precios unitarios." /></p>
           <p role="note" className="rounded-md border border-[var(--error)] bg-[var(--panel-2)] px-3 py-2 text-[12px] font-medium text-[var(--error)]">
             No uses este importador para cargar la oferta económica de la licitación actual.
           </p>

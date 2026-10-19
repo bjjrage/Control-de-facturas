@@ -1,0 +1,21 @@
+# Only reviewed, synthetic evidence. Never commit portal capabilities or signed proofs.
+*
+!.gitignore
+!u1*.png
+!apu-confirmation.png
+!help-keyboard.png
+!c06-live.json
+!u1-fixture.json
+!u1-matrix.json
+!u1-help-before.json
+!u1-interactions.json
+!final-checks.json
+!vitest-final.log
+!build-final.log
+!build-layout-final.log
+!build-tooltip-final.log
+!vitest-layout-final.log
+!u1-role-restored.json
+!vitest-release.log
+!build-release.log
+!build-print-final.log

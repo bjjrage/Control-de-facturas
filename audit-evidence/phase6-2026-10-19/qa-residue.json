@@ -1,0 +1,61 @@
+{
+  "sessions": [
+    {
+      "id": "f416a4bc-728f-47a1-8459-14d8f166448f",
+      "status": "DISCARDED",
+      "analyzed_at": null
+    },
+    {
+      "id": "0b5a4ecc-262e-45e7-bcf7-89ed64d18777",
+      "status": "DISCARDED",
+      "analyzed_at": null
+    },
+    {
+      "id": "e091f600-61d2-43e6-baf5-f58d63c8b697",
+      "status": "DISCARDED",
+      "analyzed_at": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "c2f87871-437b-4c0e-8cda-f678d0e3770b",
+      "status": "needs_review",
+      "invoice_id": "6d792300-c43f-4433-8f5f-5a1190d672b8"
+    },
+    {
+      "id": "879d954e-be3a-49f7-9f38-cfc8f466929c",
+      "status": "needs_review",
+      "invoice_id": "ff4b5cc2-9d97-4eda-a19f-93f0c4da28f3"
+    },
+    {
+      "id": "2456e5a9-bce8-4539-8c2a-b09e8ea1c5b3",
+      "status": "needs_review",
+      "invoice_id": "a1caac79-6bad-45d5-afc0-88c9b3adcc01"
+    },
+    {
+      "id": "34d73de8-ef01-45b0-aae5-62a38075f58f",
+      "status": "needs_review",
+      "invoice_id": "76e7c1e3-0a73-4bd9-b8ef-c054bc397884"
+    },
+    {
+      "id": "bf4d0baa-07a4-4c76-8d79-f7a8b768d4e4",
+      "status": "needs_review",
+      "invoice_id": "6ac8fc65-3f99-4bff-8b1b-6d6dfaf62d0b"
+    },
+    {
+      "id": "a29312a7-71cf-4df0-b36a-c7fa9539624d",
+      "status": "needs_review",
+      "invoice_id": "d666a957-622b-4a5e-9879-6d1f9604afcb"
+    }
+  ],
+  "receipts": [
+    {
+      "id": "ccb95688-3cce-4457-bdf8-450d87a17d92",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "6e9ffba1-20b8-40e1-9279-c4fd01a0ea40",
+      "status": "CONFIRMED"
+    }
+  ]
+}

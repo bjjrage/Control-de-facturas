@@ -158,10 +158,11 @@ export function TesoreriaSection({
 
 function CuentaCard({ cuenta, proyectos }: { cuenta: CuentaFinanciera; proyectos: ProyectoLite[] }) {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const negativo = cuenta.saldo < 0;
 
   return (
-    <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 flex flex-col gap-3">
+    <div className="erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-medium text-[14px]">{cuenta.nombre}</div>
@@ -193,7 +194,9 @@ function CuentaCard({ cuenta, proyectos }: { cuenta: CuentaFinanciera; proyectos
         <EditarCuentaDialog cuenta={cuenta} />
         <button
           onClick={async () => {
-            await setCuentaActiva(cuenta.id, !cuenta.activo);
+            setError(null);
+            const result = await setCuentaActiva(cuenta.id, !cuenta.activo);
+            if (result.error) { setError(result.error); return; }
             router.refresh();
           }}
           className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -201,6 +204,7 @@ function CuentaCard({ cuenta, proyectos }: { cuenta: CuentaFinanciera; proyectos
           {cuenta.activo ? "Desactivar" : "Reactivar"}
         </button>
       </div>
+      {error ? <p role="alert" className="text-[12px] text-[var(--error)]">{error}</p> : null}
     </div>
   );
 }

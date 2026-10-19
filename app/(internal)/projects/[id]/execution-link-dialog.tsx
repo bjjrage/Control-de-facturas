@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 export function ExecutionLinkDialog({
   appUrl,
@@ -35,7 +36,7 @@ export function ExecutionLinkDialog({
       <DialogTrigger asChild>
         <Button variant="secondary">{triggerLabel}</Button>
       </DialogTrigger>
-      <DialogContent title="QR para Residente">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">QR para residente<InfoTooltip label="QR para residente" content="El residente puede enviar partes y evidencia desde el celular sin iniciar sesión. Los reportes de lluvia son evidencia; las jornadas del Libro requieren decisión administrativa." /></span>}>
         <div className="space-y-3">
           <div className="flex justify-center rounded-lg border border-[var(--border)] bg-white p-4">
             {qrDataUrl ? (
@@ -73,14 +74,6 @@ export function ExecutionLinkDialog({
             <span className="text-[11px] text-[var(--muted)] break-all">{portalUrl}</span>
           </div>
 
-          <p className="text-[11px] text-[var(--muted)]">
-            El residente puede cargar partes diarios y reportes de lluvia con pluviómetro y foto.
-            Los reportes de lluvia aportan evidencia; el Libro requiere una decisión administrativa.
-          </p>
-          <p className="text-[11px] text-[var(--muted)]">
-            El Residente puede registrar partes diarios de obra desde su celular. El formulario permite elegir
-            una partida, indicar cantidad, fecha, notas y fotos, sin iniciar sesión.
-          </p>
         </div>
       </DialogContent>
     </Dialog>

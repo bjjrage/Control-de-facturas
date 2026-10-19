@@ -112,9 +112,12 @@ async function persistEvent(
   const patch = eventPatch(project, observation, threshold, existing);
   const changed = externalMeasurementChanged(existing, observation);
   if (existing) {
+    // Provider refreshes only measurements. The status may have been confirmed
+    // by a person since getEvent; never write back that stale decision.
+    const { status: _status, ...measurement } = patch;
     const { data, error } = await supabase
       .from("climate_events")
-      .update(patch)
+      .update(measurement)
       .eq("id", existing.id)
       .select("*")
       .single<ClimateEventRow>();

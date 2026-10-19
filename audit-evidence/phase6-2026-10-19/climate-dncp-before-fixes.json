@@ -1,0 +1,36 @@
+[
+  {
+    "name": "#26 real concurrent confirmation after weather snapshot",
+    "status": "PASS",
+    "detail": {
+      "snapshot": {
+        "id": "2cf0c452-c81b-44c6-b038-4e7ef28acf77",
+        "status": "PROPOSED"
+      },
+      "concurrent": "authenticated UPDATE status=CONFIRMED while original GET response was held",
+      "response": {
+        "status": 200,
+        "data": {
+          "error": null,
+          "thresholdExceeded": false,
+          "summary": "0 mm · Fuente: dmh-dinac. No supera el umbral; no se propone una jornada perdida por lluvia."
+        }
+      },
+      "after": {
+        "id": "2cf0c452-c81b-44c6-b038-4e7ef28acf77",
+        "status": "CONFIRMED",
+        "external_precipitation_mm": 0
+      }
+    }
+  },
+  {
+    "name": "#39 DNCP delete failure reports incomplete import",
+    "status": "FAIL",
+    "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /incompleta/. Input:\n\n'No se pudo sincronizar el proceso DNCP: permission denied for function ingestar_proceso_ocds_global'\n\n    at C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:23:37\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async check (C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:6:76)\n    at async C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:20:119"
+  },
+  {
+    "name": "#39 DNCP insert failure reports incomplete import",
+    "status": "FAIL",
+    "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /incompleta/. Input:\n\n'No se pudo sincronizar el proceso DNCP: permission denied for function ingestar_proceso_ocds_global'\n\n    at C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:23:37\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async check (C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:6:76)\n    at async C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\climate-dncp.cjs:20:119"
+  }
+]

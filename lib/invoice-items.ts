@@ -57,6 +57,29 @@ export function parseInvoiceLinesInput(raw: unknown): InvoiceLineInput[] {
   return out;
 }
 
+export function parseInvoiceLinesInputStrict(raw: unknown): { items: InvoiceLineInput[]; error: string | null } {
+  if (raw === null || raw === undefined || raw === "") return { items: [], error: null };
+  if (typeof raw === "string") {
+    try { raw = JSON.parse(raw); }
+    catch { return { items: [], error: "Las líneas de la factura no tienen un formato válido." }; }
+  }
+  if (!Array.isArray(raw) || raw.length > MAX_LINES) {
+    return { items: [], error: "Las líneas de la factura no tienen un formato válido." };
+  }
+  const items: InvoiceLineInput[] = [];
+  for (const [index, value] of raw.entries()) {
+    const parsed = cleanLine(value);
+    const row = value && typeof value === "object" ? value as Record<string, unknown> : null;
+    if (!parsed || !row ||
+        ((row.unit_price ?? row.unitPrice) != null && parsed.unit_price === null) ||
+        (row.subtotal != null && parsed.subtotal === null)) {
+      return { items: [], error: `La línea ${index + 1} de la factura es inválida.` };
+    }
+    items.push(parsed);
+  }
+  return { items, error: null };
+}
+
 /** Persiste líneas de factura (mismo shape que el worker bulk). Falla cerrado. */
 export async function insertInvoiceItems(
   supabase: SupabaseClient,
@@ -414,7 +437,8 @@ export async function applyDeterministicItemMatches(
 
   const proposals = suggestInvoiceItemMatches(
     invoiceLines as ReconcilableInvoiceLine[],
-    orderLines as ReconcilableOrderLine[]
+    orderLines as ReconcilableOrderLine[],
+    { allowSingleToSingleFallback: false }
   );
   const proposedInvoiceIds = new Set(proposals.map((p) => p.invoiceItemId));
   pending = invoiceLines.length - proposedInvoiceIds.size;

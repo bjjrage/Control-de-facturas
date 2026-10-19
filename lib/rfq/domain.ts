@@ -164,11 +164,20 @@ export function validateAllocation(
   offers: ComparativeLine[],
   now = Date.now(),
 ) {
+  return checkAllocation(lines, items, offers, now, true);
+}
+function checkAllocation(
+  lines: AllocationLine[],
+  items: RfqItem[],
+  offers: ComparativeLine[],
+  now = Date.now(),
+  requireReview = true,
+) {
   allocationSchema.parse(lines);
   const totals = new Map<string, number>();
   for (const l of lines) {
     const offer = offers.find((o) => o.id === l.quote_version_item_id);
-    if (!offer || !eligibleLine(offer, now))
+    if (!offer || !eligibleLine(offer, now, requireReview))
       throw new Error("Oferta ajena, incompleta, vencida o sin revisión");
     if (l.quantity > offer.available_quantity)
       throw new Error("Disponibilidad insuficiente");
@@ -217,9 +226,12 @@ export function proposeAllocations(
     weights?: ProposalWeights;
     termScores?: Record<string, number>;
     custom?: AllocationLine[];
+    preliminary?: boolean;
   } = {},
 ): Proposal[] {
-  const valid = offers.filter((o) => eligibleLine(o, opts.now));
+  // Preliminary scenarios are read-only preparation. Public allocation
+  // validation and every decision RPC still require a real human review.
+  const valid = offers.filter((o) => eligibleLine(o, opts.now, !opts.preliminary));
   const results: Proposal[] = [];
   const groups = [...new Set(valid.map((o) => o.currency))];
   const weights = opts.weights ?? {
@@ -261,7 +273,7 @@ export function proposeAllocations(
       }
     }
     if (!lines.length) return;
-    const residual = validateAllocation(lines, items, valid, opts.now);
+    const residual = checkAllocation(lines, items, valid, opts.now, !opts.preliminary);
     results.push({
       kind,
       label,
@@ -269,6 +281,9 @@ export function proposeAllocations(
       lines,
       decision: false,
       warnings: [
+        ...(candidates.some((o) => !o.review_id)
+          ? ["Propuesta preliminar: requiere revisión humana del documento antes de guardar una asignación"]
+          : []),
         ...(groups.length > 1
           ? ["Comparación por moneda; sin FX inventado"]
           : []),
@@ -372,13 +387,14 @@ export function proposeAllocations(
     );
   }
   if (opts.custom?.length) {
-    validateAllocation(opts.custom, items, valid, opts.now);
+    checkAllocation(opts.custom, items, valid, opts.now, !opts.preliminary);
     results.push({
       kind: "CUSTOM",
       label: "Asignación personalizada",
       currency: null,
       lines: opts.custom,
-      warnings: [],
+      warnings: opts.custom.some((l) => !valid.find((o) => o.id === l.quote_version_item_id)?.review_id)
+        ? ["Propuesta preliminar: requiere revisión humana del documento antes de guardar una asignación"] : [],
       decision: false,
     });
   }
@@ -390,6 +406,7 @@ export interface DocumentFact {
   precio_unitario?: number | null;
   currency?: string;
   tax_rate?: number;
+  vat_included?: boolean;
   available_quantity?: number;
   lead_time_days?: number;
   freight?: number;
@@ -424,6 +441,7 @@ export function reconcileOffer(
         "precio_unitario",
         "currency",
         "tax_rate",
+        "vat_included",
         "available_quantity",
         "lead_time_days",
         "freight",
@@ -441,10 +459,7 @@ export function reconcileOffer(
               reason: "Sin evidencia extraída",
             },
           ]
-        : (field === "valid_until" &&
-              Number.isFinite(Date.parse(String(fact[field]))) &&
-              Date.parse(String(fact[field])) ===
-                Date.parse(String(o[field]))) ||
+        : (field === "valid_until" && sameDocumentValidity(String(fact[field]), String(o[field]))) ||
             fact[field] === o[field]
           ? []
           : [
@@ -458,4 +473,16 @@ export function reconcileOffer(
             ],
     );
   });
+}
+
+/** A printed expiry date has day precision; explicit timestamps retain time precision. */
+function sameDocumentValidity(document: string, structured: string): boolean {
+  const documentTime = Date.parse(document);
+  const structuredTime = Date.parse(structured);
+  if (!Number.isFinite(documentTime) || !Number.isFinite(structuredTime)) return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(document)) {
+    return new Date(documentTime).toISOString().slice(0, 10) === document
+      && document === structured.slice(0, 10);
+  }
+  return documentTime === structuredTime;
 }

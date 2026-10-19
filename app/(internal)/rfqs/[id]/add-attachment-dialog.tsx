@@ -17,25 +17,30 @@ export function AddAttachmentDialog({ rfqId, trigger }: { rfqId: string; trigger
       <DialogContent title="Agregar archivo de referencia">
         <form
           className="space-y-3"
-          action={async (formData: FormData) => {
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (pending) return;
+            const formData = new FormData(event.currentTarget);
             const files = formData.getAll("attachments").filter((f): f is File => f instanceof File && f.size > 0);
             if (files.length === 0) {
               setError("Elegí al menos un archivo.");
               return;
             }
             setPending(true);
-            const result = await uploadRfqAttachments(rfqId, files);
-            setPending(false);
-            if (result.error) {
-              setError(result.error);
-              return;
-            }
             setError(null);
-            setOpen(false);
+            try {
+              const result = await uploadRfqAttachments(rfqId, files);
+              if (result.error) { setError(result.error); return; }
+              setOpen(false);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "No se pudo subir el archivo.");
+            } finally {
+              setPending(false);
+            }
           }}
         >
           {error ? (
-            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+            <div role="alert" className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}
             </div>
           ) : null}

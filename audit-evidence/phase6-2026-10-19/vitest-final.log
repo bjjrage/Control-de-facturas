@@ -1,0 +1,8 @@
+
+ RUN  v4.1.10 C:/Users/User/.codex/visualizations/2026/10/17/01a147c3-75ea-7070-af44-6aed93d0c4ff/merge-prep-control-facturas
+
+
+ Test Files  260 passed | 2 skipped (262)
+      Tests  2429 passed | 16 skipped (2445)
+   Start at  17:10:28
+   Duration  955.73s (transform 31.94s, setup 0ms, import 143.56s, tests 558.71s, environment 164ms)

@@ -1,0 +1,16 @@
+*
+!.gitignore
+!CHECKPOINT.md
+!scope.json
+!checks.json
+!compra-integrada-pago.png
+!venta-integrada-cobrada.png
+!compra-obra-formulario-unificado.png
+!compra-admin-destino-obra.png
+!compra-unificada-oc-obra.png
+!costeo-cotizar-insumos.png
+!carga-presupuesto-unificada.png
+!oc-contexto-obra.png
+!recepciones-obra-parcial.png
+!inventario-obra-recepcion.png
+!recepciones-qr-depositero.png

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -43,6 +43,7 @@ export function SalesForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
   const [rows, setRows] = useState<Row[]>(
     items && items.length
       ? items.map((i) => ({
@@ -79,7 +80,10 @@ export function SalesForm({
   return (
     <form
       className="space-y-4"
-      action={async (formData: FormData) => {
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (submitting.current) return;
+        const formData = new FormData(event.currentTarget);
         formData.set(
           "items",
           JSON.stringify(
@@ -91,14 +95,21 @@ export function SalesForm({
             }))
           )
         );
+        submitting.current = true;
         setPending(true);
-        const result = await action(formData);
-        setPending(false);
-        if (result?.error) {
-          setError(result.error);
-          return;
+        setError(null);
+        try {
+          const result = await action(formData);
+          if (result.error) { setError(result.error); return; }
+          if (!result.id) { setError("El servidor no confirmó el documento creado."); return; }
+          router.refresh();
+          router.push(`/ventas/${result.id}`);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "No se pudo guardar el documento.");
+        } finally {
+          submitting.current = false;
+          setPending(false);
         }
-        router.push(`/ventas/${result.id}`);
       }}
     >
       {extraHiddenFields
@@ -107,7 +118,7 @@ export function SalesForm({
           ))
         : null}
       {error ? (
-        <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+        <div role="alert" className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
           {error}
         </div>
       ) : null}
@@ -200,11 +211,12 @@ export function SalesForm({
               <div key={i} className="grid grid-cols-[1fr_80px_130px_90px_120px_32px] gap-2 items-end">
                 <div>
                   {i === 0 ? <Label>Descripción</Label> : null}
-                  <Input value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} required />
+                  <Input aria-label={`Descripción del ítem ${i + 1}`} value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} required />
                 </div>
                 <div>
                   {i === 0 ? <Label>Cant.</Label> : null}
                   <Input
+                    aria-label={`Cantidad del ítem ${i + 1}`}
                     type="number"
                     step="0.01"
                     min="0"
@@ -215,6 +227,7 @@ export function SalesForm({
                 <div>
                   {i === 0 ? <Label>Precio unit.</Label> : null}
                   <Input
+                    aria-label={`Precio unitario del ítem ${i + 1}`}
                     type="number"
                     step="0.01"
                     min="0"
@@ -225,6 +238,7 @@ export function SalesForm({
                 <div>
                   {i === 0 ? <Label>IVA</Label> : null}
                   <Select
+                    aria-label={`IVA del ítem ${i + 1}`}
                     value={String(r.vat_rate)}
                     onChange={(e) => setRow(i, { vat_rate: Number(e.target.value) as 0 | 5 | 10 })}
                   >

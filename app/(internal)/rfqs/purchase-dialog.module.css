@@ -1,0 +1,39 @@
+.dialog { composes: erp-card from global; padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; width: min(620px, calc(100vw - 24px)); max-width: 620px; border: 1px solid var(--interactive-border); background: var(--popover, rgba(13, 26, 44, .95)); }
+.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: var(--panel-2); border-bottom: 1px solid var(--interactive-border); }
+.form { display: flex; flex-direction: column; min-height: 0; }
+.body { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; }
+.block { composes: erp-card erp-interactive-card from global; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--interactive-border); border-radius: 10px; background: var(--panel-2); transition: border-color 150ms ease; }
+.block:hover { border-color: var(--interactive-border-hover); }
+.caption { display: block; font-size: 12px; color: #c4d3e3; overflow-wrap: anywhere; }
+.types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--interactive-border); border-radius: 9px; background: var(--panel-2); text-align: left; font-size: 13px; transition: border-color 150ms ease; }
+.type span { font-size: 12px; color: #c4d3e3; }
+.type:hover { border-color: var(--interactive-border-hover); }
+.type[aria-pressed="true"] { border-color: #e9bc59; background: var(--panel-2); }
+.type:focus-visible { outline: 2px solid #e9bc59; outline-offset: 3px; }
+.items { display: flex; flex-direction: column; gap: 10px; }
+.line { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.details { composes: erp-card erp-interactive-card from global; padding: 10px 12px; border: 1px solid var(--interactive-border); border-radius: 9px; background: var(--panel-2); }
+.details:hover { border-color: var(--interactive-border-hover); }
+.details summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.attachments { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--interactive-border); background: var(--panel-2); }
+.footer p { max-width: 240px; font-size: 11px; color: #c4d3e3; }
+.footer > div { display: flex; gap: 8px; }
+.error { border: 1px solid var(--error); background: var(--error-bg); color: var(--error); padding: 8px; border-radius: 8px; font-size: 13px; }
+@media (max-width: 480px) { .line { grid-template-columns: 1fr 1fr; } .line > div:first-child { grid-column: 1 / -1; } .footer { flex-wrap: wrap; } .footer > div { margin-left: auto; } }
+/* Light mode surface overrides. */
+:global(html[data-theme="claro"]) .dialog { border: 1px solid var(--border-strong); background: var(--panel); }
+:global(html[data-theme="claro"]) .dialog > h2 { background: var(--panel-2); border-bottom: 1px solid var(--border-strong); }
+:global(html[data-theme="claro"]) .block { border: 1px solid var(--border); background: var(--panel-2); }
+:global(html[data-theme="claro"]) .block:hover { border-color: var(--border-strong); }
+:global(html[data-theme="claro"]) .caption { color: var(--muted); }
+:global(html[data-theme="claro"]) .type { border: 1px solid var(--border); background: var(--panel-2); }
+:global(html[data-theme="claro"]) .type span { color: var(--muted); }
+:global(html[data-theme="claro"]) .type:hover { border-color: var(--border-strong); }
+:global(html[data-theme="claro"]) .type[aria-pressed="true"] { border-color: var(--warn); background: var(--panel-2); }
+:global(html[data-theme="claro"]) .type:focus-visible { outline: 2px solid var(--warn); }
+:global(html[data-theme="claro"]) .details { border: 1px solid var(--border); background: var(--panel-2); }
+:global(html[data-theme="claro"]) .details:hover { border-color: var(--border-strong); }
+:global(html[data-theme="claro"]) .footer { border-top: 1px solid var(--border-strong); background: var(--input-bg); }
+:global(html[data-theme="claro"]) .footer p { color: var(--muted); }

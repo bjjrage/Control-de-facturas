@@ -6,15 +6,14 @@ import { revalidatePath } from "next/cache";
 import { loadRfqWorkspace, rpc, saveHumanAllocation } from "@/lib/rfq/service";
 import {
   reconcileOffer,
+  validateAllocation,
   type DocumentFact,
   type OrderPreview,
 } from "@/lib/rfq/domain";
-import { readDocumentContent } from "@/lib/documents/reader";
-import {
-  extractDocumentFacts,
-  documentFactsSchema,
-} from "@/lib/rfq/reconciliation";
+import { documentFactsSchema } from "@/lib/rfq/reconciliation";
+import { analyzeQuoteDocument } from "@/lib/rfq/document-analysis";
 import { submitOfferForm } from "@/lib/rfq/offer-submission";
+import { REVIEW_POLICY, resolveQuoteReview, type ReviewDecision } from "@/lib/rfq/quote-review";
 
 async function internal() {
   const profile = await requireProfile([
@@ -30,6 +29,15 @@ function failure(e: unknown) {
     error: e instanceof Error ? e.message : "Operación RFQ fallida",
     data: null,
   };
+}
+async function reviewedAllocation(id: string) {
+  const context = await internal();
+  const { data, error } = await context.db.from("rfq_allocations")
+    .select("rfq_id,lines").eq("id", id).eq("empresa_id", context.profile.empresa_id).maybeSingle();
+  if (error || !data) throw new Error("Adjudicación no disponible para esta empresa.");
+  const workspace = await loadRfqWorkspace(context.db, context.profile.empresa_id, data.rfq_id);
+  if (workspace.rfq.purpose === "PROCUREMENT") validateAllocation(data.lines, workspace.items, workspace.offers);
+  return context;
 }
 export async function openQuoteAttachmentAction(id: string) {
   try {
@@ -84,7 +92,11 @@ export async function saveAllocationAction(
   revision: number,
 ) {
   try {
-    const { db } = await internal();
+    const { db, profile } = await internal();
+    const workspace = await loadRfqWorkspace(db, profile.empresa_id, rfqId);
+    if (workspace.rfq.purpose === "PROCUREMENT") {
+      validateAllocation(lines as Parameters<typeof validateAllocation>[0], workspace.items, workspace.offers);
+    }
     const data = await saveHumanAllocation(
       db,
       rfqId,
@@ -100,7 +112,7 @@ export async function saveAllocationAction(
 }
 export async function authorizeAllocationAction(id: string, confirm: boolean) {
   try {
-    const { db } = await internal();
+    const { db } = await reviewedAllocation(id);
     await rpc(db, "rfq_authorize_allocation", {
       p_allocation_id: id,
       p_confirm: confirm,
@@ -113,7 +125,7 @@ export async function authorizeAllocationAction(id: string, confirm: boolean) {
 }
 export async function previewOrdersAction(id: string) {
   try {
-    const { db } = await internal();
+    const { db } = await reviewedAllocation(id);
     return {
       error: null,
       data: await rpc<OrderPreview>(db, "rfq_preview_orders", {
@@ -130,7 +142,7 @@ export async function confirmOrdersAction(
   confirm: boolean,
 ) {
   try {
-    const { db } = await internal();
+    const { db } = await reviewedAllocation(id);
     const data = await rpc<{ orderIds: string[] }>(db, "rfq_confirm_orders", {
       p_allocation_id: id,
       p_preview_hash: hash,
@@ -153,26 +165,9 @@ export async function extractQuoteDocumentAction(
     const offers = workspace.offers.filter(
       (o) => o.quote_version_id === versionId,
     );
-    if (!offers.length || !offers[0].attachment_id)
-      throw new Error("Versión/documento no disponible");
-    const extraction = await readDocumentContent({
-      db: createAdminClient(),
-      empresaId: profile.empresa_id,
-      documentId: offers[0].attachment_id,
-      maxChars: 50000,
-      maxRows: 1000,
-      maxSheets: 5,
-    });
-    if (
-      extraction.warnings.some((w) =>
-        w.startsWith("Error accediendo al storage:"),
-      )
-    )
-      throw new Error(extraction.warnings.join(" · "));
-    const facts = extractDocumentFacts(extraction, workspace.items);
     return {
       error: null,
-      data: { extraction, facts, comparison: reconcileOffer(offers, facts) },
+      data: await analyzeQuoteDocument(createAdminClient(), profile.empresa_id, workspace.items, offers),
     };
   } catch (e) {
     return failure(e);
@@ -183,6 +178,7 @@ export async function reviewQuoteAction(
   versionId: string,
   facts: DocumentFact[],
   resolution: string,
+  decisions?: ReviewDecision[],
 ) {
   try {
     const { db, profile } = await internal();
@@ -191,22 +187,29 @@ export async function reviewQuoteAction(
       (o) => o.quote_version_id === versionId,
     );
     if (!offers.length) throw new Error("Versión ajena o no vigente");
-    const verified = documentFactsSchema.parse(facts);
     const extracted = await extractQuoteDocumentAction(rfqId, versionId);
     if (extracted.error || !extracted.data)
       throw new Error(extracted.error ?? "Extracción fallida");
+    const strictReview = workspace.rfq.purpose === "PROCUREMENT"
+      ? resolveQuoteReview(offers, extracted.data.facts, decisions ?? []) : null;
+    const verified = strictReview ? strictReview.facts : documentFactsSchema.parse(facts);
     const data = await rpc<string>(db, "rfq_review_quote", {
       p_version_id: versionId,
       p_extraction: {
         original: extracted.data.extraction,
         automaticFacts: extracted.data.facts,
         humanTranscription: verified,
+        ...(strictReview ? { reviewPolicy: REVIEW_POLICY, decisions: strictReview.decisions } : {}),
       },
       p_comparison: {
         automatic: extracted.data.comparison,
         human: reconcileOffer(offers, verified),
       },
-      p_resolution: resolution,
+      p_resolution: strictReview
+        ? strictReview.decisions.length
+          ? JSON.stringify({ policy: REVIEW_POLICY, decisions: strictReview.decisions })
+          : "Documento y oferta coinciden en los campos comerciales comprobados."
+        : resolution,
     });
     revalidatePath(`/rfqs/${rfqId}`);
     return { error: null, data };

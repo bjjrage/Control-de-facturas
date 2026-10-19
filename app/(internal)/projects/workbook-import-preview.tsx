@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, FileSpreadsheet, Link2, LoaderCircle, Sparkles, TriangleAlert, Upload } from "lucide-react";
@@ -213,7 +214,7 @@ function ResultActions({
   const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Qué se importa al ERP</h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Importación al ERP<InfoTooltip className="ml-1" label={"Importación al ERP"} content={"Solo se importa lo programado; el ERP calcula el ejecutado desde sus propios certificados."} /></h3>
       <div className="space-y-2 text-[12px]">
         <p>
           Presupuesto: <strong>{candidate?.budgetItems.length ?? result.budgetItems.length} partidas</strong>
@@ -271,11 +272,13 @@ function ResultActions({
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-[11px] text-[var(--muted)]">Solo se importa lo programado; el ERP calcula el ejecutado desde sus propios certificados.</p>
-            <label className="mt-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={applySchedule} onChange={(event) => onApplySchedule(event.target.checked)} />
-              Importar curva de avance programada
-            </label>
+            <div className="mt-2 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-[12px]">
+                <input type="checkbox" checked={applySchedule} onChange={(event) => onApplySchedule(event.target.checked)} />
+                Importar curva de avance programada
+              </label>
+              <InfoTooltip label={"Importar curva de avance programada"} content={"Solo se incorpora el avance previsto. El ERP calcula el avance ejecutado desde sus propios certificados."} />
+            </div>
           </div>
         ) : null}
         {candidate?.weatherDays.length ? (
@@ -469,7 +472,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
 
   async function handleDiscard() {
     if (!session) return;
-    await discardImportSession(session.id);
+    if (!window.confirm("¿Descartar esta importación y sus cambios? No se puede recuperar.")) return;
+    const result = await discardImportSession(session.id);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
     setSession(null);
   }
 
@@ -600,8 +608,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         <>
           <ResultPreview result={result} candidate={candidate} />
           <section className="space-y-2 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Régimen contractual</h3>
-            <p className="text-[11px] text-[var(--muted)]">Luna solo sugiere; confirmá una vez — después gobierna la visibilidad de Certificados en esta obra.</p>
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Régimen contractual<InfoTooltip className="ml-1" label={"Régimen contractual"} content={"Luna solo sugiere; confirmá una vez — después gobierna la visibilidad de Certificados en esta obra."} /></h3>
+
             <div className="flex flex-wrap gap-2">
               {REGIME_OPTIONS.map((option) => (
                 <label key={option.value} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] cursor-pointer ${regime === option.value ? "border-sky-300/60 bg-sky-300/[0.08]" : "border-[var(--border)]"}`}>

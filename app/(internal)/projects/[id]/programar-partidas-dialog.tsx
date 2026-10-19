@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { updateBudgetItemSchedule } from "../actions";
 import { inclusiveScheduleDuration, scheduleLeafBudgetItems, validateScheduleDates } from "@/lib/projects/schedule";
@@ -67,11 +68,8 @@ export function ProgramarPartidasDialog({ budgetItems }: { budgetItems: BudgetIt
       <DialogTrigger asChild>
         <Button type="button" variant="secondary" className="h-9 px-3 text-[12px]">Programar partidas</Button>
       </DialogTrigger>
-      <DialogContent title="Programar partidas" className="max-w-6xl">
+      <DialogContent title={<span>Programar partidas<InfoTooltip className="ml-1" label="Programar partidas" content="Asigná fechas a las partidas del presupuesto. La duración se cuenta en días calendario y los rubros se resumen en el Gantt." /></span>} className="max-w-6xl">
         <div className="space-y-3">
-          <p className="text-[12px] text-[var(--muted)]">
-            Asigná fechas a las partidas del presupuesto. La duración se calcula en días calendario; los rubros se resumen en el Gantt.
-          </p>
           {message ? <p role="status" className="rounded border border-[var(--border)] px-3 py-2 text-[12px]">{message}</p> : null}
           {items.length === 0 ? (
             <p className="rounded border border-dashed border-[var(--border)] p-4 text-[12px] text-[var(--muted)]">

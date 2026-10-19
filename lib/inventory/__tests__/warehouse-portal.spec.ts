@@ -73,7 +73,7 @@ describe("Unified Warehouse Portal & Deposit Operations", () => {
 
   it("integrates confirmed receipts inside Depósito de obra in the ERP", () => {
     expect(panolSectionSource).toContain("RecepcionesObraSection");
-    expect(panolSectionSource).toContain("Recepciones de mercadería confirmadas");
+    expect(panolSectionSource).toContain("Ingresos de órdenes de compra confirmados en los depósitos de esta obra");
   });
 
   it("permits unauthenticated portal token access through proxy with security headers", () => {

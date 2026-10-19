@@ -13,6 +13,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [invalidLink, setInvalidLink] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -20,9 +21,13 @@ export default function ResetPasswordPage() {
     // Supabase puts the session from the recovery link into the hash fragment.
     // onAuthStateChange fires with SIGNED_IN / PASSWORD_RECOVERY once the client
     // parses the fragment — no manual token extraction needed.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true);
+        setInvalidLink(false);
+      } else if (event === "INITIAL_SESSION") {
+        setReady(Boolean(session));
+        setInvalidLink(!session);
       }
     });
     return () => subscription.unsubscribe();
@@ -48,7 +53,12 @@ export default function ResetPasswordPage() {
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
           <h1 className="text-[15px] font-semibold mb-0.5">Nueva contraseña</h1>
           <p className="text-[12px] text-[var(--muted)] mb-4">Elegí una nueva contraseña para tu cuenta.</p>
-          {!ready ? (
+          {invalidLink ? (
+            <div role="alert" className="space-y-3 text-[13px]">
+              <p>El enlace no es válido o ya venció. Solicitá uno nuevo al administrador.</p>
+              <a href="/login" className="inline-block rounded-md px-2 py-1 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Volver al ingreso</a>
+            </div>
+          ) : !ready ? (
             <p className="text-[13px] text-[var(--muted)]">Verificando enlace…</p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">

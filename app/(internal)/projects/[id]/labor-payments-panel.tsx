@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -36,9 +37,9 @@ export function LaborPaymentsPanel({
 
   const load = useCallback(() => {
     listLaborPaymentsAction(projectId).then((res) => {
-      setPayments(res.data ?? []);
       if (res.error) setError(res.error);
-    });
+      else { setPayments(res.data ?? []); setError(null); }
+    }).catch(() => setError("No se pudieron cargar los pagos."));
   }, [projectId]);
 
   useEffect(() => {
@@ -57,11 +58,8 @@ export function LaborPaymentsPanel({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-[13px] font-semibold">Pagos de mano de obra</h3>
-          <p className="text-[11px] text-[var(--muted)]">
-            Lo que se le paga a cada cuadrilla por período, o por destajo (precio por unidad). Se compara contra la mano de obra
-            estimada en los APU, en la pestaña Costeo.
-          </p>
+          <h3 className="text-[13px] font-semibold">Pagos de mano de obra<InfoTooltip className="ml-1" label={"Pagos de mano de obra"} content={"Lo que se le paga a cada cuadrilla por período, o por destajo (precio por unidad). Se compara contra la mano de obra estimada en los APU, en la pestaña Costeo."} /></h3>
+
         </div>
         {!open ? (
           <Button variant="secondary" onClick={() => setOpen(true)}>
@@ -70,6 +68,7 @@ export function LaborPaymentsPanel({
         ) : null}
       </div>
 
+      {error && !open ? <p role="alert" className="text-[12px] text-[var(--error)]">{error} <button type="button" onClick={load}>Reintentar</button></p> : null}
       {open ? (
         <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Registrar pago de mano de obra"><form
           className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 space-y-3"
@@ -180,7 +179,7 @@ export function LaborPaymentsPanel({
             {payments == null ? (
               <tr>
                 <td colSpan={6} className="text-center text-[var(--muted)] py-6">
-                  Cargando…
+                  {error ? "No se pudo cargar la lista." : "Cargando…"}
                 </td>
               </tr>
             ) : payments.length === 0 ? (

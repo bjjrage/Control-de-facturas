@@ -29,7 +29,7 @@ import { computeRealVsBudget, laborBudgetToDate, type RealVsBudgetRow } from "@/
 // ---------------------------------------------------------------------------
 
 export interface CostRfqCreationResult {
-  creadas: { rfqId: string; code: string; rubro: string; items: number; proveedores: number }[];
+  creadas: { rfqId: string; code: string; rubro: string; items: number; proveedores: number; reused?: boolean }[];
   rubrosSinProveedores: { rubro: string; items: number }[];
   insumosSinRubro: string[];
   sinInsumos: boolean;
@@ -134,11 +134,11 @@ export async function createCostRfqsFromProject(
         continue;
       }
 
-      const rfq=await createCanonicalRfq(supabase,{purpose:"COST_DISCOVERY",quote_type:"RFQ",
+      const rfq=await createCanonicalRfq(supabase,{purpose:"COST_DISCOVERY",quote_type:"RFQ",deduplicate_cost_request:true,
         product: rubroNombre,project_id:projectId,expires_at:expiresAt,
         observations:"Solicitud de precios para costeo, sin compra automática"},
         rubro.items.map(it=>({producto_id:it.productoId,descripcion:it.nombre,cantidad:it.cantidad,unidad:it.unidad})),providerIds);
-      result.creadas.push({ rfqId: rfq.id, code: rfq.code, rubro: rubroNombre, items: rubro.items.length, proveedores: providerIds.length });
+      result.creadas.push({ rfqId: rfq.id, code: rfq.code, rubro: rubroNombre, items: rubro.items.length, proveedores: providerIds.length, reused: rfq.reused });
     }
 
     revalidatePath(`/projects/${projectId}`);
@@ -224,6 +224,7 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
         .select("id, code, product, status, expires_at, rfq_providers(status), rfq_items(id)")
         .eq("empresa_id", empresaId)
         .eq("project_id", projectId)
+        .or("purpose.eq.COST_DISCOVERY,purpose.is.null")
         .order("created_at", { ascending: false }),
     ]);
     for (const r of [itemsRes, materialsRes, laborRes, equipmentRes, subcontractsRes]) {
@@ -469,6 +470,14 @@ export async function setProjectCostPriceAction(params: {
     }
     const { data: project } = await supabase.from("projects").select("id").eq("id", params.projectId).eq("empresa_id", profile.empresa_id).maybeSingle();
     if (!project) return { error: "Obra no encontrada." };
+    if (params.fuente === "MANUAL") {
+      const { data: product, error: productError } = await supabase.from("productos")
+        .select("id")
+        .eq("id", params.productoId)
+        .eq("empresa_id", profile.empresa_id)
+        .maybeSingle();
+      if (productError || !product) return { error: "El producto no pertenece a esta empresa." };
+    }
 
     let precioUnitario = params.precio;
     let quoteVersionItemId: string | null = null;

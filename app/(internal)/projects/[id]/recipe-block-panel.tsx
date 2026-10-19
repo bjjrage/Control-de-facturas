@@ -113,8 +113,7 @@ export function RecipeBlockPanel(props: Props) {
       </div>
       {options.length === 0 ? (
         <p className="text-[11px] text-[var(--muted)]">
-          Sin recetas para estas partidas. Importá la receta de la empresa para
-          planificar por objetivo físico en vez de +pp por partida.
+          Sin recetas para estas partidas.
         </p>
       ) : (
         <>

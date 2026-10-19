@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getReceiptPortalContext } from "@/lib/inventory/receipt-portal-data";
 import {
   hashReceiptPortalToken,
@@ -9,6 +10,7 @@ import {
 } from "@/lib/inventory/receipt-portal";
 import { sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
+import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
 
 const MAX_FILES = 10;
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -118,11 +120,36 @@ export async function POST(request: Request, context: RouteContext) {
     p_evidence: evidence,
   });
   if (error || !receiptId) {
+    if (!error || !isDefiniteRpcRejection(error)) {
+      // The transaction may have committed and referenced these originals.
+      // Keep them until the receipt is checked; do not claim a rejection.
+      return NextResponse.json({ error: "No se pudo comprobar si la recepción quedó confirmada. Consultá la recepción de esta OC antes de reenviar." }, {
+        status: 503, headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (uploadedPaths.length) await portal.admin.storage.from("warehouse-evidence").remove(uploadedPaths);
     return NextResponse.json({
-      error: "No se pudo registrar: el enlace venció, ya fue usado o cambiaron las cantidades pendientes. Solicitá un enlace actualizado.",
+      error: error?.message.includes("materiales sin vincular")
+        ? "La OC tiene materiales sin vincular al inventario. Pedí a Compras que corrija la OC y reintentá; no se confirmó ninguna entrada."
+        : "No se confirmó la recepción: el enlace venció, ya fue usado o cambiaron los datos de la entrega. Revisá la OC o solicitá un enlace actualizado.",
     }, { status: 409, headers: { "Cache-Control": "no-store" } });
   }
 
-  return NextResponse.json({ receiptId }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  const { data: receipt, error: receiptError } = await portal.admin
+    .from("oc_recepciones")
+    .select("status")
+    .eq("id", receiptId)
+    .eq("empresa_id", portal.link.empresaId)
+    .maybeSingle();
+  if (receiptError || receipt?.status !== "CONFIRMED") {
+    return NextResponse.json({ error: "No se pudo comprobar la confirmación. Consultá la recepción de esta OC antes de reenviar." }, {
+      status: 502, headers: { "Cache-Control": "no-store" },
+    });
+  }
+  revalidatePath(`/orders/${portal.link.orderId}`);
+  revalidatePath(`/projects/${portal.order.projectId}`);
+  revalidatePath(`/projects/${portal.order.projectId}/orders/${portal.link.orderId}`);
+  revalidatePath("/inventario");
+  revalidatePath("/stock");
+  return NextResponse.json({ receiptId, status: "CONFIRMED" }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }

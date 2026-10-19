@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { getAppOrigin } from "@/lib/app-origin";
-import { canSendForAcceptance, quotationPortalPath } from "@/lib/quotation";
+import { allowedWorkOrderTransitions, canSendForAcceptance, quotationPortalPath } from "@/lib/quotation";
 import {
   generateQuotationToken,
   hashQuotationToken,
@@ -260,7 +260,7 @@ export async function reopenQuotationToDraft(docId: string) {
 
 /** Gestión interna de la OT (la OT nunca la toca el cliente). */
 export async function updateWorkOrderStatus(workOrderId: string, status: WorkOrderStatus) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
   const allowed: WorkOrderStatus[] = ["PENDIENTE", "EN_CURSO", "COMPLETADA", "CANCELADA"];
@@ -268,13 +268,21 @@ export async function updateWorkOrderStatus(workOrderId: string, status: WorkOrd
 
   const { data: wo } = await supabase
     .from("work_orders")
-    .select("id, sales_document_id")
+    .select("id, sales_document_id, status, workflow_status")
     .eq("id", workOrderId)
-    .single<{ id: string; sales_document_id: string }>();
+    .eq("empresa_id", profile.empresa_id)
+    .single<{ id: string; sales_document_id: string; status: WorkOrderStatus; workflow_status: string }>();
   if (!wo) return { error: "Orden no encontrada." };
+  if (!allowedWorkOrderTransitions(wo.status, wo.workflow_status).includes(status)) {
+    return { error: "Transición de estado de OT inválida o pendiente de aprobación." };
+  }
 
-  const { error } = await supabase.from("work_orders").update({ status }).eq("id", workOrderId);
+  const { data: changed, error } = await supabase.from("work_orders").update({ status })
+    .eq("id", workOrderId).eq("empresa_id", profile.empresa_id)
+    .eq("status", wo.status).eq("workflow_status", wo.workflow_status)
+    .select("id").maybeSingle();
   if (error) return { error: error.message };
+  if (!changed) return { error: "La OT cambió mientras se guardaba. Recargá y revisá su estado." };
 
   await supabase.from("sales_quotation_events").insert({
     sales_document_id: wo.sales_document_id,
@@ -298,26 +306,30 @@ export async function approveWorkOrderInternal(workOrderId: string) {
 
   const { data: wo } = await supabase
     .from("work_orders")
-    .select("id, sales_document_id, workflow_status, responsible_role")
+    .select("id, sales_document_id, status, workflow_status, responsible_role")
     .eq("id", workOrderId)
-    .single<{ id: string; sales_document_id: string; workflow_status: string; responsible_role: string }>();
+    .eq("empresa_id", profile.empresa_id)
+    .single<{ id: string; sales_document_id: string; status: WorkOrderStatus; workflow_status: string; responsible_role: string }>();
   if (!wo) return { error: "Orden no encontrada." };
-  if (wo.workflow_status !== "PENDING_INTERNAL_APPROVAL") {
+  if (wo.workflow_status !== "PENDING_INTERNAL_APPROVAL" || wo.status !== "PENDIENTE") {
     return { error: "La orden no está pendiente de aprobación interna." };
   }
   if (profile.role !== wo.responsible_role && profile.role !== "admin") {
     return { error: `Requiere rol ${wo.responsible_role}.` };
   }
 
-  const { error } = await supabase
+  const { data: changed, error } = await supabase
     .from("work_orders")
     .update({
       workflow_status: "READY_FOR_PRODUCTION",
       approved_at: new Date().toISOString(),
       approved_by: profile.id,
     })
-    .eq("id", workOrderId);
+    .eq("id", workOrderId).eq("empresa_id", profile.empresa_id)
+    .eq("status", "PENDIENTE").eq("workflow_status", "PENDING_INTERNAL_APPROVAL")
+    .select("id").maybeSingle();
   if (error) return { error: error.message };
+  if (!changed) return { error: "La OT cambió mientras se aprobaba. Recargá y revisá su estado." };
 
   await supabase.from("sales_quotation_events").insert({
     sales_document_id: wo.sales_document_id,

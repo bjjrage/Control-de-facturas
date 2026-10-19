@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { UnlinkedPurchase } from "@/lib/costing/price-list";
@@ -49,11 +50,7 @@ export function UnlinkedPurchases({
     <div className="space-y-2">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-[14px] font-semibold">Compras sin material asignado ({purchases.length})</h2>
-          <p className="text-[12px] text-[var(--muted)] max-w-3xl">
-            Facturas y cotizaciones cuyo producto no coincide con un material del catálogo. Mientras no estén asignadas, esos precios no
-            cuentan para la lista. Vincularlas hace que cada compra real actualice el precio del material.
-          </p>
+          <h2 className="text-[14px] font-semibold">Sin material asignado ({purchases.length})<InfoTooltip className="ml-1" label="Compras sin material asignado" content="Facturas y cotizaciones cuyo producto no coincide con el catálogo. Al vincularlas, sus precios cuentan para la lista de materiales." /></h2>
         </div>
         <Button type="button" variant="secondary" onClick={auto} disabled={pending}>
           Vincular las que coinciden por nombre

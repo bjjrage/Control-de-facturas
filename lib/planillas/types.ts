@@ -80,6 +80,13 @@ export class PlanillaConcurrencyError extends Error {
   }
 }
 
+export class PlanillaUncertainError extends Error {
+  constructor() {
+    super("No se pudo comprobar la confirmación. Conservá la planilla y reintentá sobre la misma sesión.");
+    this.name = "PlanillaUncertainError";
+  }
+}
+
 /**
  * Interfaz que debe implementar cada módulo de negocio. El motor genérico
  * (persistencia de sesión, autosave, confirmación, endpoints) SOLO conoce

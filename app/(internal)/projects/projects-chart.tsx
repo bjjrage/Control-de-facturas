@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type ChartRow = { name: string; presupuesto: number; compras: number; avancePct: number };
@@ -10,8 +11,8 @@ export function ProjectsChart({ data }: { data: ChartRow[] }) {
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm sm:p-5">
       <div className="mb-3">
-        <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Avance vs presupuesto general de obras</h2>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">Avance fÃ­sico, presupuesto y compras por obra activa</p>
+        <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Avance vs presupuesto general de obras<InfoTooltip className="ml-1" label={"Avance vs presupuesto general de obras"} content={"Avance fÃ­sico, presupuesto y compras por obra activa"} /></h2>
+
       </div>
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">

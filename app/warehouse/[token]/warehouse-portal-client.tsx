@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 
 import { useState, useRef, type FormEvent } from "react";
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import type { WarehousePortalContext, WarehousePortalOrder } from "@/lib/inventory/warehouse-portal-data";
+import { classifyWarehouseSubmission, clearRejectedConsumptionAttempt } from "@/lib/inventory/warehouse-portal-client-state";
 
 type TabMode = "receipt" | "consumption" | "submission";
 
@@ -26,6 +28,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
   // State for Receipt tab
   const [selectedOrderId, setSelectedOrderId] = useState<string>(context.orders[0]?.id ?? "");
   const [receiptQuantities, setReceiptQuantities] = useState<Record<string, string>>({});
+  const receiptBusy = useRef(false);
   const [receiptSubmitting, setReceiptSubmitting] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
@@ -52,7 +55,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
   // Handle Receipt Submission
   async function handleReceiptSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (receiptSubmitting || !selectedOrder) return;
+    if (receiptBusy.current || !selectedOrder) return;
+    receiptBusy.current = true;
     setReceiptSubmitting(true);
     setReceiptError(null);
     setReceiptSuccess(null);
@@ -71,6 +75,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
 
     if (itemsToReceive.length === 0) {
       setReceiptError("Ingresá al menos una cantidad mayor a cero para recibir.");
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
       return;
     }
@@ -81,11 +86,12 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     try {
       const saved = localStorage.getItem(storageKey);
       const attempt = saved ? JSON.parse(saved) as { key: string; payload: string } : { key: crypto.randomUUID(), payload };
-      if (attempt.payload !== payload) throw new Error("Reintent? primero la recepci?n pendiente con los mismos datos.");
+      if (attempt.payload !== payload) throw new Error("Reintentá primero la recepción pendiente con los mismos datos.");
       localStorage.setItem(storageKey, JSON.stringify(attempt));
       form.set("idempotency_key", attempt.key);
     } catch (error) {
       setReceiptError(error instanceof Error ? error.message : "No se pudo conservar el intento.");
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
       return;
     }
@@ -98,7 +104,12 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setReceiptError(data.error ?? "No se pudo registrar la recepción.");
+      } else if (data.uploadIncomplete) {
+        setReceiptSuccess(`Recepción ${data.receiptId} confirmada e ingresada al stock.`);
+        setReceiptError("Quedaron adjuntos sin guardar. Conservá los archivos y reenviá los mismos datos para reintentar la evidencia sin duplicar la recepción.");
       } else {
+        const completed = localStorage.getItem(storageKey);
+        if (completed && JSON.parse(completed).key === form.get("idempotency_key")) localStorage.removeItem(storageKey);
         setReceiptSuccess(`Recepción registrada con éxito. Se confirmaron los movimientos en ${context.locationName}.`);
         setReceiptQuantities({});
         (event.target as HTMLFormElement).reset();
@@ -106,6 +117,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     } catch {
       setReceiptError("Error de conexión. Revisá tu red e intentá de nuevo.");
     } finally {
+      receiptBusy.current = false;
       setReceiptSubmitting(false);
     }
   }
@@ -139,7 +151,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const saved = localStorage.getItem(storageKey);
       if (saved) consumptionAttempt.current = JSON.parse(saved);
       if (consumptionAttempt.current && consumptionAttempt.current.payload !== payload) {
-        throw new Error("Reintent? primero la salida pendiente con los mismos datos.");
+        throw new Error("Reintentá primero la salida pendiente con los mismos datos.");
       }
       if (!consumptionAttempt.current) consumptionAttempt.current = { key: crypto.randomUUID(), payload };
       localStorage.setItem(storageKey, JSON.stringify(consumptionAttempt.current));
@@ -163,6 +175,14 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setConsumptionError(data.error ?? "No se pudo registrar la salida.");
+        // A 5xx may follow a committed movement. Keep its identity until a
+        // definite 4xx rejection or a complete success resolves the attempt.
+        if (response.status >= 400 && response.status < 500) {
+          consumptionAttempt.current = clearRejectedConsumptionAttempt(localStorage, storageKey, consumptionAttempt.current);
+        }
+      } else if (data.uploadIncomplete) {
+        setConsumptionSuccess(`Salida ${data.movementId} registrada y descontada del stock.`);
+        setConsumptionError("Quedaron adjuntos sin guardar. Reenvia los mismos datos y archivos para completar la evidencia sin duplicar la salida.");
       } else {
         localStorage.removeItem(storageKey);
         consumptionAttempt.current = null;
@@ -196,10 +216,11 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
         body: form,
       });
       const data = await response.json();
-      if (!response.ok) {
-        setSubmissionError(data.error ?? "No se pudo enviar la rendición.");
+      const result = classifyWarehouseSubmission(response.status, data);
+      if (!result.complete) {
+        setSubmissionError(result.message);
       } else {
-        setSubmissionSuccess("Rendición enviada con éxito. La empresa revisará la evidencia.");
+        setSubmissionSuccess(result.message);
         (event.target as HTMLFormElement).reset();
       }
     } catch {
@@ -271,13 +292,11 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "receipt" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Recepción de Mercadería</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Recibí materiales desde una Orden de Compra autorizada para esta obra. Soporta recepción parcial.
-            </p>
+            <h2 className="text-sm font-semibold">Recepción<InfoTooltip className="ml-1" label={"Recepción"} content={"Recibí materiales desde una Orden de Compra autorizada para esta obra. Soporta recepción parcial."} /></h2>
+
           </div>
 
-          {context.orders.length === 0 ? (
+          {context.orderLoadError ? <p role="alert" className="text-xs text-red-600">No se pudieron leer las órdenes de compra. Volvé a abrir el enlace antes de registrar una recepción.</p> : context.orders.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--muted)]">
               No hay órdenes de compra con saldo pendiente de entrega en esta obra.
             </div>
@@ -390,7 +409,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                   <input
                     type="file"
                     name="files"
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                     multiple
                     className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-1 text-xs"
                   />
@@ -439,10 +458,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "consumption" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Registrar Salida / Consumo</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Despachá materiales del depósito imputándolos a una partida del presupuesto de obra.
-            </p>
+            <h2 className="text-sm font-semibold">Registrar consumo<InfoTooltip className="ml-1" label={"Registrar consumo"} content={"Despachá materiales del depósito imputándolos a una partida del presupuesto de obra."} /></h2>
+
           </div>
 
           <form onSubmit={handleConsumptionSubmit} className="space-y-4">
@@ -528,7 +545,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                 <input
                   type="file"
                   name="files"
-                  accept="image/*,application/pdf"
+                  accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                   className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-1 text-xs"
                 />
               </label>
@@ -576,10 +593,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "submission" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Rendición Periódica de Materiales</h2>
-            <p className="mt-0.5 text-xs text-[var(--muted)]">
-              Subí fotos del cuaderno de obra, remitos o planillas Excel/CSV. La administración revisará las líneas antes de afectar el stock.
-            </p>
+            <h2 className="text-sm font-semibold">Rendir materiales<InfoTooltip className="ml-1" label={"Rendir materiales"} content={"Subí fotos del cuaderno de obra, remitos o documentos PDF. La administración revisará las líneas antes de afectar el stock."} /></h2>
+
           </div>
 
           <form onSubmit={handleSubmissionSubmit} className="space-y-4">
@@ -614,16 +629,16 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
             </label>
 
             <label className="block text-xs">
-              Fotos del cuaderno o planilla Excel/CSV
+              Fotos del cuaderno o documentos PDF
               <input
                 className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs"
                 type="file"
                 name="files"
-                accept="image/*,.xlsx,.xls,.csv,application/pdf"
+                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                 multiple
                 required
               />
-              <span className="mt-1 block text-[10px] text-[var(--muted)]">Podés subir varias fotos juntas o archivos de planilla.</span>
+              <span className="mt-1 block text-[10px] text-[var(--muted)]">Podés subir varias fotos juntas o archivos PDF.</span>
             </label>
 
             <label className="block text-xs">
@@ -656,7 +671,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
               disabled={submissionSubmitting}
             >
               {submissionSubmitting ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
-              {submissionSubmitting ? "Enviando rendición…" : "Enviar Evidencia / Planilla"}
+              {submissionSubmitting ? "Enviando rendición…" : "Enviar evidencia"}
             </button>
           </form>
         </section>

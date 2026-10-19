@@ -319,7 +319,7 @@ export async function loadSalesDocumentDescendants(
 /** Re-read the complete factual chain at issuance; never infer a missing link. */
 export async function validateSalesEmission(
   supabase: SalesSupabase,
-  document: Pick<SalesDocument, "id" | "empresa_id" | "client_id" | "currency" | "doc_type" | "source_document_id">,
+  document: Pick<SalesDocument, "id" | "empresa_id" | "client_id" | "currency" | "doc_type" | "source_document_id" | "total">,
   empresaId: string
 ): Promise<{ error: string | null }> {
   if (document.empresa_id !== empresaId) return { error: "Documento de otra empresa." };
@@ -339,8 +339,30 @@ export async function validateSalesEmission(
       return { error: "La nota de credito requiere una factura emitida." };
     }
     if (source.doc_type === "PROFORMA") {
-      if (!await loadPostOtSnapshotForQuotation(supabase, source.id, empresaId)) {
+      const accepted = await loadPostOtSnapshotForQuotation(supabase, source.id, empresaId);
+      if (!accepted) {
         return { error: "No se puede emitir: la version aceptada, OT o snapshot de la proforma no es valido." };
+      }
+      if (document.doc_type === "REMISION" || document.doc_type === "FACTURA") {
+        const { data: items, error: itemsError } = await supabase.from("sales_document_items")
+          .select("description, quantity, unit_price, vat_rate")
+          .eq("sales_document_id", document.id).eq("empresa_id", empresaId)
+          .returns<Pick<SalesDocumentItem, "description" | "quantity" | "unit_price" | "vat_rate">[]>();
+        const descendants = await loadSalesDocumentDescendants(supabase, source.id, empresaId);
+        if (descendants.error) return { error: descendants.error };
+        const activePeers = descendants.documents.filter((peer) => peer.id !== document.id &&
+          peer.doc_type === document.doc_type && ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"].includes(peer.status));
+        const peerItems = await Promise.all(activePeers.map((peer) => supabase.from("sales_document_items")
+          .select("description, quantity, unit_price, vat_rate")
+          .eq("sales_document_id", peer.id).eq("empresa_id", empresaId)
+          .returns<Pick<SalesDocumentItem, "description" | "quantity" | "unit_price" | "vat_rate">[]>()));
+        const allItems = [...(items ?? []), ...peerItems.flatMap((result) => result.data ?? [])];
+        const total = Number(document.total) + activePeers.reduce((sum, peer) => sum + Number(peer.total), 0);
+        if (itemsError || !items?.length || peerItems.some((result) => result.error || !result.data?.length) ||
+          total > Number(accepted.acceptance.total_snapshot) + 0.01 ||
+          !acceptedSalesLinesCover(accepted.items, allItems)) {
+          return { error: "La remision o factura supera o altera los items de la proforma aceptada y su OT." };
+        }
       }
       return { error: null };
     }
@@ -351,4 +373,34 @@ export async function validateSalesEmission(
     return { error: "No se puede emitir: la remision de origen no tiene una proforma aceptada y OT." };
   }
   return { error: null };
+}
+
+function acceptedSalesLinesCover(
+  accepted: Pick<WorkOrderItem, "description" | "quantity" | "unit_price" | "vat_rate">[],
+  issued: Pick<SalesDocumentItem, "description" | "quantity" | "unit_price" | "vat_rate">[],
+): boolean {
+  const key = (item: { description: string; vat_rate: number }) =>
+    `${item.description.trim().replace(/\s+/g, " ").toLocaleLowerCase()}|${item.vat_rate}`;
+  const ceilings = new Map<string, { quantity: number; maxPrice: number }>();
+  for (const item of accepted) {
+    const id = key(item);
+    const prior = ceilings.get(id);
+    ceilings.set(id, {
+      quantity: (prior?.quantity ?? 0) + Number(item.quantity),
+      maxPrice: Math.max(prior?.maxPrice ?? 0, Number(item.unit_price)),
+    });
+  }
+  const used = new Map<string, number>();
+  for (const item of issued) {
+    const id = key(item);
+    const limit = ceilings.get(id);
+    const quantity = Number(item.quantity);
+    const price = Number(item.unit_price);
+    if (!limit || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) ||
+        price < 0 || price > limit.maxPrice + 0.01) return false;
+    const next = (used.get(id) ?? 0) + quantity;
+    if (next > limit.quantity + 0.0001) return false;
+    used.set(id, next);
+  }
+  return true;
 }

@@ -23,8 +23,8 @@ export async function getCobrosData(): Promise<CobrosSectionData> {
     supabase
       .from("sales_documents")
       .select("*")
-      .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
-      .in("doc_type", ["FACTURA", "NOTA_VENTA"])
+      .in("status", ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"])
+      .in("doc_type", ["FACTURA", "NOTA_VENTA", "NOTA_CREDITO"])
       .order("issue_date", { ascending: false })
       .returns<SalesDocument[]>(),
     supabase

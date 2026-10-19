@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -6,11 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Client, SalesDocument, WorkOrder, WorkOrderItem, WorkOrderStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, Label } from "@/components/ui/input";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { APPROVAL_MODE_LABELS, WORKFLOW_STATUS_LABELS, WORK_ORDER_STATUS_LABELS } from "@/lib/quotation";
-import { updateWorkOrderStatus } from "@/app/(internal)/ventas/[id]/quotation-actions";
 import { WorkOrderApproveButton } from "./approve-button";
+import { WorkOrderStatusForm } from "./status-form";
 import { loadPostOtSnapshot, loadSalesDocumentDescendants } from "@/lib/sales-post-ot";
 import { SALES_DOC_STATUS_LABELS, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 
@@ -70,28 +70,7 @@ export default async function OrdenTrabajoDetailPage({ params }: { params: Promi
             · Creada {formatDate(order.created_at)}
           </p>
         </div>
-        <form
-          action={async (fd: FormData) => {
-            "use server";
-            const s = String(fd.get("status") ?? order.status) as WorkOrderStatus;
-            await updateWorkOrderStatus(order.id, s);
-          }}
-          className="flex items-end gap-2"
-        >
-          <div>
-            <Label htmlFor="status">Estado</Label>
-            <Select id="status" name="status" defaultValue={order.status} className="w-40">
-              {(Object.keys(WORK_ORDER_STATUS_LABELS) as WorkOrderStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {WORK_ORDER_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <Button type="submit" variant="secondary">
-            Guardar
-          </Button>
-        </form>
+        <WorkOrderStatusForm workOrderId={order.id} status={order.status} workflowStatus={order.workflow_status} />
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 grid grid-cols-4 gap-3 text-[13px]">
@@ -159,10 +138,8 @@ export default async function OrdenTrabajoDetailPage({ params }: { params: Promi
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
         <div>
-          <h2 className="text-[14px] font-semibold">Preparación comercial posterior a la OT</h2>
-          <p className="text-[12px] text-[var(--muted)] mt-1">
-            Elegí qué documento preparar. Se abre el formulario existente con datos de la aceptación y los ítems de la OT; guardar crea un borrador para revisar.
-          </p>
+          <h2 className="text-[14px] font-semibold">Preparación comercial<InfoTooltip className="ml-1" label={"Preparación comercial"} content={"Elegí qué documento preparar. Se abre el formulario existente con datos de la aceptación y los ítems de la OT; guardar crea un borrador para revisar."} /></h2>
+
         </div>
         {snapshot ? (
           <>

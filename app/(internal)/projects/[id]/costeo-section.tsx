@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ import {
   type CostBudgetInsumo,
 } from "./costeo-actions";
 import { CosteoChecklist } from "./costeo-checklist";
+import { CostRfqDialog } from "./cost-rfq-dialog";
+import styles from "./costeo-checklist.module.css";
 
 const FUENTE_LABEL: Record<string, string> = {
   COTIZACION: "Cotización",
@@ -79,7 +82,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       </div>
 
       {!totals.completo ? (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px]">
+        <div className={`${styles.card} flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px]`} data-state="warn">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
           <div>
             {totals.partidasSinApu > 0 ? <p>{totals.partidasSinApu} partida(s) sin APU: su costo no está incluido.</p> : null}
@@ -91,6 +94,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       ) : null}
 
       <Section title="Solicitudes de precio de la obra">
+        <div className="flex justify-end"><CostRfqDialog projectId={projectId} onCreated={load} /></div>
         {data.rfqs.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Todavía no generaste RFQ de costeo para esta obra.</p>
         ) : (
@@ -115,8 +119,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
         )}
       </Section>
 
-      <Section title="Insumos (materiales)">
-        <p className="text-[11px] text-[var(--muted)]">Para pedir precios de estos materiales: Comprar → Cotizaciones → Nueva cotización → Desde una obra.</p>
+      <Section title="Insumos" help="Usá Cotizar insumos para pedir precios de los materiales del presupuesto.">
         {data.insumos.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Sin materiales en el APU de las partidas.</p>
         ) : (
@@ -259,21 +262,14 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
 
   if (rows.length === 0 && data.manoObra.pagado === 0 && data.subcontratoSinImputar === 0) {
     return (
-      <Section title="Real vs presupuestado">
-        <p className="text-[13px] text-[var(--muted)]">
-          Todavía no se puede comparar. Se activa cuando las partidas con avance tienen costo presupuestado (recetas APU con precios) o
-          cuando hay gastos reales cargados (consumo de stock, partes de Personal o certificados de subcontratistas).
-        </p>
+      <Section title="Real vs presupuestado" help="Compara el costo presupuestado al avance ejecutado con materiales, partes de personal y certificados aprobados. La mano de obra propia se compara por obra; los destajos también se imputan a su partida.">
+        <p className="text-[13px] text-[var(--muted)]">Sin datos comparables todavía.</p>
       </Section>
     );
   }
 
   return (
-    <Section title="Real vs presupuestado">
-      <p className="text-[11px] text-[var(--muted)]">
-        Presupuestado a la fecha = costo de la partida × % de avance ejecutado. Real = consumo de materiales + partes de personal
-        imputados + certificados de subcontratistas aprobados o pagados.
-      </p>
+    <Section title="Real vs presupuestado" help="Presupuestado a la fecha = costo de la partida × avance ejecutado. Real = materiales + partes imputados + certificados de subcontratistas aprobados o pagados. La mano de obra propia se compara por obra; los destajos también suman a su partida.">
       {hayPresupuesto ? (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi label="Presupuestado a la fecha" value={gs(data.totalPresupuestadoALaFecha)} note="Según avance ejecutado" />
@@ -299,16 +295,10 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
               warn={data.manoObra.pagado > data.manoObra.presupuestadoALaFecha}
             />
           </div>
-          <p className="text-[11px] text-[var(--muted)]">
-            La mano de obra propia se compara para toda la obra, porque se paga por período. Los destajos suman además a su partida.
-          </p>
         </div>
       ) : null}
       {data.subcontratoSinImputar > 0 ? (
-        <p className="text-[12px] text-amber-500">
-          Subcontratos sin partida asignada ({gs(data.subcontratoSinImputar)}): no entran en la comparación por partida. Asigná la
-          partida en el contrato.
-        </p>
+        <p className="text-[12px] text-amber-500">Subcontratos sin partida: {gs(data.subcontratoSinImputar)}. Asigná la partida en el contrato.</p>
       ) : null}
       {rows.length === 0 ? (
         <p className="text-[13px] text-[var(--muted)]">Todavía no hay avance ni costo real imputado a partidas.</p>
@@ -344,7 +334,7 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
 
 function Kpi({ label, value, note, warn }: { label: string; value: string; note: string; warn?: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+    <div className={`erp-kpi rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3 ${warn ? "kpi-accent-labor" : ""}`}>
       <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">{label}</div>
       <div className="text-[16px] font-bold mt-1">{value}</div>
       <div className={`text-[11px] mt-0.5 ${warn ? "text-amber-500" : "text-[var(--muted)]"}`}>{note}</div>
@@ -352,10 +342,10 @@ function Kpi({ label, value, note, warn }: { label: string; value: string; note:
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, help, children }: { title: string; help?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-[13px] font-semibold">{title}</h3>
+      <h3 className="text-[13px] font-semibold">{title}{help ? <InfoTooltip className="ml-1" label={title} content={help} /> : null}</h3>
       {children}
     </div>
   );
@@ -363,7 +353,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
+    <div className={`${styles.card} rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto`}>
       <table>
         <thead>
           <tr>

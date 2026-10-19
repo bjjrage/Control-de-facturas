@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/ui/select";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,6 +19,9 @@ import {
   updateReceiptProductMapping,
 } from "../oc-recepcion-actions";
 import { ReceiptPortalLink } from "../receipt-portal-link";
+import styles from "./receipt-dialog.module.css";
+import { readReceiptDocument } from "../receipt-document-actions";
+import { Upload } from "lucide-react";
 
 type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
 type OrderItemWithExactQuantity = AuthorizedOrderItem & { quantity_text: string };
@@ -25,25 +29,34 @@ export type ReceiptEvidenceView = { id: string; fileName: string; sizeBytes: num
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
-function RegistrarDialog({
+export function RegisterReceiptDialog({
   orderId,
   orderItems,
   onDone,
+  orderCode,
+  receivedTotals = {},
 }: {
   orderId: string;
   orderItems: OrderItemWithExactQuantity[];
   onDone: () => void;
+  orderCode?: string;
+  receivedTotals?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [recibidoPor, setRecibidoPor] = useState("");
   const [notas, setNotas] = useState("");
+  const [remisionNumber, setRemisionNumber] = useState("");
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [productoPorItem, setProductoPorItem] = useState<Record<string, string>>({});
   const [productos, setProductos] = useState<ProductoLite[]>([]);
   const [pending, setPending] = useState(false);
   const [attemptLocked, setAttemptLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [document, setDocument] = useState<File | null>(null);
+  const [reading, setReading] = useState(false);
+  const [documentNotice, setDocumentNotice] = useState<string[]>([]);
+  const documentInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const idempotencyKey = useRef<string | null>(null);
   const submitting = useRef(false);
@@ -62,11 +75,33 @@ function RegistrarDialog({
     setFecha(new Date().toISOString().slice(0, 10));
     setRecibidoPor("");
     setNotas("");
+    setRemisionNumber("");
     setCantidades({});
     setProductoPorItem({});
     setAttemptLocked(false);
     setError(null);
+    setDocument(null);
+    setDocumentNotice([]);
     idempotencyKey.current = null;
+  }
+
+  async function readDocument(file: File) {
+    setDocument(file);
+    setReading(true);
+    setError(null);
+    setDocumentNotice([]);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const result = await readReceiptDocument(orderId, form);
+      if (result.error || !result.data) { setError(result.error ?? "No se pudo leer el remito."); return; }
+      setCantidades(result.data.quantities);
+      setRemisionNumber(result.data.number ?? "");
+      if (result.data.date) setFecha(result.data.date);
+      if (result.data.receivedBy) setRecibidoPor(result.data.receivedBy);
+      setDocumentNotice(["Remito leído. Revisá las cantidades antes de confirmar.", ...result.data.warnings]);
+    } catch { setError("No se pudo leer el remito. Reintentá la carga del documento."); }
+    finally { setReading(false); }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -99,6 +134,8 @@ function RegistrarDialog({
         items,
         notas || undefined,
         idempotencyKey.current,
+        remisionNumber || undefined,
+        document ?? undefined,
       );
       if (res.error) {
         setError(res.error);
@@ -124,17 +161,26 @@ function RegistrarDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (reading) return; setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
       <DialogTrigger asChild>
-        <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
+        <Button size="sm">Registrar recepción</Button>
       </DialogTrigger>
-      <DialogContent title="Registrar recepción de mercadería" className="max-w-lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent title={orderCode ? `Recibir mercadería · ${orderCode}` : "Registrar recepción de mercadería"} className={styles.dialog}>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.body}>
+          <div>
+            <h3 className="font-semibold mb-2">Remito de entrega</h3>
+            <input ref={documentInput} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" aria-label="Subir remito" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void readDocument(file); event.target.value = ""; }} />
+            <Button type="button" variant="secondary" size="sm" disabled={reading || pending || attemptLocked} onClick={() => documentInput.current?.click()}><Upload size={15} aria-hidden="true" />{reading ? "Leyendo remito…" : document ? "Reemplazar remito" : "Subir remito"}</Button>
+            <p className="mt-2 text-xs text-[var(--muted)]">{document?.name ?? "PDF o foto: se completan los datos automáticamente. También podés registrar una entrega sin documento."}</p>
+            {documentNotice.map((notice, index) => <p key={index} role="status" className="text-xs mt-2">{notice}</p>)}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] text-[var(--muted)] mb-1">Fecha *</label>
               <input
                 type="date"
+                aria-label="Fecha de recepción"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 disabled={pending || attemptLocked}
@@ -146,6 +192,7 @@ function RegistrarDialog({
               <label className="block text-[12px] text-[var(--muted)] mb-1">Recibido por *</label>
               <input
                 type="text"
+                aria-label="Recibido por"
                 value={recibidoPor}
                 onChange={(e) => setRecibidoPor(e.target.value)}
                 disabled={pending || attemptLocked}
@@ -167,7 +214,7 @@ function RegistrarDialog({
                     <th>Ítem</th>
                     <th className="num">Ordenado</th>
                     <th className="num w-24">Recibida</th>
-                    <th className="w-40">Producto de stock</th>
+                    <th className="w-48">Material<InfoTooltip className="ml-1" label="Material en inventario" content="Indica dónde sumar lo recibido. Si el material ya está definido en la orden de compra, se asigna automáticamente." /></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,10 +223,12 @@ function RegistrarDialog({
                       <td className="text-[13px]">{it.product}</td>
                       <td className="num text-[var(--muted)]">
                         {formatInvoiceQuantity(it.quantity_text)} {it.unit}
+                        <p className="text-[11px]">Pendiente: {formatInvoiceQuantity(subtractInvoiceQuantitySumExact(it.quantity_text, [(receivedTotals[it.id] ?? 0).toFixed(4)]))} {it.unit}</p>
                       </td>
                       <td className="num">
                         <input
                           type="number"
+                          aria-label={`Cantidad recibida de ${it.product}`}
                           min="0"
                           step="any"
                           value={cantidades[it.id] ?? ""}
@@ -192,13 +241,14 @@ function RegistrarDialog({
                         />
                       </td>
                       <td>
-                        <Select
+                        {it.producto_id ? <p className="text-xs font-medium">{productos.find(p => p.id === it.producto_id)?.nombre ?? it.product}<span className="block text-[var(--muted)] font-normal">Definido en la OC</span></p> : <Select
+                          aria-label={`Material en inventario para ${it.product}`}
                           value={productoPorItem[it.id] ?? it.producto_id ?? ""}
                           disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
-                          className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]"
+                          className="w-full min-w-36 h-9 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px]"
                         >
                           <option value="" disabled={Boolean(it.producto_id)}>— no cargar a stock —</option>
                           {it.producto_id && !productos.some((p) => p.id === it.producto_id) ? (
@@ -211,19 +261,19 @@ function RegistrarDialog({
                             .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
-                        </Select>
+                        </Select>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-[var(--muted)] mt-1">
-              Elegí un producto para que la recepción genere la entrada de stock automáticamente,
-              al precio unitario de la OC.
-            </p>
           </div>
 
+          <div>
+            <label htmlFor={`receipt-remito-${orderId}`} className="block text-[12px] text-[var(--muted)] mb-1">N° de remito (opcional)</label>
+            <input id={`receipt-remito-${orderId}`} value={remisionNumber} onChange={event => setRemisionNumber(event.target.value)} disabled={pending || attemptLocked} className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]" />
+          </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Notas</label>
             <input
@@ -242,11 +292,12 @@ function RegistrarDialog({
             </div>
           ) : null}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
+          </div>
+          <div className={styles.footer}>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending || reading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={pending || !recibidoPor.trim()}>
+            <Button type="submit" disabled={pending || reading || !recibidoPor.trim()}>
               {pending ? "Guardando…" : "Confirmar recepción"}
             </Button>
           </div>
@@ -342,7 +393,9 @@ function RecepcionCard({
           <div className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">
             {recepcion.status === "CONFIRMED"
-              ? "Confirmada"
+              ? recepcion.idempotency_key?.startsWith("receipt-portal:") && !recepcion.confirmed_by
+                ? "Confirmada desde link · stock ingresado"
+                : "Confirmada"
               : recepcion.status === "VOIDED"
                 ? "Anulada"
                 : recepcion.idempotency_key
@@ -355,6 +408,7 @@ function RecepcionCard({
           {recepcion.notas ? (
             <div className="text-[12px] text-[var(--muted)] mt-0.5">{recepcion.notas}</div>
           ) : null}
+          {recepcion.remision_number ? <p className="text-[12px] text-[var(--muted)]">Remito: {recepcion.remision_number}</p> : null}
         </div>
         {canConfirm && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
           <div className="text-right">
@@ -475,6 +529,7 @@ export function RecepcionSection({
   canMap = false,
   products = [],
   evidenceByReceipt = {},
+  showRegistration = true,
 }: {
   orderId: string;
   orderItems: OrderItemWithExactQuantity[];
@@ -487,6 +542,7 @@ export function RecepcionSection({
   canMap?: boolean;
   products?: ProductoLite[];
   evidenceByReceipt?: Record<string, ReceiptEvidenceView[]>;
+  showRegistration?: boolean;
 }) {
   const [key, setKey] = useState(0);
 
@@ -501,12 +557,13 @@ export function RecepcionSection({
         <h2 className="text-[14px] font-semibold">Recepción de mercadería</h2>
         <div className="flex flex-wrap gap-2">
           {canCreatePortal ? <ReceiptPortalLink orderId={orderId} /> : null}
-          <RegistrarDialog
+          {showRegistration && <RegisterReceiptDialog
             key={key}
             orderId={orderId}
             orderItems={orderItems}
+            receivedTotals={totalesRecibidos}
             onDone={() => setKey((k) => k + 1)}
-          />
+          />}
         </div>
       </div>
 

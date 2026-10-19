@@ -3,11 +3,15 @@
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
+import { readSpreadsheet } from "@/lib/spreadsheet-read";
+import { parseParaguayNumber, type SpreadsheetNumberFormat } from "@/lib/spreadsheet-number-format";
+import { SpreadsheetNumberFormatSelect } from "@/components/ui/spreadsheet-number-format-select";
 
-type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "start_date" | "end_date";
+type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "line_total" | "start_date" | "end_date";
 type ColumnAssignment = FieldKey | "ignore";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
@@ -16,6 +20,7 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   unit: "Unidad",
   quantity: "Cantidad",
   unit_price: "Precio unitario",
+  line_total: "Importe de fila (verificación)",
   start_date: "Fecha inicio",
   end_date: "Fecha fin",
 };
@@ -27,6 +32,7 @@ const HEADER_VARIANTS: Record<FieldKey, string[]> = {
   description: ["descripcion", "detalle", "rubro", "concepto", "designacion"],
   unit: ["unidad", "und", "un", "u.m.", "medida"],
   quantity: ["cantidad", "cant", "qty", "metrado", "computo"],
+  line_total: ["importe", "monto", "total", "subtotal", "precio total", "costo total"],
   unit_price: ["precio unitario", "p. unitario", "punit", "precio", "p.u.", "costo unitario"],
   start_date: ["fecha inicio", "inicio", "f. inicio", "fecha de inicio", "start", "start date"],
   end_date: ["fecha fin", "fin", "f. fin", "fecha de fin", "end", "end date", "fecha final"],
@@ -40,18 +46,33 @@ function normalize(s: string): string {
     .trim();
 }
 
-// Formato paraguayo: los puntos son separador de miles ("1.250.000" = 1250000),
-// la coma (si aparece) es el separador decimal.
-function parsePyNumber(raw: unknown): number | null {
+// Preserve raw Excel numbers; reject ambiguous text instead of guessing locale.
+function parsePyNumber(raw: unknown, format: SpreadsheetNumberFormat = "strict"): number | null {
+  if (format === "py") return parseParaguayNumber(raw);
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
-  let s = raw.trim();
+  let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
   if (!s) return null;
-  s = s.replace(/gs\.?/gi, "").replace(/\s/g, "");
-  if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
+  if (/^[+-]?\d{1,3}(?:\s\d{3})+(?:[,.]\d+)?$/.test(s)) s = s.replace(/\s/g, "");
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(s)) return null;
+  if (s.includes(",") && s.includes(".")) {
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const group = decimal === "," ? "." : ",";
+    const parts = s.split(decimal);
+    const groups = parts[0].replace(/^[+-]/, "").split(group);
+    if (parts.length !== 2 || groups[0].length > 3 || groups.slice(1).some(p => p.length !== 3)) return null;
+    s = parts[0].split(group).join("") + "." + parts[1];
   } else {
-    s = s.replace(/\./g, "");
+    const parts = s.split(/[.,]/);
+    if (parts.length > 2) {
+      if (parts[0].replace(/^[+-]/, "").length > 3 || parts.slice(1).some(p => p.length !== 3)) return null;
+      s = parts.join("");
+    } else if (parts.length === 2) {
+      // A lone separator followed by three digits is ambiguous: require the
+      // user to supply an ungrouped integer or an explicit decimal value.
+      if (parts[1].length === 3 && !/^[+-]?0$/.test(parts[0])) return null;
+      s = parts.join(".");
+    }
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -88,7 +109,8 @@ function autoDetectMapping(headers: string[]): Record<number, ColumnAssignment> 
     let matched: ColumnAssignment = "ignore";
     for (const [field, variants] of Object.entries(HEADER_VARIANTS) as [FieldKey, string[]][]) {
       if (used.has(field)) continue;
-      if (variants.some((v) => norm === v || norm.includes(v))) {
+      if (variants.some((v) => norm === v || (v.length >= 3 &&
+        (norm.startsWith(v + " ") || norm.endsWith(" " + v) || norm.includes(" " + v + " "))))) {
         matched = field;
         used.add(field);
         break;
@@ -120,6 +142,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
   const [rawRows, setRawRows] = useState<unknown[][]>([]);
   const [hasHeaders, setHasHeaders] = useState(true);
   const [mapping, setMapping] = useState<Record<number, ColumnAssignment>>({});
+  const [numberFormat, setNumberFormat] = useState<SpreadsheetNumberFormat>("strict");
 
   function reset() {
     setStep("upload");
@@ -137,7 +160,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     try {
       const XLSX = await import("xlsx");
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = readSpreadsheet(XLSX, buf, file.name);
       setWorkbook(wb);
       setSheetNames(wb.SheetNames);
       const firstSheet = wb.SheetNames[0];
@@ -199,6 +222,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     const unitCol = Object.entries(mapping).find(([, v]) => v === "unit")?.[0];
     const qtyCol = Object.entries(mapping).find(([, v]) => v === "quantity")?.[0];
     const priceCol = Object.entries(mapping).find(([, v]) => v === "unit_price")?.[0];
+    const totalCol = Object.entries(mapping).find(([, v]) => v === "line_total")?.[0];
     const startCol = Object.entries(mapping).find(([, v]) => v === "start_date")?.[0];
     const endCol = Object.entries(mapping).find(([, v]) => v === "end_date")?.[0];
 
@@ -215,8 +239,11 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       const priceStr = String(priceRaw ?? "").trim();
       const startStr = String(startRaw ?? "").trim();
       const endStr = String(endRaw ?? "").trim();
-      const quantity = qtyStr ? parsePyNumber(qtyRaw) : null;
-      const unit_price = priceStr ? parsePyNumber(priceRaw) : null;
+      const quantity = qtyStr ? parsePyNumber(qtyRaw, numberFormat) : null;
+      const unit_price = priceStr ? parsePyNumber(priceRaw, numberFormat) : null;
+      const totalRaw = totalCol !== undefined ? row[Number(totalCol)] : null;
+      const totalStr = String(totalRaw ?? "").trim();
+      const declaredTotal = totalStr ? parsePyNumber(totalRaw, numberFormat) : null;
       const start_date = startStr ? parseDateCell(startRaw) : null;
       const end_date = endStr ? parseDateCell(endRaw) : null;
 
@@ -224,10 +251,13 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       let reason: string | undefined;
       if (!code) { valid = false; reason = "Código vacío"; }
       else if (!description) { valid = false; reason = "Descripción vacía"; }
-      else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad no numérica"; }
-      else if (priceStr && unit_price === null) { valid = false; reason = "Precio no numérico"; }
+      else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad inválida o ambigua: quitá el separador de miles o aclará los decimales"; }
+      else if (priceStr && unit_price === null) { valid = false; reason = "Precio inválido o ambiguo: quitá el separador de miles o aclará los decimales"; }
+      else if ((quantity !== null && quantity < 0) || (unit_price !== null && unit_price < 0)) { valid = false; reason = "Cantidad o precio negativo"; }
+      else if (totalStr && (declaredTotal === null || quantity === null || unit_price === null || Math.abs(quantity * unit_price - declaredTotal) > 0.01)) { valid = false; reason = "El importe de la fila no coincide con cantidad × precio, o es ambiguo"; }
       else if (startStr && !start_date) { valid = false; reason = "Fecha inicio no reconocida"; }
       else if (endStr && !end_date) { valid = false; reason = "Fecha fin no reconocida"; }
+      else if (start_date && end_date && end_date < start_date) { valid = false; reason = "Fin anterior al inicio"; }
 
       return {
         item: { code, description, unit: unitRaw || null, quantity, unit_price, start_date, end_date },
@@ -235,13 +265,18 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
         reason,
       };
     });
-  }, [dataRows, mapping]);
+  }, [dataRows, mapping, numberFormat]);
 
   const validItems = previewRows.filter((r) => r.valid).map((r) => r.item);
   const invalidCount = previewRows.length - validItems.length;
   const previewTotal = validItems.reduce((s, i) => s + (i.quantity ?? 0) * (i.unit_price ?? 0), 0);
+  const duplicateCodes = new Set(validItems.map(item => item.code)).size !== validItems.length;
 
   async function confirmImport() {
+    if (invalidCount > 0 || validItems.length === 0 || duplicateCodes) {
+      setError("Corregí todas las filas inválidas antes de importar. No se omitió ninguna fila.");
+      return;
+    }
     setPending(true);
     setError(null);
     const result = await importBudgetItems(projectId, validItems);
@@ -265,7 +300,8 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       <DialogTrigger asChild>
         <Button variant="secondary">Importar Excel</Button>
       </DialogTrigger>
-      <DialogContent title="Importar presupuesto desde Excel" className="max-w-2xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar presupuesto<InfoTooltip label="Importar presupuesto" content="Subí un XLSX o CSV y vinculá sus columnas con el cómputo métrico antes de importar." /></span>} className="max-w-2xl">
+        <SpreadsheetNumberFormatSelect id="budget-number-format" value={numberFormat} onChange={setNumberFormat} />
         {error ? (
           <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)] mb-3">
             {error}
@@ -274,10 +310,6 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
 
         {step === "upload" ? (
           <div className="space-y-3">
-            <p className="text-[13px] text-[var(--muted)]">
-              Subí el archivo .xlsx o .csv con tu cómputo métrico. En el próximo paso vas a poder decirle al
-              sistema qué significa cada columna.
-            </p>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"
@@ -365,7 +397,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] flex items-center justify-between">
               <span>
                 Se van a importar <strong>{validItems.length}</strong> ítems
-                {invalidCount > 0 ? `, se saltean ${invalidCount}` : ""}.
+                {invalidCount > 0 ? `. Importación bloqueada: corregí ${invalidCount} fila(s)` : ""}.
               </span>
               <span className="font-mono">{formatMoney(previewTotal, "PYG")}</span>
             </div>
@@ -378,7 +410,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
                     <th>Descripción</th>
                     <th>Unid.</th>
                     <th className="num">Cantidad</th>
-                    <th className="num">P. Unit.</th>
+                    <th className="num">P. Unit.</th><th>Motivo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -391,7 +423,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
                       <td>{r.item.description || (r.reason ?? "—")}</td>
                       <td className="text-[var(--muted)]">{r.item.unit ?? "—"}</td>
                       <td className="num">{r.item.quantity ?? "—"}</td>
-                      <td className="num">{r.item.unit_price ?? "—"}</td>
+                      <td className="num">{r.item.unit_price ?? "—"}</td><td className="text-[var(--error)]">{!r.valid ? (r.reason ?? "Fila inválida") : ""}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -400,7 +432,8 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
 
             <div className="flex justify-between">
               <Button type="button" variant="secondary" onClick={() => setStep("map")}>Atrás</Button>
-              <Button type="button" onClick={confirmImport} disabled={pending || validItems.length === 0}>
+              {duplicateCodes ? <p role="alert" className="text-[12px] text-[var(--error)]">Corregí los códigos repetidos antes de importar.</p> : null}
+              <Button type="button" onClick={confirmImport} disabled={pending || validItems.length === 0 || invalidCount > 0 || duplicateCodes}>
                 {pending ? "Importando…" : `Importar ${validItems.length} ítems`}
               </Button>
             </div>

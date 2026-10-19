@@ -1,4 +1,5 @@
 import { requireSuperAdmin } from "@/lib/auth";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,15 +35,10 @@ export default async function EmpresasPage() {
   return (
     <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-[17px] font-semibold">Empresas</h1>
+        <h1 className="text-[17px] font-semibold">Empresas<InfoTooltip className="ml-1" label="Empresas" content="Cada empresa ve solo sus datos. Creá la empresa y su primer administrador; ese administrador gestiona su equipo desde Usuarios." /></h1>
         <EmpresaDialog trigger={<Button>Nueva empresa</Button>} />
       </div>
-      <p className="text-[12px] text-[var(--muted)] mb-4">
-        Cada empresa ve solo sus propios datos. Creá la empresa, agregale su primer usuario admin, y
-        ese admin gestiona su equipo desde Usuarios.
-      </p>
-
-      <div className="space-y-3">
+      <div className="space-y-3 mt-3">
         {(empresas ?? []).map((e) => {
           const users = usersByEmpresa.get(e.id) ?? [];
           const isMine = e.id === me.empresa_id;

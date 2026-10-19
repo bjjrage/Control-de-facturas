@@ -27,7 +27,7 @@ describe("Batch 5 financial safety contract", () => {
     expect(paymentActions).toContain('supabase.rpc("ejecutar_orden_pago_atomica"');
     expect(paymentActions).toContain("if (rpcError) return { error: rpcError.message }");
     expect(paymentActions).not.toContain("function') && rpcError.message?.includes('does not exist");
-    expect(salesActions).toContain('supabase.rpc("registrar_cobro_atomico"');
+    expect(salesActions).toContain('supabase.rpc("registrar_cobro_idempotente"');
     expect(salesActions).toContain('supabase.rpc("revertir_cobro_atomico"');
     expect(salesActions).not.toContain('.from("sales_receipts").delete()');
     expect(salesActions).not.toContain('.from("sales_receipts").insert(');

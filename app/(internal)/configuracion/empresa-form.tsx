@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -22,10 +23,8 @@ export function EmpresaForm({ empresa }: { empresa: Empresa }) {
       }}
       className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3"
     >
-      <h2 className="text-[14px] font-semibold">Datos de la empresa</h2>
-      <p className="text-[12px] text-[var(--muted)]">
-        Aparecen en el encabezado de todos los documentos imprimibles.
-      </p>
+      <h2 className="text-[14px] font-semibold">Datos de la empresa<InfoTooltip className="ml-1" label={"Datos de la empresa"} content={"Aparecen en el encabezado de todos los documentos imprimibles."} /></h2>
+
 
       <div className="grid grid-cols-2 gap-3">
         <div>

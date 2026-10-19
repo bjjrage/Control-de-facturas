@@ -5,6 +5,7 @@ import { Select } from "@/components/ui/select";
 import { useMemo, useState } from "react";
 import { AlertTriangle, FileSpreadsheet, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
 import type { CertificateBudgetItem, CertificateWorkbookRow } from "@/lib/certificates/workbook-import";
@@ -108,7 +109,7 @@ export function ImportCertificadoDialog({
     return id && Number(preview.previousQuantityByBudgetItem[id] ?? 0) !== row.quantityPrevious;
   }) ?? [];
   const needsAcknowledgement = Boolean(
-    preview?.certificate.planNeedsReview || mismatches.length || previousMismatches.length || (preview?.certificate.warnings.length ?? 0) > 0
+    (preview && linkedCount < preview.rows.length) || preview?.certificate.planNeedsReview || mismatches.length || previousMismatches.length || (preview?.certificate.warnings.length ?? 0) > 0
   );
   const canImport = Boolean(
     file && preview && !analyzing && !pending && (
@@ -150,10 +151,8 @@ export function ImportCertificadoDialog({
       <DialogTrigger asChild>
         <Button variant="secondary">Importar certificado</Button>
       </DialogTrigger>
-      <DialogContent title="Importar certificado de avance" className="max-w-5xl">
+      <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar certificado<InfoTooltip label="Importar certificado" content="Analizá el XLSX de una obra existente, revisá los vínculos con el presupuesto y confirmá la importación. El análisis no guarda cambios." /></span>} className="max-w-5xl">
         <div className="space-y-4">
-          <p className="text-[12px] text-[var(--muted)]">Importá un certificado XLSX en esta obra existente. El análisis no crea ni modifica datos; primero revisás el vínculo con el presupuesto.</p>
-
           <div
             onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
@@ -232,7 +231,7 @@ export function ImportCertificadoDialog({
               {needsAcknowledgement ? (
                 <label className="flex items-start gap-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.04] p-2 text-[11px] text-amber-100">
                   <input type="checkbox" checked={confirmDiscrepancies} onChange={(event) => setConfirmDiscrepancies(event.target.checked)} className="mt-0.5" />
-                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé el preview. Acepto los valores del documento (cantidades, precios y acumulados) y que los montos canónicos se recalculen desde cantidades y precio unitario.</span>
+                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé el preview. {preview.rows.length - linkedCount} fila(s) quedarán autónomas, sin vínculo con el presupuesto. Acepto expresamente los vínculos, las diferencias visibles y el recálculo de montos desde cantidades y precio unitario.</span>
                 </label>
               ) : null}
 

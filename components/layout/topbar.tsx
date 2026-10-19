@@ -5,9 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
+import { ThemeSwitcher } from "./theme-switcher";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
 
@@ -18,7 +20,6 @@ const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = Ob
 );
 // Keep old bookmarks understandable without advertising this renderer as a canonical tab.
 PROJECT_TAB_CONTEXT.stock = { group: "Avance de obra", label: "Catálogo de materiales (legado)" };
-PROJECT_TAB_CONTEXT.recepciones = { group: "Avance de obra", label: "Depósito de obra" };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },
@@ -41,7 +42,7 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
   });
 
   return (
-    <div className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
+    <div className="workspace-switcher hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;
@@ -82,7 +83,7 @@ export function Topbar({
   const [projectTab, setProjectTab] = useState("presupuesto");
 
   useEffect(() => {
-    const syncTab = () => setProjectTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    const syncTab = () => setProjectTab(projectTabForPath(pathname, window.location.search));
     syncTab();
     const onTab = (event: Event) => setProjectTab((event as CustomEvent<string>).detail);
     window.addEventListener("niupack:tab", onTab);
@@ -110,7 +111,7 @@ export function Topbar({
   }, [projectId]);
 
   return (
-    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
+    <header className="erp-topbar h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
       <WorkspaceSwitcher showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
       <div className="hidden md:flex items-center gap-1">
         <button
@@ -146,6 +147,7 @@ export function Topbar({
           </span>
         </div>
       ) : null}
+      <ThemeSwitcher />
     </header>
   );
 }

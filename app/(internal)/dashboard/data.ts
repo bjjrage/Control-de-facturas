@@ -111,7 +111,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const cash = isAdminRole ? await loadCanonicalCashflow(supabase,empresaId,today,until) : null;
   const rows=async(table:string,select:string,filters:(q:any)=>any=(q)=>q)=>readAll<any>((from,to)=>filters(supabase.from(table).select(select,{count:"exact"}).eq("empresa_id",empresaId)).order("id").range(from,to));
   const [salesDocsData,receiptsData,productosData,canonicalStockData,invoiceJobsData,workOrdersData] = await Promise.all([
-    showSalesKpis ? rows("sales_documents","id, code, total, cobrado_amount, currency, due_date, issue_date, status, doc_type, acceptance_status",q=>q.neq("status","ANULADA")) : [],
+    showSalesKpis ? rows("sales_documents","id, code, total, cobrado_amount, currency, due_date, issue_date, status, doc_type, acceptance_status, empresa_id, client_id, source_document_id",q=>q.neq("status","ANULADA")) : [],
     showSalesKpis ? rows("sales_receipts","id, amount, receipt_date, sales_document_id, sales_documents!sales_document_id(currency)",q=>q.is("reversed_at",null)) : [],
     canUseStock ? rows("productos","id, nombre, stock_minimo, activo",q=>q.eq("activo",true)) : [],
     canUseStock ? readAll<CanonicalStockRow>((from,to)=>supabase.from("inventory_stock_global_quantity").select("producto_id, quantity",{count:"exact"}).eq("empresa_id",empresaId).order("producto_id").range(from,to)) : [],

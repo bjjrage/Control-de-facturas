@@ -64,14 +64,15 @@ describe("Canonical climate workflow in the historical Libro", () => {
   it("keeps coordinate validation visible and fail-closed", () => {
     expect(panel).toContain("isValidProjectCoords");
     expect(panel).toContain("latitud y longitud");
-    expect(panel).toContain("!isValidProjectCoords(project.latitude,project.longitude)");
+    expect(panel).toContain("!locationReady");
+    expect(panel).toContain("!!configurationIssue");
     expect(historical).toContain("MISSING_PROJECT_LOCATION_MSG");
     expect(historical).toContain("isValidProjectCoords(project.latitude");
   });
 
   it("does not query future dates as historical weather or allow future Libro evaluation", () => {
-    expect(panel).toContain("max={historicalOnly ? today : undefined}");
-    expect(panel).toContain("historicalOnly && date > today");
+    expect(panel).toContain("max={today}");
+    expect(panel).toContain("date > today");
     expect(avance).toContain("monthEnd > today ? today : monthEnd");
     expect(avance).toContain("if (start > today) return");
   });

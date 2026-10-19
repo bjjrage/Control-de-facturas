@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { CurrencyCode } from "@/lib/types";
+import { requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { revalidatePath } from "next/cache";
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
@@ -45,6 +46,8 @@ export async function createOrderFromInvoice(
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
+  const identityCheck = await requireInvoiceIdentity(supabase,invoiceId,empresaId);
+  if(identityCheck.error)return { error: identityCheck.error };
 
   const { data: invoice } = await supabase
     .from("invoices")

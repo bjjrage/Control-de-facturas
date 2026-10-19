@@ -1,4 +1,5 @@
 import { BackButton } from "@/components/ui/back-button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -58,11 +59,8 @@ export default async function CompetidoresIndexPage({
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
-              Radar de Competidores
+              Competidores<InfoTooltip className="ml-1" label="Competidores" content="Directorio de constructoras y oferentes observados en licitaciones públicas, con evidencia e historial de participación." />
             </h1>
-            <p className="text-sm text-[var(--muted)]">
-              Directorio analítico 360° de empresas constructoras y oferentes observados en licitaciones públicas (Gate 5A).
-            </p>
           </div>
         </div>
       </div>

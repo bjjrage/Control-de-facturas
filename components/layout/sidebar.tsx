@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -75,6 +76,7 @@ const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   proveedores: Truck,
   cotizaciones: MessagesSquare,
   compras: Package,
+  recepciones: PackageCheck,
   facturas: Receipt,
   pagos: Wallet,
   ejecucion: Hammer,
@@ -250,6 +252,7 @@ export function Sidebar({
   plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const workspace = workspaceForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [openSection, setOpenSection] = useState<{
@@ -263,6 +266,12 @@ export function Sidebar({
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
   const [normalizedLogoSrc, setNormalizedLogoSrc] = useState<string | null>(null);
+  const logoImageRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    // A cached 404 can fire before hydration attaches onError.
+    const image = logoImageRef.current;
+    if (image?.complete && image.naturalWidth === 0) setLogoFailed(true);
+  }, [logoVersion, normalizedLogoSrc]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
@@ -319,7 +328,7 @@ export function Sidebar({
   useEffect(() => {
     // The tab is initialized from the URL whenever the route changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    setCurrentTab(projectTabForPath(pathname, window.location.search));
   }, [pathname]);
   useEffect(() => {
     const handler = (e: Event) => setCurrentTab((e as CustomEvent<string>).detail);
@@ -758,6 +767,10 @@ export function Sidebar({
                     onClick={() => {
                       setOpenProjectSection(null);
                       const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                      if (pathname !== `/projects/${activeProjectId}`) {
+                        router.push(url);
+                        return;
+                      }
                       window.history.pushState({}, "", url);
                       window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
                     }}
@@ -783,7 +796,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
+        "erp-sidebar relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
         collapsed ? "w-[52px]" : "w-[164px]"
       )}
     >
@@ -795,6 +808,15 @@ export function Sidebar({
             collapsed ? "h-10 w-10 justify-center" : "h-10 w-[120px] shrink-0 justify-center"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
+          role={isAdmin ? "button" : undefined}
+          tabIndex={isAdmin ? 0 : undefined}
+          aria-label={isAdmin ? "Subir logo de la empresa" : undefined}
+          onKeyDown={(event) => {
+            if (isAdmin && !uploading && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           title={isAdmin ? "Subir logo de la empresa" : undefined}
         >
           {logoBucketUrl && !logoFailed ? (
@@ -806,6 +828,7 @@ export function Sidebar({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                ref={logoImageRef}
                 src={normalizedLogoSrc ?? `${logoBucketUrl}?v=${logoVersion}`}
                 alt="Logo"
                 crossOrigin="anonymous"

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { construirProyeccion, TIPOS_PLAN_SEMANAL, type FlujoItem } from "@/lib/flujo-caja";
@@ -107,7 +108,7 @@ export function FlujoCajaSection({
   if (!hayCuentas && items.length === 0) {
     return (
       <div className="max-w-3xl mt-1">
-        <h1 className="text-[17px] font-semibold">Flujo de caja</h1>
+        <h1 className="text-[17px] font-semibold">Flujo de caja<InfoTooltip className="ml-1" label="Flujo de caja" content="La proyección separa monedas y excluye fechas desconocidas del total fechado. El saldo actual ya incluye los movimientos de Tesorería." /></h1>
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--muted)]">
           Todavía no hay cuentas financieras. Creá tus bancos y cajas en{" "}
           <Link href="/tesoreria" className="text-action">Tesorería</Link> para ver la proyección de caja.
@@ -126,7 +127,7 @@ export function FlujoCajaSection({
     <div className="max-w-6xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3 mt-1">
         <div>
-          <h1 className="text-[17px] font-semibold">Flujo de caja</h1>
+          <h1 className="text-[17px] font-semibold">Flujo de caja<InfoTooltip className="ml-1" label="Flujo de caja" content={`La proyección separa monedas y excluye fechas desconocidas del total fechado. ${projectId ? "El flujo de esta obra parte de cero; el saldo bancario pertenece a la empresa." : "El saldo actual ya incluye los movimientos de Tesorería."}`} /></h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
             Saldo actual:{" "}
             {saldoPorMoneda.length > 0
@@ -136,7 +137,6 @@ export function FlujoCajaSection({
         </div>
         <GastosDialog cuentas={cuentas} proyectos={proyectos} />
       </div>
-      <p className="text-[12px] text-[var(--muted)]">Proyección derivada de las fuentes actuales. Monedas separadas; fechas desconocidas fuera del total fechado. {projectId ? "El flujo de esta obra parte de cero: el saldo bancario pertenece a la empresa." : "El saldo actual ya incluye los movimientos de Tesorería."}</p>
       <div className="flex flex-wrap gap-4 text-[12px]" aria-label="Certeza de las salidas">
         {(["PLANNED","COMMITTED"] as const).map(certainty=><span key={certainty}>{certainty === "PLANNED" ? "Planificado" : "Comprometido"}: {formatMoney(proyeccion.periodos.flatMap(p=>p.items).filter(i=>i.certainty===certainty && i.monto<0).reduce((n,i)=>n-i.monto,0),moneda)}</span>)}
       </div>
@@ -263,12 +263,10 @@ export function FlujoCajaSection({
       {/* Sin fecha */}
       {proyeccion.sinFecha.length > 0 ? (
         <div>
-          <h2 className="text-[14px] font-semibold mb-2">
+          <h2 className="flex items-center text-[14px] font-semibold mb-2">
             Sin fecha de vencimiento ({proyeccion.sinFecha.length})
+            <InfoTooltip className="ml-1" label="Movimientos sin fecha" content="No se suman al total fechado. La orden de compra conserva fecha desconocida si no hay un vencimiento factual." />
           </h2>
-          <p className="text-[12px] text-[var(--muted)] mb-2">
-            Excluidos del total fechado. La OC y otros compromisos conservan fecha desconocida cuando no existe un vencimiento factual.
-          </p>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
             <table>
               <thead>

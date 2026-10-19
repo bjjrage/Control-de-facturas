@@ -1,4 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CurrencyCode } from "./types";
+
+export function bulkInvoiceCurrency(value: unknown): CurrencyCode | null {
+  return value === "PYG" || value === "USD" || value === "EUR" || value === "BRL" || value === "ARS"
+    ? value : null;
+}
+
+export async function persistBulkIdentityAfterLines(
+  lineSaveError: string | null,
+  persist: () => Promise<{ error: string | null }>,
+): Promise<{ error: string | null }> {
+  if (lineSaveError) return { error: lineSaveError };
+  return persist();
+}
 
 export type InvoiceJobLease = {
   id: string;

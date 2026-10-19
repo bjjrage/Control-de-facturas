@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
@@ -141,10 +142,7 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     <div className="max-w-5xl space-y-4">
       <div className="flex items-start justify-between gap-4 mt-1">
         <div>
-          <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
-          <p className="text-[12px] text-[var(--muted)] mt-0.5">
-            Todas tus compras y en qué etapa están.
-          </p>
+          <h1 className="text-[17px] font-semibold">Órdenes de compra<InfoTooltip className="ml-1" label="Órdenes de compra" content="Consultá tus compras y la etapa en que se encuentran." /></h1>
         </div>
         <Button onClick={() => setDialogOpen(true)} className="shrink-0">
           + Nueva compra
