@@ -127,9 +127,8 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "No se pudo generar el borrador de recepción." }, { status: 500 });
     }
 
-    // 2. Upload photo evidence if provided
-
-
+    // Save all evidence before stock is posted. A failed upload leaves the
+    // idempotent receipt in DRAFT so the same attempt can be retried safely.
     const evidenceWarnings: string[] = [];
     for (const { file, bytes, contentType } of submitted.files) {
       const sha256 = sha256Bytes(bytes);
@@ -161,7 +160,25 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", uploadIncomplete: evidenceWarnings.length > 0, pendingEvidence: evidenceWarnings, movements: (createData as { movements?: string[] }).movements });
+    if (evidenceWarnings.length) {
+      return NextResponse.json({
+        ok: false, receiptId, status: "DRAFT", pendingEvidence: evidenceWarnings,
+        error: "No se guardaron todos los adjuntos. Reintentá con los mismos datos; el stock todavía no se confirmó.",
+      }, { status: 503 });
+    }
+    const { data: movements, error: confirmationError } = await admin.rpc("inventory_confirm_receipt", {
+      p_empresa_id: link.empresa_id, p_receipt_id: receiptId,
+      p_delivery_location_id: location.id,
+      p_idempotency_key: `warehouse-portal-receipt:${link.id}:${attempt}`,
+      p_confirmed_by: null,
+    });
+    if (confirmationError) {
+      return NextResponse.json({
+        ok: false, receiptId, status: "DRAFT",
+        error: confirmationError.message ?? "No se pudo confirmar la recepción. Reintentá con los mismos datos.",
+      }, { status: 409 });
+    }
+    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", uploadIncomplete: false, pendingEvidence: [], movements });
   }
 
 

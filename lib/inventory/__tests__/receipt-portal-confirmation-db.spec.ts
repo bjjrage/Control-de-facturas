@@ -8,6 +8,7 @@ const canonical = read("supabase/migrations/20261003133414_inventory_canonical_b
 const context = read("supabase/migrations/20261003135743_inventory_receipt_product_context.sql");
 const proposal = read("supabase/migrations/20261015015138_receipt_portal_confirm_stock.sql");
 const externalActor = read("supabase/migrations/20261017182538_warehouse_portal_external_actor.sql");
+const stagedWarehouseReceipt = read("supabase/migrations/20261018120800_stage_warehouse_receipt_before_evidence.sql");
 function original(source: string, name: string, schema = "public") {
   const match = new RegExp(`CREATE (?:OR REPLACE )?FUNCTION (?:${schema}\\.${name}|"${schema}"\\."${name}")\\(`).exec(source);
   if (!match) throw new Error("Missing real function " + name);
@@ -73,6 +74,7 @@ beforeAll(async () => {
   `);
   await db.exec(proposal);
   await db.exec(externalActor);
+  await db.exec(stagedWarehouseReceipt);
 }, 30000);
 beforeEach(async () => {
   await db.exec(`TRUNCATE oc_recepcion_items,oc_recepciones,inventory_receipt_evidence,inventory_movement_costs,inventory_movements,inventory_balances,receipt_portal_links,warehouse_portal_links,authorized_order_items,authorized_orders,inventory_locations,productos,projects,profiles,empresas,storage.objects;
@@ -175,7 +177,11 @@ describe("receiver link confirms canonical worksite stock atomically", () => {
     const args = [tokenHash, id(6), attempt, JSON.stringify([{ order_item_id: id(5), producto_id: id(4), cantidad_recibida: 5, notas: null }])];
     const call = "select public.inventory_portal_receipt($1,$2,'2026-10-14','Depositero externo','REM-QA',$3,NULL,$4::jsonb) r";
     const first = (await db.query<{ r: { receipt_id: string } }>(call, args)).rows[0].r;
-    expect((await db.query("select status,confirmed_by,recibido_por,created_by from oc_recepciones where id=$1", [first.receipt_id])).rows[0]).toEqual({ status: "CONFIRMED", confirmed_by: null, recibido_por: "Depositero externo", created_by: id(2) });
+    expect((await db.query("select status,confirmed_by,recibido_por,created_by from oc_recepciones where id=$1", [first.receipt_id])).rows[0]).toEqual({ status: "DRAFT", confirmed_by: null, recibido_por: "Depositero externo", created_by: id(2) });
+    expect(await state()).toMatchObject({ receipts: 1, movements: 0, stock: 0 });
+    await db.exec(`INSERT INTO inventory_receipt_evidence(empresa_id,receipt_id,storage_bucket,storage_path,file_name,mime_type,size_bytes,sha256)
+      VALUES ('${id(1)}','${first.receipt_id}','warehouse-evidence','receipts/${first.receipt_id}/remito.pdf','remito.pdf','application/pdf',100,'${"b".repeat(64)}')`);
+    await db.query("select inventory_confirm_receipt($1,$2,$3,$4,NULL)", [id(1), first.receipt_id, id(8), `warehouse-portal-receipt:${id(9)}:${attempt}`]);
     expect((await db.query("select created_by,metadata->>'confirmation_source' source,metadata->>'warehouse_portal_link_id' link,metadata->>'received_by' receiver from inventory_movements")).rows[0]).toEqual({ created_by: null, source: "WAREHOUSE_PORTAL", link: id(9), receiver: "Depositero externo" });
     expect(await state()).toMatchObject({ receipts: 1, movements: 1, stock: 5 });
     await db.query(call, args);
