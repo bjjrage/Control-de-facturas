@@ -175,7 +175,11 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setConsumptionError(data.error ?? "No se pudo registrar la salida.");
-        consumptionAttempt.current = clearRejectedConsumptionAttempt(localStorage, storageKey, consumptionAttempt.current);
+        // A 5xx may follow a committed movement. Keep its identity until a
+        // definite 4xx rejection or a complete success resolves the attempt.
+        if (response.status >= 400 && response.status < 500) {
+          consumptionAttempt.current = clearRejectedConsumptionAttempt(localStorage, storageKey, consumptionAttempt.current);
+        }
       } else if (data.uploadIncomplete) {
         setConsumptionSuccess(`Salida ${data.movementId} registrada y descontada del stock.`);
         setConsumptionError("Quedaron adjuntos sin guardar. Reenvia los mismos datos y archivos para completar la evidencia sin duplicar la salida.");
