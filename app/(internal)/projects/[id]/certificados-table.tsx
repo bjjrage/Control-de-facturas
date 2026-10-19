@@ -699,6 +699,7 @@ function LiqRow({
           min="0"
           defaultValue={Math.abs(value)}
           onBlur={(e) => {
+            if (!e.target.value.trim()) { e.target.value = String(Math.abs(value)); return; }
             const v = Number(e.target.value);
             if (Number.isFinite(v) && v !== Math.abs(value)) onSave(v);
           }}
@@ -722,6 +723,7 @@ function QtyInput({ value, onSave }: { value: number; onSave: (v: number) => voi
       min="0"
       defaultValue={value}
       onBlur={(e) => {
+        if (!e.target.value.trim()) { e.target.value = String(value); return; }
         const v = Number(e.target.value);
         if (Number.isFinite(v) && v >= 0 && v !== value) onSave(v);
       }}
@@ -757,6 +759,7 @@ function UnitAvanceSection({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [localPct, setLocalPct] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const p of progress) init[p.unit_id] = String(p.pct_avance);
@@ -766,12 +769,15 @@ function UnitAvanceSection({
   const progressByUnit = new Map(progress.map((p) => [p.unit_id, p]));
 
   function saveUnit(unitId: string, raw: string) {
-    const v = parseFloat(raw);
+    if (!raw.trim()) return;
+    const v = Number(raw);
     if (!Number.isFinite(v) || v < 0 || v > 100) return;
     const current = progressByUnit.get(unitId)?.pct_avance ?? 0;
     if (v === current) return;
     startTransition(async () => {
-      await upsertCertificateUnitProgress(certificateId, [{ unit_id: unitId, pct_avance: v }]);
+      setSaveError(null);
+      const result = await upsertCertificateUnitProgress(certificateId, [{ unit_id: unitId, pct_avance: v }]);
+      if (result.error) { setSaveError(result.error); return; }
       router.refresh();
     });
   }
@@ -786,6 +792,7 @@ function UnitAvanceSection({
           </Button>
         ) : null}
       </div>
+      {saveError ? <p role="alert" className="mb-2 text-xs text-[var(--error)]">{saveError}</p> : null}
       <div className="overflow-x-auto rounded border border-[var(--border)]">
         <table className="text-[12px]">
           <thead>
