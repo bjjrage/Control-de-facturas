@@ -211,11 +211,12 @@ export function SalesForm({
               <div key={i} className="grid grid-cols-[1fr_80px_130px_90px_120px_32px] gap-2 items-end">
                 <div>
                   {i === 0 ? <Label>Descripción</Label> : null}
-                  <Input value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} required />
+                  <Input aria-label={`Descripción del ítem ${i + 1}`} value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} required />
                 </div>
                 <div>
                   {i === 0 ? <Label>Cant.</Label> : null}
                   <Input
+                    aria-label={`Cantidad del ítem ${i + 1}`}
                     type="number"
                     step="0.01"
                     min="0"
@@ -226,6 +227,7 @@ export function SalesForm({
                 <div>
                   {i === 0 ? <Label>Precio unit.</Label> : null}
                   <Input
+                    aria-label={`Precio unitario del ítem ${i + 1}`}
                     type="number"
                     step="0.01"
                     min="0"
@@ -236,6 +238,7 @@ export function SalesForm({
                 <div>
                   {i === 0 ? <Label>IVA</Label> : null}
                   <Select
+                    aria-label={`IVA del ítem ${i + 1}`}
                     value={String(r.vat_rate)}
                     onChange={(e) => setRow(i, { vat_rate: Number(e.target.value) as 0 | 5 | 10 })}
                   >

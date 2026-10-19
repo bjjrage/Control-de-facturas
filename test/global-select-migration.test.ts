@@ -22,6 +22,9 @@ describe("global operational Select migration contracts", () => {
     const normalizeNewlines = (value: string) => value.replace(/\r\n?/g, "\n");
     const normalizeOpening = (value: string) => normalizeNewlines(value)
       .replace(/\s+aria-label=\{`Material en inventario para \$\{it\.product\}`\}/, "")
+      // U1 adds names to the three catalog dropdowns without changing values,
+      // options, defaults or handlers. Their names are asserted separately below.
+      .replace(/\s+aria-label="(?:Categoría|Unidad de compra|Unidad base)"/g, "")
       .replace(/className="[^"]*"/, "");
     const expected = before.filter(control => control.file === file).map(control => ({
       ...control,
@@ -34,6 +37,9 @@ describe("global operational Select migration contracts", () => {
       children: normalizeNewlines(control.children),
     }));
     expect(actual).toEqual(expected);
+    if (["app/(internal)/stock/nuevo/page.tsx", "app/(internal)/stock/[id]/editar/page.tsx"].includes(file)) {
+      expect(controls(file).map(control => control.opening.match(/aria-label="([^"]+)"/)?.[1])).toEqual(["Categoría", "Unidad de compra", "Unidad base"]);
+    }
     if (file.endsWith("recepcion-section.tsx")) expect(readFileSync(file, "utf8")).toContain('aria-label={`Material en inventario para ${it.product}`}');
     expect(readFileSync(file, "utf8")).toMatch(/import\s*\{\s*Select\s*\}\s*from\s*["']@\/components\/ui\/select["']/);
   });
