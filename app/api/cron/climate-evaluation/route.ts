@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runClimateEvaluationBatch } from "@/lib/procurement/climate-evaluation-runner";
+import { climateToday, validClimateDate } from "@/lib/procurement/climate-entry";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +25,9 @@ async function handleCron(request: NextRequest) {
 
   try {
     const params = new URL(request.url).searchParams;
-    const date = params.get("date") ?? new Date().toISOString().slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json({ error: "date debe tener formato YYYY-MM-DD" }, { status: 400 });
+    const date = params.get("date") ?? climateToday();
+    if (!validClimateDate(date)) {
+      return NextResponse.json({ error: "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay." }, { status: 400 });
     }
     const result = await runClimateEvaluationBatch(createAdminClient(), {
       date,
