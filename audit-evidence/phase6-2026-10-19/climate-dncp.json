@@ -1,0 +1,50 @@
+[
+  {
+    "name": "#26 real concurrent confirmation after weather snapshot",
+    "status": "PASS",
+    "detail": {
+      "snapshot": {
+        "id": "2cf0c452-c81b-44c6-b038-4e7ef28acf77",
+        "status": "CONFIRMED"
+      },
+      "concurrent": "authenticated UPDATE status=CONFIRMED while original GET response was held",
+      "response": {
+        "status": 200,
+        "data": {
+          "error": null,
+          "thresholdExceeded": false,
+          "summary": "0 mm · Fuente: dmh-dinac. No supera el umbral; no se propone una jornada perdida por lluvia."
+        }
+      },
+      "after": {
+        "id": "2cf0c452-c81b-44c6-b038-4e7ef28acf77",
+        "status": "CONFIRMED",
+        "external_precipitation_mm": 0
+      }
+    }
+  },
+  {
+    "name": "#39 DNCP delete failure reports incomplete import",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "id": "9ab36d22-d031-4236-accc-4a56816d5949",
+        "nro": "391731",
+        "error": "Importación incompleta: No se pudieron sincronizar los datos anteriores.. Revisá la licitación antes de reintentar."
+      }
+    }
+  },
+  {
+    "name": "#39 DNCP insert failure reports incomplete import",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "id": "9ab36d22-d031-4236-accc-4a56816d5949",
+        "nro": "391731",
+        "error": "Importación incompleta: Ítems: QA controlled database failure. Revisá la licitación antes de reintentar."
+      }
+    }
+  }
+]

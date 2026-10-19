@@ -1,0 +1,173 @@
+[
+  {
+    "name": "#32 APU invalid writes nothing",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "plantillas": 0,
+        "lineas": 0,
+        "productosCreados": 0,
+        "preciosGuardados": 0,
+        "errores": [
+          {
+            "receta": "APU QA INVALID",
+            "insumo": "Material inválido QA",
+            "motivo": "Cantidad inválida."
+          }
+        ],
+        "error": "Corregí todos los insumos con error antes de importar. No se guardó ninguna fila."
+      }
+    }
+  },
+  {
+    "name": "#32 invalid certificate workbook writes nothing",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "error": "La fila 4 tiene datos de partida incompletos o ambiguos. Corregí el XLSX antes de importar.",
+        "id": null,
+        "alreadyImported": false
+      }
+    }
+  },
+  {
+    "name": "#33 failed unit progress write is reported",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "error": "No se pudo guardar el avance por unidad. Conservá los valores y reintentá."
+      }
+    }
+  },
+  {
+    "name": "#33 invalid unit group saves no partial progress",
+    "status": "PASS",
+    "detail": {
+      "response": {
+        "status": 200,
+        "data": {
+          "error": "No se pudo guardar el avance por unidad. Conservá los valores y reintentá."
+        }
+      },
+      "before": [],
+      "after": []
+    }
+  },
+  {
+    "name": "#27 midnight Paraguay boundaries and invalid days",
+    "status": "PASS",
+    "detail": [
+      {
+        "at": "2026-10-20T02:59:59Z",
+        "query": "",
+        "status": 200,
+        "body": {
+          "ok": true,
+          "timestamp": "2026-10-20T02:59:59.000Z",
+          "date": "2026-10-19",
+          "scanned": 0,
+          "proposed_or_existing": 0,
+          "results": [],
+          "failures": []
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "",
+        "status": 200,
+        "body": {
+          "ok": true,
+          "timestamp": "2026-10-20T03:00:00.000Z",
+          "date": "2026-10-20",
+          "scanned": 0,
+          "proposed_or_existing": 0,
+          "results": [],
+          "failures": []
+        }
+      },
+      {
+        "at": "2026-10-20T02:59:59Z",
+        "query": "&date=2026-10-20",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "&date=2026-02-30",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "&date=invalid",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      }
+    ]
+  },
+  {
+    "name": "#34 create workbook import session",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "body": {
+        "sessionId": "e091f600-61d2-43e6-baf5-f58d63c8b697"
+      }
+    }
+  },
+  {
+    "name": "#34 failed discard keeps session, retry discards it",
+    "status": "PASS",
+    "detail": {
+      "failure": {
+        "status": 200,
+        "data": {
+          "error": "No se pudo descartar la sesión."
+        }
+      },
+      "first": {
+        "status": "UPLOADED"
+      },
+      "retry": {
+        "status": 200,
+        "data": {
+          "error": null
+        }
+      },
+      "after": {
+        "status": "DISCARDED"
+      }
+    }
+  },
+  {
+    "name": "planilla uncertain result preserves session",
+    "status": "PASS",
+    "detail": {
+      "status": 503,
+      "body": {
+        "error": "No se pudo comprobar la confirmación. Conservá la planilla y reintentá sobre la misma sesión."
+      },
+      "persisted": {
+        "id": "5d30b59b-7570-4717-8b05-a42cc57c8664",
+        "estado": "confirmed"
+      },
+      "retry": {
+        "alreadyConfirmed": true,
+        "result": {
+          "deleted": 0,
+          "updated": 1,
+          "inserted": 0
+        }
+      }
+    }
+  }
+]

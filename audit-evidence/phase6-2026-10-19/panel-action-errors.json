@@ -1,0 +1,35 @@
+[
+  {
+    "name": "listApuTemplatesAction",
+    "response": {
+      "status": 200,
+      "data": {
+        "data": null,
+        "error": "QA controlled database failure"
+      }
+    }
+  },
+  {
+    "name": "listLaborPaymentsAction",
+    "response": {
+      "status": 200,
+      "data": {
+        "data": null,
+        "error": "QA controlled database failure"
+      }
+    }
+  },
+  {
+    "name": "deleteApuTemplateAction",
+    "response": {
+      "status": 200,
+      "data": {
+        "success": false,
+        "error": "QA controlled database failure"
+      }
+    },
+    "retained": {
+      "id": "df93ba40-4848-4559-9590-486b490a9934"
+    }
+  }
+]

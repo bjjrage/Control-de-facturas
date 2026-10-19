@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "data": {
+    "data": null,
+    "error": "El PDF no tiene texto (parece un escaneo/foto guardada como PDF) — cargalo como imagen en vez de PDF."
+  }
+}

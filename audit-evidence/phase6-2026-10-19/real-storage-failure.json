@@ -1,0 +1,28 @@
+{
+  "failure": {
+    "status": 502,
+    "body": {
+      "error": "No se pudo guardar toda la evidencia. No se creó la recepción; intentá nuevamente."
+    }
+  },
+  "receiptsBefore": 3,
+  "receiptsAfter": 3,
+  "remainingUploadedObjects": 0,
+  "bucketRestored": true,
+  "configuration": {
+    "id": "warehouse-evidence",
+    "name": "warehouse-evidence",
+    "owner": "",
+    "public": false,
+    "file_size_limit": 20971520,
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "application/pdf"
+    ],
+    "created_at": "2026-10-15T02:00:52.863Z",
+    "updated_at": "2026-10-15T02:00:52.863Z"
+  }
+}

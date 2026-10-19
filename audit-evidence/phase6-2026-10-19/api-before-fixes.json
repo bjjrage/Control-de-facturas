@@ -1,0 +1,125 @@
+[
+  {
+    "name": "#32 APU invalid writes nothing",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "plantillas": 0,
+        "lineas": 0,
+        "productosCreados": 0,
+        "preciosGuardados": 0,
+        "errores": [
+          {
+            "receta": "APU QA INVALID",
+            "insumo": "Material inválido QA",
+            "motivo": "Cantidad inválida."
+          }
+        ],
+        "error": "Corregí todos los insumos con error antes de importar. No se guardó ninguna fila."
+      }
+    }
+  },
+  {
+    "name": "#32 invalid certificate workbook writes nothing",
+    "status": "PASS",
+    "detail": {
+      "status": 200,
+      "data": {
+        "error": "El ImportPlan no cumple el contrato esperado.",
+        "id": null,
+        "alreadyImported": false
+      }
+    }
+  },
+  {
+    "name": "#33 failed unit progress write is reported",
+    "status": "FAIL",
+    "error": "AssertionError [ERR_ASSERTION]: Server returned success after the database rejected the write: {\"status\":200,\"data\":{}}\n    at C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:34:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async check (C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:5:48)\n    at async C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:31:2"
+  },
+  {
+    "name": "#27 midnight Paraguay boundaries and invalid days",
+    "status": "PASS",
+    "detail": [
+      {
+        "at": "2026-10-20T02:59:59Z",
+        "query": "",
+        "status": 200,
+        "body": {
+          "ok": true,
+          "timestamp": "2026-10-20T02:59:59.000Z",
+          "date": "2026-10-19",
+          "scanned": 0,
+          "proposed_or_existing": 0,
+          "results": [],
+          "failures": []
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "",
+        "status": 200,
+        "body": {
+          "ok": true,
+          "timestamp": "2026-10-20T03:00:00.000Z",
+          "date": "2026-10-20",
+          "scanned": 0,
+          "proposed_or_existing": 0,
+          "results": [],
+          "failures": []
+        }
+      },
+      {
+        "at": "2026-10-20T02:59:59Z",
+        "query": "&date=2026-10-20",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "&date=2026-02-30",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      },
+      {
+        "at": "2026-10-20T03:00:00Z",
+        "query": "&date=invalid",
+        "status": 400,
+        "body": {
+          "error": "date debe ser una fecha válida YYYY-MM-DD hasta hoy en Paraguay."
+        }
+      }
+    ]
+  },
+  {
+    "name": "#34 create workbook import session",
+    "status": "FAIL",
+    "error": "AssertionError [ERR_ASSERTION]: {\"error\":\"No se pudo guardar el archivo original: Bucket not found\"}\n    at C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:48:154\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async check (C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:5:48)\n    at async C:\\Users\\User\\.codex\\visualizations\\2026\\10\\17\\01a147c3-75ea-7070-af44-6aed93d0c4ff\\merge-prep-control-facturas\\scripts\\qa\\phase6\\api-checks.cjs:45:2"
+  },
+  {
+    "name": "planilla uncertain result preserves session",
+    "status": "PASS",
+    "detail": {
+      "status": 503,
+      "body": {
+        "error": "No se pudo comprobar la confirmación. Conservá la planilla y reintentá sobre la misma sesión."
+      },
+      "persisted": {
+        "id": "6124d629-99ef-489a-a211-2550bd7b3efb",
+        "estado": "confirmed"
+      },
+      "retry": {
+        "alreadyConfirmed": true,
+        "result": {
+          "deleted": 0,
+          "updated": 1,
+          "inserted": 0
+        }
+      }
+    }
+  }
+]

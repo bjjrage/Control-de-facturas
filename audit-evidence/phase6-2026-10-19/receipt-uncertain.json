@@ -1,0 +1,33 @@
+{
+  "uncertain": {
+    "status": 503,
+    "body": {
+      "error": "No se pudo comprobar si la recepción quedó confirmada. Consultá la recepción de esta OC antes de reenviar."
+    }
+  },
+  "receipts": [
+    {
+      "id": "a3abcf51-92fd-4936-a31b-ad738acde351",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "9520e8d9-a165-44c9-9576-2ed6c1c29313",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "ccb95688-3cce-4457-bdf8-450d87a17d92",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "6e9ffba1-20b8-40e1-9279-c4fd01a0ea40",
+      "status": "CONFIRMED"
+    }
+  ],
+  "originals": [
+    {
+      "name": "5d4f4e6f-8c69-4df4-8595-dea82a0710c7-qa-original.pdf",
+      "sha256": "225d57fc489b70710287736b4b333a99e026ffc8fba2aadbddc1c7ee193d7945"
+    }
+  ],
+  "expectedSha256": "225d57fc489b70710287736b4b333a99e026ffc8fba2aadbddc1c7ee193d7945"
+}

@@ -1,0 +1,17 @@
+{
+  "ref": "kyiihlkncatojvlasoag",
+  "created": true,
+  "bucket": {
+    "id": "certificate-workbooks",
+    "name": "certificate-workbooks",
+    "owner": "",
+    "public": false,
+    "file_size_limit": 10485760,
+    "allowed_mime_types": [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ],
+    "created_at": "2026-10-19T20:06:31.814Z",
+    "updated_at": "2026-10-19T20:06:31.814Z"
+  },
+  "policies": "Existing baseline session/project policies; no grants or policies modified"
+}
