@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { classifyWarehouseSubmission } from "@/lib/inventory/warehouse-portal-client-state";
 
 describe("#14 portal submission response", () => {
+  it("D3 names a previous missing file instead of claiming a partial 2/2", () => {
+    const result = classifyWarehouseSubmission(207, {
+      ok: true, partial: true, uploaded: 2, total: 2, uploadIncomplete: true,
+      pendingUploads: [{ file_name: "original-fallido.pdf", reason: "Storage no disponible" }],
+    });
+    expect(result.message).toContain("original-fallido.pdf");
+    expect(result.message).not.toContain("(2/2)");
+  });
   it("treats HTTP 207 as incomplete even though Response.ok is true", () => {
     const result = classifyWarehouseSubmission(207, {
       ok: true, partial: true, uploaded: 1, total: 2, rejected: [{ file: "second.pdf", reason: "Storage unavailable" }],

@@ -25,10 +25,16 @@ type SubmissionData = {
   uploaded?: number;
   total?: number;
   rejected?: Array<{ file: string; reason: string }>;
+  pendingUploads?: Array<{ file_name?: string; reason?: string }>;
 };
 
 export function classifyWarehouseSubmission(status: number, data: SubmissionData): { complete: boolean; message: string } {
   if (status === 207 || data.partial || data.uploadIncomplete) {
+    const pending = data.pendingUploads?.map(item => `${item.file_name ?? "Archivo sin nombre"}${item.reason ? `: ${item.reason}` : ""}`).join("; ");
+    if (pending) return {
+      complete: false,
+      message: `Adjuntos pendientes: ${pending}. Reenviá esos archivos para completar la rendición; los ya guardados se conservan.`,
+    };
     const rejected = data.rejected?.map(item => item.file).join(", ");
     return {
       complete: false,
