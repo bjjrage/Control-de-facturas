@@ -88,6 +88,7 @@ export function CertificadosTable({
   focusCertificateId?: string | null;
 }) {
   const [expanded, setExpanded] = useState<string | null>(focusCertificateId ?? certificates[0]?.id ?? null);
+  const expandedCertificate = certificates.find(certificate => certificate.id === expanded);
 
   useEffect(() => {
     if (!focusCertificateId || !certificates.some((certificate) => certificate.id === focusCertificateId)) return;
@@ -172,11 +173,11 @@ export function CertificadosTable({
         </table>
       </div>
 
-      {expanded ? (
+      {expandedCertificate ? (
         <CertificadoDetalle
           key={expanded}
           project={project}
-          certificate={certificates.find((c) => c.id === expanded)!}
+          certificate={expandedCertificate}
           items={itemsByCert[expanded] ?? []}
           staff={staffByCert[expanded] ?? []}
           projectUnits={projectUnits}
