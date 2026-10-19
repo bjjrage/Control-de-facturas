@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { displayLocationName } from "@/lib/inventory/display-location-name";
 import { hashWarehousePortalToken, inspectWarehousePortalFile, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
+import { updateOpenWarehouseSubmission } from "@/lib/inventory/update-open-warehouse-submission";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 20;
@@ -409,15 +410,11 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (accepted.length === 0) {
     const allFailedMsg = `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: uploadIncomplete && pendingSummary ? `${allFailedMsg} | Pendientes: ${pendingSummary}` : allFailedMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: false,
@@ -434,15 +431,11 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (rejected.length > 0) {
     const partialMsg = `Carga parcial (${accepted.length}/${files.length}). Fallaron: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: pendingSummary ? `${partialMsg} | Pendientes: ${pendingSummary}` : partialMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: false,
@@ -461,15 +454,11 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   if (uploadIncomplete) {
-    await admin
-      .from("warehouse_submissions")
-      .update({
+    const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, {
         status: "NEEDS_REVIEW",
         processing_error: pendingSummary ? `Quedan pendientes: ${pendingSummary}` : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", submission.id)
-      .eq("empresa_id", link.empresa_id);
+      });
+    if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
     return NextResponse.json(
       {
         ok: true,
@@ -486,14 +475,8 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  await admin
-    .from("warehouse_submissions")
-    .update({
-      processing_error: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", submission.id)
-    .eq("empresa_id", link.empresa_id);
+  const updated = await updateOpenWarehouseSubmission(admin, submission.id, link.empresa_id, { processing_error: null });
+  if (!updated) return NextResponse.json({ error: "La rendición ya fue cerrada.", submissionId: submission.id }, { status: 409 });
 
   return NextResponse.json({
     ok: true,
