@@ -209,6 +209,7 @@ export default async function EstadoCuentaPage({
                 <th className="py-1 pr-2 text-[11px]">Fecha</th>
                 <th className="py-1 pr-2 text-[11px]">Método</th>
                 <th className="py-1 pr-2 text-[11px]">Referencia</th>
+                <th className="py-1 pr-2 text-[11px]">Estado</th>
                 <th className="py-1 text-right text-[11px]">Monto</th>
               </tr>
             </thead>
@@ -225,6 +226,10 @@ export default async function EstadoCuentaPage({
                     </td>
                     <td className="py-0.5 pr-2 text-[11px]">
                       {r.reference ?? "—"}
+                    </td>
+                    <td className="py-0.5 pr-2 text-[11px]" title={r.reversal_reason ?? undefined}>
+                      {r.reversed_at ? <span>Revertido</span> : <span>Activo</span>}
+                      {r.reversed_at ? <div>{formatDate(r.reversed_at)} · {r.reversal_reason ?? "Sin motivo informado"}</div> : null}
                     </td>
                     <td className="py-0.5 text-right text-[11px]">
                       {formatMoney(r.amount, d.currency)}
