@@ -25,7 +25,10 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
       if (!anchor.current || !bubble.current) return;
       const rect = anchor.current.getBoundingClientRect();
       const { width, height } = bubble.current.getBoundingClientRect();
-      const left = Math.max(8 - rect.left, Math.min(0, document.documentElement.clientWidth - 8 - rect.left - width));
+      const boundary = anchor.current.closest('[role="dialog"], main')?.getBoundingClientRect();
+      const start = Math.max(8, (boundary?.left ?? 0) + 8);
+      const end = Math.min(document.documentElement.clientWidth - 8, (boundary?.right ?? document.documentElement.clientWidth) - 8);
+      const left = Math.max(start - rect.left, Math.min(0, end - rect.left - width));
       const top = rect.bottom + height + 8 > window.innerHeight && rect.top > height + 8
         ? `${-height - 8}px` : "calc(100% + 0.55rem)";
       setPosition(previous => previous.left === left && previous.top === top ? previous : { left, top });
