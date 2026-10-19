@@ -18,5 +18,5 @@ export function sourceFunctions(file: string, names: string[], dependencies: Rec
     return ts.isVariableStatement(statement) && statement.declarationList.declarations.some(d => ts.isIdentifier(d.name) && names.includes(d.name.text));
   }).map(statement => statement.getText(ast)).join("\n");
   const code = ts.transpileModule(selected, { fileName:file, compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx:ts.JsxEmit.React } }).outputText;
-  return new Function("React", ...Object.keys(dependencies), code + "\nreturn {" + names.join(",") + "};")(React, ...Object.values(dependencies));
+  return new Function("React", "exports", ...Object.keys(dependencies), code + "\nreturn {" + names.join(",") + "};")(React, {}, ...Object.values(dependencies));
 }

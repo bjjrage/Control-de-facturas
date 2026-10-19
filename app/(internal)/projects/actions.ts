@@ -956,9 +956,19 @@ export async function importBudgetItems(
     .single();
   if (!project) return { inserted: 0, skipped: 0, error: "Proyecto no encontrado." };
 
-  const valid = items.filter((i) => i.code.trim() && i.description.trim());
-  const skipped = items.length - valid.length;
-  if (valid.length === 0) return { inserted: 0, skipped, error: "Ningún ítem válido para importar." };
+  const codes = new Set<string>();
+  for (const item of items) {
+    const code = item.code?.trim();
+    if (!code || !item.description?.trim() || codes.has(code) ||
+      [item.quantity, item.unit_price].some(value => value !== null && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) ||
+      validateScheduleDates(item.start_date, item.end_date)) {
+      return { inserted: 0, skipped: 0, error: "Corregí códigos repetidos, filas incompletas, cantidades, precios o fechas. No se importó ninguna fila." };
+    }
+    codes.add(code);
+  }
+  const valid = items;
+  const skipped = 0;
+  if (!valid.length) return { inserted: 0, skipped, error: "Ningún ítem válido para importar." };
 
   const { data: maxRow } = await supabase
     .from("budget_items")
@@ -1064,6 +1074,17 @@ export async function applyScheduleImport(
 
   let applied = 0;
   const failed: { itemId: string; error: string }[] = [];
+  const seen = new Set<string>();
+  for (const a of assignments) {
+    const error = !allowedIds.has(a.itemId) ? "La partida no pertenece a esta obra."
+      : seen.has(a.itemId) ? "La partida está repetida en la importación."
+      : !a.start_date || !a.end_date ? "Completá inicio y fin."
+      : validateScheduleDates(a.start_date, a.end_date)
+        ?? (a.depends_on !== null && (!allowedIds.has(a.depends_on) || a.depends_on === a.itemId) ? "La predecesora no es válida para esta obra." : null);
+    if (error) failed.push({ itemId: a.itemId, error });
+    seen.add(a.itemId);
+  }
+  if (failed.length) return { applied: 0, failed };
   for (const a of assignments) {
     if (!allowedIds.has(a.itemId)) {
       failed.push({ itemId: a.itemId, error: "La partida no pertenece a esta obra." });

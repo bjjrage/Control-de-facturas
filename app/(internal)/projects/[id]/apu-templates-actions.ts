@@ -268,6 +268,11 @@ export async function importApuPlanillaAction(params: {
     const supabase = await createClient();
     const empresaId = profile.empresa_id;
     const errores = empty.errores;
+    if (!params.recipes.length || params.recipes.some(r => !r.name?.trim() || !r.lines?.length)) {
+      return { ...empty, error: "Cada APU debe tener nombre e insumos. No se importó ninguna fila." };
+    }
+    const recipeNames = params.recipes.map(r => normalizeInventoryImportText(r.name));
+    if (new Set(recipeNames).size !== recipeNames.length) return { ...empty, error: "Hay nombres de APU repetidos. Corregí la planilla." };
 
     const [productsRes, ratesRes] = await Promise.all([
       supabase.from("productos").select("id, nombre").eq("empresa_id", empresaId).eq("activo", true),
@@ -275,6 +280,7 @@ export async function importApuPlanillaAction(params: {
     ]);
     const products = (productsRes.data ?? []).map((p: any) => ({ id: p.id as string, name: p.nombre as string }));
     const rates = (ratesRes.data ?? []).map((r: any) => ({ id: r.id as string, categoria: r.categoria as string, costo_hora: Number(r.costo_hora) }));
+    if (productsRes.error || ratesRes.error) return { ...empty, error: "No se pudo verificar el catálogo y los jornales. No se importó ninguna fila." };
 
     // 1) Materiales: match único por nombre normalizado; los que no están en
     //    el catálogo se crean solo si el usuario lo pidió.
@@ -283,21 +289,14 @@ export async function importApuPlanillaAction(params: {
       for (const l of r.lines) {
         if (l.tipo !== "MATERIAL") continue;
         const key = normalizeInventoryImportText(l.descripcion);
-        if (key && !findUniqueExactInventoryMatch(l.descripcion, products) && !materialNames.has(key)) {
+        if (key && !products.some(p => normalizeInventoryImportText(p.name) === key) && !materialNames.has(key)) {
           materialNames.set(key, { nombre: l.descripcion.trim(), unidad: l.unidad?.trim() || null });
         }
       }
     }
     let productosCreados = 0;
-    if (params.createMissingProducts && materialNames.size > 0) {
-      const { data: created, error } = await supabase
-        .from("productos")
-        .insert([...materialNames.values()].map((m) => ({ empresa_id: empresaId, nombre: m.nombre, unidad: m.unidad ?? "unidad", created_by: profile.id })))
-        .select("id, nombre");
-      if (error) return { ...empty, error: `No se pudieron crear los materiales nuevos en el catálogo: ${error.message}` };
-      for (const p of created ?? []) products.push({ id: p.id, name: p.nombre });
-      productosCreados = created?.length ?? 0;
-    }
+    // Validate all lines against prospective products before the first write.
+    if (params.createMissingProducts) for (const [key, m] of materialNames) products.push({ id: `pending:${key}`, name: m.nombre });
 
     // 2) Filas por tabla, validadas.
     const materialRows: { recipe: string; productoId: string; cantidad: number; desperdicio: number }[] = [];
@@ -311,6 +310,10 @@ export async function importApuPlanillaAction(params: {
       if (!rname) continue;
       for (const l of recipe.lines ?? []) {
         const fail = (motivo: string) => errores.push({ receta: rname, insumo: l.descripcion, motivo });
+        if (!l.descripcion?.trim() || !["MATERIAL", "MANO_DE_OBRA", "EQUIPO", "SUBCONTRATO"].includes(l.tipo)) {
+          fail("Descripción o tipo de insumo inválido.");
+          continue;
+        }
         const cantidad = Number(l.cantidad);
         if (!Number.isFinite(cantidad) || cantidad <= 0) {
           fail("Cantidad inválida.");
@@ -327,8 +330,8 @@ export async function importApuPlanillaAction(params: {
             fail("El material no está en el catálogo (o hay más de uno con ese nombre).");
             continue;
           }
-          const desperdicio = Number(l.desperdicioPct) || 0;
-          if (desperdicio < 0 || desperdicio > 100) {
+          const desperdicio = l.desperdicioPct == null ? 0 : Number(l.desperdicioPct);
+          if (!Number.isFinite(desperdicio) || desperdicio < 0 || desperdicio > 100) {
             fail("Desperdicio fuera de 0–100 %.");
             continue;
           }
@@ -355,7 +358,7 @@ export async function importApuPlanillaAction(params: {
           if (l.tipo === "MANO_DE_OBRA") {
             const rate = matchLaborRate(l.descripcion, rates);
             const costoHora = rate ? rate.costo_hora : costoPorHora;
-            if (costoHora == null) {
+            if (costoHora == null || !Number.isFinite(costoHora) || costoHora < 0) {
               fail("Falta el costo por hora: cargá la categoría en Jornales o poné el precio en la planilla.");
               continue;
             }
@@ -375,6 +378,19 @@ export async function importApuPlanillaAction(params: {
           subcontractRows.push({ recipe: rname, descripcion: l.descripcion.trim(), precio: Math.round(cantidad * precio * 100) / 100 });
         }
       }
+    }
+
+    if (errores.length) return { ...empty, error: "Corregí todos los insumos con error antes de importar. No se guardó ninguna fila." };
+    if (params.createMissingProducts && materialNames.size > 0) {
+      const { data: created, error } = await supabase
+        .from("productos")
+        .insert([...materialNames.values()].map(m => ({ empresa_id: empresaId, nombre: m.nombre, unidad: m.unidad ?? "unidad", created_by: profile.id })))
+        .select("id, nombre");
+      if (error) return { ...empty, error: `No se pudieron crear los materiales nuevos: ${error.message}` };
+      const actualIds = new Map<string, string>((created ?? []).map(p => [`pending:${normalizeInventoryImportText(p.nombre)}`, String(p.id)]));
+      productosCreados = created?.length ?? 0;
+      if (actualIds.size !== materialNames.size) return { ...empty, productosCreados, error: "No se pudieron verificar todos los materiales creados; no se guardaron plantillas." };
+      for (const row of [...materialRows, ...priceHints]) row.productoId = actualIds.get(row.productoId) ?? row.productoId;
     }
 
     // 3) Plantillas (por nombre) y líneas.

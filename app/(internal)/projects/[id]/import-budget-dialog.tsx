@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
 
-type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "start_date" | "end_date";
+type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "line_total" | "start_date" | "end_date";
 type ColumnAssignment = FieldKey | "ignore";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
@@ -17,6 +17,7 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   unit: "Unidad",
   quantity: "Cantidad",
   unit_price: "Precio unitario",
+  line_total: "Importe de fila (verificación)",
   start_date: "Fecha inicio",
   end_date: "Fecha fin",
 };
@@ -28,6 +29,7 @@ const HEADER_VARIANTS: Record<FieldKey, string[]> = {
   description: ["descripcion", "detalle", "rubro", "concepto", "designacion"],
   unit: ["unidad", "und", "un", "u.m.", "medida"],
   quantity: ["cantidad", "cant", "qty", "metrado", "computo"],
+  line_total: ["importe", "monto", "total", "subtotal", "precio total", "costo total"],
   unit_price: ["precio unitario", "p. unitario", "punit", "precio", "p.u.", "costo unitario"],
   start_date: ["fecha inicio", "inicio", "f. inicio", "fecha de inicio", "start", "start date"],
   end_date: ["fecha fin", "fin", "f. fin", "fecha de fin", "end", "end date", "fecha final"],
@@ -215,6 +217,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     const unitCol = Object.entries(mapping).find(([, v]) => v === "unit")?.[0];
     const qtyCol = Object.entries(mapping).find(([, v]) => v === "quantity")?.[0];
     const priceCol = Object.entries(mapping).find(([, v]) => v === "unit_price")?.[0];
+    const totalCol = Object.entries(mapping).find(([, v]) => v === "line_total")?.[0];
     const startCol = Object.entries(mapping).find(([, v]) => v === "start_date")?.[0];
     const endCol = Object.entries(mapping).find(([, v]) => v === "end_date")?.[0];
 
@@ -233,6 +236,9 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       const endStr = String(endRaw ?? "").trim();
       const quantity = qtyStr ? parsePyNumber(qtyRaw) : null;
       const unit_price = priceStr ? parsePyNumber(priceRaw) : null;
+      const totalRaw = totalCol !== undefined ? row[Number(totalCol)] : null;
+      const totalStr = String(totalRaw ?? "").trim();
+      const declaredTotal = totalStr ? parsePyNumber(totalRaw) : null;
       const start_date = startStr ? parseDateCell(startRaw) : null;
       const end_date = endStr ? parseDateCell(endRaw) : null;
 
@@ -242,8 +248,11 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       else if (!description) { valid = false; reason = "Descripción vacía"; }
       else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad inválida o ambigua: quitá el separador de miles o aclará los decimales"; }
       else if (priceStr && unit_price === null) { valid = false; reason = "Precio inválido o ambiguo: quitá el separador de miles o aclará los decimales"; }
+      else if ((quantity !== null && quantity < 0) || (unit_price !== null && unit_price < 0)) { valid = false; reason = "Cantidad o precio negativo"; }
+      else if (totalStr && (declaredTotal === null || quantity === null || unit_price === null || Math.abs(quantity * unit_price - declaredTotal) > 0.01)) { valid = false; reason = "El importe de la fila no coincide con cantidad × precio, o es ambiguo"; }
       else if (startStr && !start_date) { valid = false; reason = "Fecha inicio no reconocida"; }
       else if (endStr && !end_date) { valid = false; reason = "Fecha fin no reconocida"; }
+      else if (start_date && end_date && end_date < start_date) { valid = false; reason = "Fin anterior al inicio"; }
 
       return {
         item: { code, description, unit: unitRaw || null, quantity, unit_price, start_date, end_date },
@@ -256,8 +265,13 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
   const validItems = previewRows.filter((r) => r.valid).map((r) => r.item);
   const invalidCount = previewRows.length - validItems.length;
   const previewTotal = validItems.reduce((s, i) => s + (i.quantity ?? 0) * (i.unit_price ?? 0), 0);
+  const duplicateCodes = new Set(validItems.map(item => item.code)).size !== validItems.length;
 
   async function confirmImport() {
+    if (invalidCount > 0 || validItems.length === 0 || duplicateCodes) {
+      setError("Corregí todas las filas inválidas antes de importar. No se omitió ninguna fila.");
+      return;
+    }
     setPending(true);
     setError(null);
     const result = await importBudgetItems(projectId, validItems);
@@ -377,7 +391,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] flex items-center justify-between">
               <span>
                 Se van a importar <strong>{validItems.length}</strong> ítems
-                {invalidCount > 0 ? `, se saltean ${invalidCount}` : ""}.
+                {invalidCount > 0 ? `. Importación bloqueada: corregí ${invalidCount} fila(s)` : ""}.
               </span>
               <span className="font-mono">{formatMoney(previewTotal, "PYG")}</span>
             </div>
@@ -412,7 +426,8 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
 
             <div className="flex justify-between">
               <Button type="button" variant="secondary" onClick={() => setStep("map")}>Atrás</Button>
-              <Button type="button" onClick={confirmImport} disabled={pending || validItems.length === 0}>
+              {duplicateCodes ? <p role="alert" className="text-[12px] text-[var(--error)]">Corregí los códigos repetidos antes de importar.</p> : null}
+              <Button type="button" onClick={confirmImport} disabled={pending || validItems.length === 0 || invalidCount > 0 || duplicateCodes}>
                 {pending ? "Importando…" : `Importar ${validItems.length} ítems`}
               </Button>
             </div>

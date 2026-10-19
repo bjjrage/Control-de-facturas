@@ -638,7 +638,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                 multiple
                 required
               />
-              <span className="mt-1 block text-[10px] text-[var(--muted)]">Podés subir varias fotos juntas o archivos de planilla.</span>
+              <span className="mt-1 block text-[10px] text-[var(--muted)]">Podés subir varias fotos juntas o archivos PDF.</span>
             </label>
 
             <label className="block text-xs">
@@ -671,7 +671,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
               disabled={submissionSubmitting}
             >
               {submissionSubmitting ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
-              {submissionSubmitting ? "Enviando rendición…" : "Enviar Evidencia / Planilla"}
+              {submissionSubmitting ? "Enviando rendición…" : "Enviar evidencia"}
             </button>
           </form>
         </section>

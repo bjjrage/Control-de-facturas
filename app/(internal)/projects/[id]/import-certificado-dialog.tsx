@@ -109,7 +109,7 @@ export function ImportCertificadoDialog({
     return id && Number(preview.previousQuantityByBudgetItem[id] ?? 0) !== row.quantityPrevious;
   }) ?? [];
   const needsAcknowledgement = Boolean(
-    preview?.certificate.planNeedsReview || mismatches.length || previousMismatches.length || (preview?.certificate.warnings.length ?? 0) > 0
+    (preview && linkedCount < preview.rows.length) || preview?.certificate.planNeedsReview || mismatches.length || previousMismatches.length || (preview?.certificate.warnings.length ?? 0) > 0
   );
   const canImport = Boolean(
     file && preview && !analyzing && !pending && (
@@ -231,7 +231,7 @@ export function ImportCertificadoDialog({
               {needsAcknowledgement ? (
                 <label className="flex items-start gap-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.04] p-2 text-[11px] text-amber-100">
                   <input type="checkbox" checked={confirmDiscrepancies} onChange={(event) => setConfirmDiscrepancies(event.target.checked)} className="mt-0.5" />
-                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé el preview. Acepto los valores del documento (cantidades, precios y acumulados) y que los montos canónicos se recalculen desde cantidades y precio unitario.</span>
+                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé el preview. {preview.rows.length - linkedCount} fila(s) quedarán autónomas, sin vínculo con el presupuesto. Acepto expresamente los vínculos, las diferencias visibles y el recálculo de montos desde cantidades y precio unitario.</span>
                 </label>
               ) : null}
 

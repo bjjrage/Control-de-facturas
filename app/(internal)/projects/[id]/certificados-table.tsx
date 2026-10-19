@@ -175,13 +175,13 @@ export function CertificadosTable({
 
       {expandedCertificate ? (
         <CertificadoDetalle
-          key={expanded}
+          key={expandedCertificate.id}
           project={project}
           certificate={expandedCertificate}
-          items={itemsByCert[expanded] ?? []}
-          staff={staffByCert[expanded] ?? []}
+          items={itemsByCert[expandedCertificate.id] ?? []}
+          staff={staffByCert[expandedCertificate.id] ?? []}
           projectUnits={projectUnits}
-          unitProgress={unitProgressByCert[expanded] ?? []}
+          unitProgress={unitProgressByCert[expandedCertificate.id] ?? []}
           isAdmin={isAdmin}
         />
       ) : null}

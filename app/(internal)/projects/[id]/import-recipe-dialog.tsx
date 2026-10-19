@@ -13,13 +13,28 @@ import { importProductionRecipe, saveProductionRecipe } from "../production-reci
 function parsePyNumber(raw: unknown): number | null {
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
-  let s = raw.trim();
+  let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
   if (!s) return null;
-  s = s.replace(/gs\.?/gi, "").replace(/\s/g, "");
-  if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
+  if (/^[+-]?\d{1,3}(?:\s\d{3})+(?:[,.]\d+)?$/.test(s)) s = s.replace(/\s/g, "");
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(s)) return null;
+  if (s.includes(",") && s.includes(".")) {
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const group = decimal === "," ? "." : ",";
+    const parts = s.split(decimal);
+    const groups = parts[0].replace(/^[+-]/, "").split(group);
+    if (parts.length !== 2 || groups[0].length > 3 || groups.slice(1).some(p => p.length !== 3)) return null;
+    s = parts[0].split(group).join("") + "." + parts[1];
   } else {
-    s = s.replace(/\./g, "");
+    const parts = s.split(/[.,]/);
+    if (parts.length > 2) {
+      if (parts[0].replace(/^[+-]/, "").length > 3 || parts.slice(1).some(p => p.length !== 3)) return null;
+      s = parts.join("");
+    } else if (parts.length === 2) {
+      // A lone separator followed by three digits is ambiguous: require the
+      // user to supply an ungrouped integer or an explicit decimal value.
+      if (parts[1].length === 3 && !/^[+-]?0$/.test(parts[0])) return null;
+      s = parts.join(".");
+    }
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -106,12 +121,16 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     setManualRows((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const manualValidRows = manualRows.filter((r) => r.budgetItemId && Number(r.quantity) > 0);
+  const manualValidRows = manualRows.filter((r) => r.budgetItemId && r.quantity.trim() && Number.isFinite(Number(r.quantity)) && Number(r.quantity) > 0);
 
   async function handleConfirmManual() {
     setSaveError(null);
     if (!recipeCode.trim() || !recipeName.trim() || !prodUnit.trim()) {
       setSaveError("Completá código, nombre y unidad de producción de la receta.");
+      return;
+    }
+    if (manualValidRows.length !== manualRows.length || manualRows.some(r => !budgetItems.some(item => item.id === r.budgetItemId))) {
+      setSaveError("Completá o eliminá todas las filas incompletas antes de guardar. No se omitirá ninguna.");
       return;
     }
     if (manualValidRows.length === 0) {
@@ -163,6 +182,8 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
   }, [budgetItems]);
 
   function matchStatus(r: ParsedRow): { kind: "ok" | "manual" | "error"; reason?: string; itemId?: string } {
+    if (r.cantidad === null || !Number.isFinite(r.cantidad) || r.cantidad <= 0)
+      return { kind: "error", reason: "Cantidad inválida o ambigua: corregí el archivo." };
     if (r.manualItemId) {
       const found = budgetItems.find((b) => b.id === r.manualItemId);
       if (!found) return { kind: "error", reason: "Selección manual inválida." };
@@ -221,7 +242,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
         const get = (f: string) => (colIdx[f] === undefined ? "" : r[colIdx[f]]);
         const partidaCodigo = String(get("partidaCodigo") ?? "").trim();
         const cantidad = parsePyNumber(get("cantidad"));
-        if (!partidaCodigo && cantidad === null) continue; // fila vacía
+        if (r.every(cell => !String(cell ?? "").trim())) continue;
         parsed.push({
           idx: i,
           recetaCodigo: String(get("recetaCodigo") ?? "").trim(),

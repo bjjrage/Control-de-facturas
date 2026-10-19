@@ -280,7 +280,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   // =========================================================================
-  // ACTION: SUBMISSION (Rendición periódica / carga de evidencias o planilla)
+  // ACTION: SUBMISSION (Rendición periódica / carga de fotos o PDF)
   // =========================================================================
   const periodStart = String(formData.get("period_start") ?? "").trim();
   const periodEnd = String(formData.get("period_end") ?? "").trim();
@@ -291,7 +291,7 @@ export async function POST(request: Request, context: RouteContext) {
   const submitted = await validateFiles(formData, MAX_FILES, true);
   if (submitted.error) return NextResponse.json({ error: submitted.error }, { status: 400 });
   const files = submitted.files;
-  if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o planilla." }, { status: 400 });
+  if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o PDF." }, { status: 400 });
 
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const remisionNumber = String(formData.get("remision_number") ?? "").trim() || null;

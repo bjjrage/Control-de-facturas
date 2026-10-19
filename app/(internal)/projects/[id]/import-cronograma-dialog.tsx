@@ -77,6 +77,15 @@ export function ImportCronogramaDialog({ projectId, budgetItems }: { projectId: 
 
   function confirmImport() {
     if (!interpretation || updates.length === 0) return;
+    const invalidRows = interpretation.rows.filter((row, index) => !row.match || !row.start || !row.end ||
+      row.end < row.start || row.warnings.length > 0 || (row.predecessorRef && !predecessors.has(index)));
+    const uniqueItems = new Set(updates.map(row => row.itemId));
+    if (invalidRows.length || updates.length !== interpretation.rows.length || uniqueItems.size !== updates.length) {
+      setError("Corregí las filas sin vincular, fechas, predecesoras o partidas repetidas en el archivo. No se omitirá ninguna fila.");
+      return;
+    }
+    const inferred = interpretation.rows.filter(row => row.match?.method === "fuzzy-desc");
+    if (inferred.length && !window.confirm(`Hay ${inferred.length} vínculo(s) por similitud. Revisá las partidas del preview. ¿Confirmás expresamente esos vínculos?`)) return;
     startTransition(async () => {
       const res = await applyScheduleImport(projectId, updates);
       if (res.failed.length > 0 && res.applied === 0) {

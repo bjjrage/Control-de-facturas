@@ -286,11 +286,10 @@ export async function importCertificateWorkbook(
   }
 
   const byId = new Map(((budgetRows ?? []) as CertificateBudgetItem[]).map((item) => [item.id, item]));
-  const hasDiscrepancies = workbookData.planNeedsReview || lines.some((line) => {
+  const hasDiscrepancies = workbookData.planNeedsReview || workbookData.warnings.length > 0 || lines.some((line) => {
     if (!line.budgetItemId) {
-      const sourceAmountDiffers = line.amountCurrent !== null && Math.round(line.quantityCurrent * line.unitPrice) !== line.amountCurrent;
-      const cumulativeDiffers = line.quantityCumulative !== line.quantityPrevious + line.quantityCurrent;
-      return sourceAmountDiffers || cumulativeDiffers;
+      // Autonomous lines are preserved, but never accepted silently.
+      return true;
     }
     const budget = byId.get(line.budgetItemId);
     if (!budget) return false;

@@ -22,3 +22,12 @@ it("confirms only after the uploaded original is recorded",async()=>{const respo
 it("rejects an oversized attachment before registering stock",async()=>{const response=await request(20*1024*1024+1);expect(response.status).toBe(400);expect(state.calls).toEqual([])});
 it("rejects spoofed evidence before confirming stock",async()=>{const body=new FormData();body.set("action","receipt");body.set("order_id","order");body.set("fecha","2026-10-17");body.set("recibido_por","QA");body.set("items",JSON.stringify([{order_item_id:"item",quantity:1}]));body.set("files",new File(["fake"],"remito.pdf",{type:"application/pdf"}));const response=await POST(new Request("http://localhost/api/warehouse-portal/test",{method:"POST",body}),{params:Promise.resolve({token:"A".repeat(43)})});expect(response.status).toBe(400);expect(state.calls.some(c=>c.kind==="inventory_portal_receipt")).toBe(false)});
 it("reports consumption evidence upload failure without claiming complete success",async()=>{state.storageError=true;const body=new FormData();body.set("action","consumption");body.set("producto_id","product");body.set("quantity","1");body.set("budget_item_id","budget");body.set("idempotency_key","33333333-3333-4333-8333-333333333333");body.set("files",new File(["%PDF-1.4\nqa"],"salida.pdf",{type:"application/pdf"}));const response=await POST(new Request("http://localhost/api/warehouse-portal/test",{method:"POST",body}),{params:Promise.resolve({token:"A".repeat(43)})});expect(await response.json()).toMatchObject({ok:true,movementId:"movement",uploadIncomplete:true,pendingEvidence:["salida.pdf"]})});
+it.each(["receipt","consumption","submission"])("D1 rejects a real GIF in %s before creating any record",async action=>{
+ const body=new FormData();body.set("action",action);body.set("order_id","order");body.set("fecha","2026-10-17");
+ body.set("recibido_por","QA");body.set("items",JSON.stringify([{order_item_id:"item",quantity:1}]));
+ body.set("producto_id","product");body.set("quantity","1");body.set("budget_item_id","budget");
+ body.set("period_start","2026-10-01");body.set("period_end","2026-10-07");body.set("idempotency_key","33333333-3333-4333-8333-333333333333");
+ body.set("files",new File(["GIF89a",new Uint8Array(30)],"qa.gif",{type:"image/gif"}));
+ const response=await POST(new Request("http://localhost/api/warehouse-portal/test",{method:"POST",body}),{params:Promise.resolve({token:"A".repeat(43)})});
+ expect(response.status).toBe(400);expect((await response.json()).error).toMatch(/no permitido/);expect(state.calls).toEqual([]);
+});
