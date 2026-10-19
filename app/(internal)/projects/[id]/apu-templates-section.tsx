@@ -9,13 +9,20 @@ import { ApuPlanillaImport } from "./apu-planilla-import";
 export function ApuTemplatesSection() {
   const [templates, setTemplates] = useState<ApuTemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function refresh() {
+  async function refresh() {
     setLoading(true);
-    listApuTemplatesAction().then((res) => {
-      if (res.data) setTemplates(res.data);
+    setError(null);
+    try {
+      const res = await listApuTemplatesAction();
+      if (res.error) setError(res.error);
+      else if (res.data) setTemplates(res.data);
+    } catch {
+      setError("No se pudieron cargar las plantillas.");
+    } finally {
       setLoading(false);
-    });
+    }
   }
 
   useEffect(() => {
@@ -25,7 +32,8 @@ export function ApuTemplatesSection() {
   async function handleDelete(id: string, nombre: string) {
     if (!window.confirm(`¿Borrar la plantilla "${nombre}"? Esto no afecta las obras donde ya se aplicó.`)) return;
     const res = await deleteApuTemplateAction(id);
-    if (!res.error) refresh();
+    if (res.error) { setError(res.error); return; }
+    await refresh();
   }
 
   return (
@@ -34,6 +42,7 @@ export function ApuTemplatesSection() {
 
 
       <ApuPlanillaImport onDone={refresh} />
+      {error ? <p role="alert" className="text-[12px] text-[var(--error)]">{error}</p> : null}
 
       <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
         <table className="w-full text-left text-[12px]">

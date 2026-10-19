@@ -37,9 +37,9 @@ export function LaborPaymentsPanel({
 
   const load = useCallback(() => {
     listLaborPaymentsAction(projectId).then((res) => {
-      setPayments(res.data ?? []);
       if (res.error) setError(res.error);
-    });
+      else { setPayments(res.data ?? []); setError(null); }
+    }).catch(() => setError("No se pudieron cargar los pagos."));
   }, [projectId]);
 
   useEffect(() => {
@@ -68,6 +68,7 @@ export function LaborPaymentsPanel({
         ) : null}
       </div>
 
+      {error && !open ? <p role="alert" className="text-[12px] text-[var(--error)]">{error} <button type="button" onClick={load}>Reintentar</button></p> : null}
       {open ? (
         <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Registrar pago de mano de obra"><form
           className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 space-y-3"
@@ -178,7 +179,7 @@ export function LaborPaymentsPanel({
             {payments == null ? (
               <tr>
                 <td colSpan={6} className="text-center text-[var(--muted)] py-6">
-                  Cargando…
+                  {error ? "No se pudo cargar la lista." : "Cargando…"}
                 </td>
               </tr>
             ) : payments.length === 0 ? (
