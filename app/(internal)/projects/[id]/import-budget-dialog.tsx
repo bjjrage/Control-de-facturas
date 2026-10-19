@@ -103,7 +103,8 @@ function autoDetectMapping(headers: string[]): Record<number, ColumnAssignment> 
     let matched: ColumnAssignment = "ignore";
     for (const [field, variants] of Object.entries(HEADER_VARIANTS) as [FieldKey, string[]][]) {
       if (used.has(field)) continue;
-      if (variants.some((v) => norm === v || norm.includes(v))) {
+      if (variants.some((v) => norm === v || (v.length >= 3 &&
+        (norm.startsWith(v + " ") || norm.endsWith(" " + v) || norm.includes(" " + v + " "))))) {
         matched = field;
         used.add(field);
         break;
