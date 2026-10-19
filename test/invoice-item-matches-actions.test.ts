@@ -898,7 +898,7 @@ describe("worker job recovery: evita facturas duplicadas", () => {
     expect(mocks.db!.tables.invoice_jobs[0]).toMatchObject({ status: "needs_review", attempts: 3 });
   });
 
-  it("resolveInvoiceJob crea y referencia la factura con una sola RPC y su lease exacto", async () => {
+  it("resolveInvoiceJob crea una sola factura con su lease exacto y deja revisión si falta verificar el original", async () => {
     mocks.db!.tables.invoice_jobs[0] = {
       id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
       storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`, file_name: "test.pdf",
@@ -913,13 +913,13 @@ describe("worker job recovery: evita facturas duplicadas", () => {
     form.set("total", "100");
     form.set("arithmetic_confirmed", "on");
     const result = await resolveInvoiceJob(jobId, form);
-    expect(result.error).toBeNull();
+    expect(result.error).toMatch(/original|verificar/i);
     expect(mocks.db!.rpcCalls.filter((call) => call.name === "create_invoice_from_job")).toHaveLength(1);
     const rpc = mocks.db!.rpcCalls.find((call) => call.name === "create_invoice_from_job")!;
     expect(rpc.args).toMatchObject({ p_empresa_id: TENANT, p_job_id: jobId, p_expected_attempts: 3 });
     expect(rpc.args.p_invoice).not.toHaveProperty("created_by");
     expect(mocks.db!.tables.invoice_jobs[0].invoice_id).toBe(result.invoiceId);
-    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("done");
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("needs_review");
   });
 
   it("no borra el objeto si no pudo confirmar que la metadata del adjunto se eliminó", async () => {

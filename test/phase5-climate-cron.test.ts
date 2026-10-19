@@ -1,6 +1,6 @@
 import { afterEach,beforeEach,expect,it,vi } from "vitest";
 import { NextRequest } from "next/server";
-const batch=vi.hoisted(()=>vi.fn(async()=>({results:[],failures:[]})));
+const batch=vi.hoisted(()=>vi.fn(async(_db:unknown,_input:unknown)=>({results:[],failures:[]})));
 vi.mock("@/lib/procurement/climate-evaluation-runner",()=>({runClimateEvaluationBatch:batch}));
 vi.mock("@/lib/supabase/admin",()=>({createAdminClient:()=>({})}));
 import { GET } from "@/app/api/cron/climate-evaluation/route";
