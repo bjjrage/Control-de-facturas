@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import type { WarehousePortalContext, WarehousePortalOrder } from "@/lib/inventory/warehouse-portal-data";
-import { clearRejectedConsumptionAttempt } from "@/lib/inventory/warehouse-portal-client-state";
+import { classifyWarehouseSubmission, clearRejectedConsumptionAttempt } from "@/lib/inventory/warehouse-portal-client-state";
 
 type TabMode = "receipt" | "consumption" | "submission";
 
@@ -212,10 +212,11 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
         body: form,
       });
       const data = await response.json();
-      if (!response.ok) {
-        setSubmissionError(data.error ?? "No se pudo enviar la rendición.");
+      const result = classifyWarehouseSubmission(response.status, data);
+      if (!result.complete) {
+        setSubmissionError(result.message);
       } else {
-        setSubmissionSuccess("Rendición enviada con éxito. La empresa revisará la evidencia.");
+        setSubmissionSuccess(result.message);
         (event.target as HTMLFormElement).reset();
       }
     } catch {
