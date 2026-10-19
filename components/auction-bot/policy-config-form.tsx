@@ -368,7 +368,7 @@ export function PolicyConfigForm({
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
               Paso de Defensa (defenseStepPyg) - Valor Libre<InfoTooltip className="ml-1" label={"Paso de defensa"} content={"Ingresá un monto entero en guaraníes; por ejemplo, ₲7, ₲23 o ₲5.000."} />
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <input
                 type="number"
                 min={1}
@@ -450,7 +450,7 @@ export function PolicyConfigForm({
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
               Auto Defense Tolerance (%) / {toleranceBps} bps
             </label>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center [&>input]:min-w-0 [&>input]:flex-1 [&>input]:basis-24">
               <input
                 type="number"
                 step="0.1"
