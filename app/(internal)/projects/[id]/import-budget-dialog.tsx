@@ -41,18 +41,32 @@ function normalize(s: string): string {
     .trim();
 }
 
-// Formato paraguayo: los puntos son separador de miles ("1.250.000" = 1250000),
-// la coma (si aparece) es el separador decimal.
+// Preserve raw Excel numbers; reject ambiguous text instead of guessing locale.
 function parsePyNumber(raw: unknown): number | null {
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
-  let s = raw.trim();
+  let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
   if (!s) return null;
-  s = s.replace(/gs\.?/gi, "").replace(/\s/g, "");
-  if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
+  if (/^[+-]?\d{1,3}(?:\s\d{3})+(?:[,.]\d+)?$/.test(s)) s = s.replace(/\s/g, "");
+  if (!/^[+-]?\d+(?:[.,]\d+)*$/.test(s)) return null;
+  if (s.includes(",") && s.includes(".")) {
+    const decimal = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    const group = decimal === "," ? "." : ",";
+    const parts = s.split(decimal);
+    const groups = parts[0].replace(/^[+-]/, "").split(group);
+    if (parts.length !== 2 || groups[0].length > 3 || groups.slice(1).some(p => p.length !== 3)) return null;
+    s = parts[0].split(group).join("") + "." + parts[1];
   } else {
-    s = s.replace(/\./g, "");
+    const parts = s.split(/[.,]/);
+    if (parts.length > 2) {
+      if (parts[0].replace(/^[+-]/, "").length > 3 || parts.slice(1).some(p => p.length !== 3)) return null;
+      s = parts.join("");
+    } else if (parts.length === 2) {
+      // A lone separator followed by three digits is ambiguous: require the
+      // user to supply an ungrouped integer or an explicit decimal value.
+      if (parts[1].length === 3 && !/^[+-]?0$/.test(parts[0])) return null;
+      s = parts.join(".");
+    }
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -225,8 +239,8 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       let reason: string | undefined;
       if (!code) { valid = false; reason = "Código vacío"; }
       else if (!description) { valid = false; reason = "Descripción vacía"; }
-      else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad no numérica"; }
-      else if (priceStr && unit_price === null) { valid = false; reason = "Precio no numérico"; }
+      else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad inválida o ambigua: quitá el separador de miles o aclará los decimales"; }
+      else if (priceStr && unit_price === null) { valid = false; reason = "Precio inválido o ambiguo: quitá el separador de miles o aclará los decimales"; }
       else if (startStr && !start_date) { valid = false; reason = "Fecha inicio no reconocida"; }
       else if (endStr && !end_date) { valid = false; reason = "Fecha fin no reconocida"; }
 
