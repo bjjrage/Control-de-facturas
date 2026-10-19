@@ -140,7 +140,9 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
         oc_recepciones!inner (status)
       `)
       .eq("empresa_id", link.empresa_id)
-      .in("oc_recepciones.status", ["DRAFT", "CONFIRMED"]);
+      // A staged receipt has not received stock yet. Confirmation rechecks the
+      // real remaining quantity under the OC lock, including on retries.
+      .eq("oc_recepciones.status", "CONFIRMED");
 
     for (const ri of receiptItems ?? []) {
       const current = receivedByOrderItem.get(ri.order_item_id) ?? 0;
