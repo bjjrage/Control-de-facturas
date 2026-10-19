@@ -304,7 +304,8 @@ export default async function VentaDetailPage({ params, searchParams }: { params
                         <form
                           action={async () => {
                             "use server";
-                            await reverseReceipt(r.id, doc.id);
+                            const result = await reverseReceipt(r.id, doc.id);
+                            if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
                           }}
                         >
                           <button className="text-[12px] text-[var(--muted)] hover:text-[var(--error)]" title="Registra una reversa; conserva el cobro y su auditoría">Revertir</button>
