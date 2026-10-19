@@ -10,6 +10,7 @@ import {
 } from "@/lib/inventory/receipt-portal";
 import { sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
+import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
 
 const MAX_FILES = 10;
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -119,6 +120,13 @@ export async function POST(request: Request, context: RouteContext) {
     p_evidence: evidence,
   });
   if (error || !receiptId) {
+    if (!error || !isDefiniteRpcRejection(error)) {
+      // The transaction may have committed and referenced these originals.
+      // Keep them until the receipt is checked; do not claim a rejection.
+      return NextResponse.json({ error: "No se pudo comprobar si la recepción quedó confirmada. Consultá la recepción de esta OC antes de reenviar." }, {
+        status: 503, headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (uploadedPaths.length) await portal.admin.storage.from("warehouse-evidence").remove(uploadedPaths);
     return NextResponse.json({
       error: error?.message.includes("materiales sin vincular")

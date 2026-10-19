@@ -10,7 +10,7 @@ const AMBIGUOUS_CLASS = /^(08|53|57|58|XX)/;
 
 export function isDefiniteRpcRejection(error: RpcError): boolean {
   const code = String(error?.code ?? "");
-  return /^[0-9A-Z]{5}$/.test(code) && !AMBIGUOUS_CLASS.test(code);
+  return /^[0-9A-Z]{5}$/.test(code) && code !== "40003" && !AMBIGUOUS_CLASS.test(code);
 }
 
 export function classifyPortalRpcError(
