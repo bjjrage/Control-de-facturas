@@ -5,6 +5,7 @@ import { displayLocationName } from "@/lib/inventory/display-location-name";
 import { hashWarehousePortalToken, inspectWarehousePortalFile, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
 import { updateOpenWarehouseSubmission } from "@/lib/inventory/update-open-warehouse-submission";
+import { classifyPortalRpcError } from "@/lib/inventory/portal-rpc-error";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 20;
@@ -127,7 +128,8 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (createError) {
-      return NextResponse.json({ error: createError.message ?? "No se pudo registrar la recepción." }, { status: 400 });
+      const failure = classifyPortalRpcError(createError, "No se pudo registrar la recepción.");
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
     const receiptResult = createData as { receipt_id?: string } | null;
@@ -182,10 +184,8 @@ export async function POST(request: Request, context: RouteContext) {
       p_confirmed_by: null,
     });
     if (confirmationError) {
-      return NextResponse.json({
-        ok: false, receiptId, status: "DRAFT",
-        error: confirmationError.message ?? "No se pudo confirmar la recepción. Reintentá con los mismos datos.",
-      }, { status: 409 });
+      const failure = classifyPortalRpcError(confirmationError, "No se pudo confirmar la recepción. Reintentá con los mismos datos.", 409);
+      return NextResponse.json({ ok: false, receiptId, status: "DRAFT", error: failure.error }, { status: failure.status });
     }
     return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", uploadIncomplete: false, pendingEvidence: [], movements });
   }
@@ -250,7 +250,8 @@ export async function POST(request: Request, context: RouteContext) {
     });
 
     if (moveError) {
-      return NextResponse.json({ error: moveError.message ?? "No se pudo registrar la salida en el stock." }, { status: 400 });
+      const failure = classifyPortalRpcError(moveError, "No se pudo registrar la salida en el stock.");
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
     }
 
     // Upload photo evidence if attached
