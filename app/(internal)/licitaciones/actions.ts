@@ -8,6 +8,7 @@ import { DncpNotFoundError, fetchRecord, normalizarNro } from "@/lib/dncp/client
 import { parseCompiledRelease } from "@/lib/dncp/parse";
 import { assessTenderPbc, createPbcSourceMetadata } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { LicitacionDecision } from "@/lib/types";
 import type { TenderComplianceReport } from "@/lib/procurement/compliance-engine";
 
@@ -68,7 +69,10 @@ export async function importarLicitacion(
   // Ingestar el hecho público globalmente en procurement_* (idempotente)
   let processId: string | null = null;
   try {
-    const { data: procIdData, error: processError } = await supabase.rpc("ingestar_proceso_ocds_global", {
+    // The baseline restricts this national public-data ingestion RPC to service_role.
+    // Authorization was checked above; its input is fetched from DNCP here, never
+    // a caller-supplied compiled release. Tenant-private writes keep the RLS client.
+    const { data: procIdData, error: processError } = await createAdminClient().rpc("ingestar_proceso_ocds_global", {
       p_cr: compiled,
       p_fuente: "DNCP_OCDS",
     });
