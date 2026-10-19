@@ -326,7 +326,13 @@ function CurvaAvance({
             router.refresh();
           }}
           onError={setError}
-          onDeletePlan={activePlan ? () => run(() => deleteSchedulePlan(activePlan.id)) : undefined}
+          onDeletePlan={activePlan && schedulePlans.length > 1 ? () => run(async () => {
+            // El servidor no permite borrar la versión activa: primero se activa la más reciente de las otras.
+            const next = schedulePlans.filter((p) => !p.is_active).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+            const activated = await activateSchedulePlan(next.id);
+            if (activated.error) return activated;
+            return deleteSchedulePlan(activePlan.id);
+          }) : undefined}
         />
       ) : null}
     </div>
@@ -424,7 +430,7 @@ function SchedulePlanEditor({
       <div className="flex items-center justify-between">
         {onDeletePlan && !asNew ? (
           <Button variant="ghost" disabled={pending || saving} onClick={() => {
-            if (window.confirm("¿Eliminar esta versión del cronograma? No se puede recuperar.")) onDeletePlan();
+            if (window.confirm("¿Eliminar esta versión del cronograma? Se activará la versión más reciente de las otras. No se puede recuperar.")) onDeletePlan();
           }}>
             Eliminar versión
           </Button>
