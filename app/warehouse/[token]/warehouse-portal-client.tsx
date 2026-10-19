@@ -405,7 +405,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                   <input
                     type="file"
                     name="files"
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                     multiple
                     className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-1 text-xs"
                   />
@@ -541,7 +541,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                 <input
                   type="file"
                   name="files"
-                  accept="image/*,application/pdf"
+                  accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                   className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-1 text-xs"
                 />
               </label>
@@ -589,7 +589,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       {activeTab === "submission" && (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 sm:p-5 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Rendir materiales<InfoTooltip className="ml-1" label={"Rendir materiales"} content={"Subí fotos del cuaderno de obra, remitos o planillas Excel/CSV. La administración revisará las líneas antes de afectar el stock."} /></h2>
+            <h2 className="text-sm font-semibold">Rendir materiales<InfoTooltip className="ml-1" label={"Rendir materiales"} content={"Subí fotos del cuaderno de obra, remitos o documentos PDF. La administración revisará las líneas antes de afectar el stock."} /></h2>
 
           </div>
 
@@ -625,12 +625,12 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
             </label>
 
             <label className="block text-xs">
-              Fotos del cuaderno o planilla Excel/CSV
+              Fotos del cuaderno o documentos PDF
               <input
                 className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs"
                 type="file"
                 name="files"
-                accept="image/*,.xlsx,.xls,.csv,application/pdf"
+                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                 multiple
                 required
               />
