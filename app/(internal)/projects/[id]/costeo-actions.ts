@@ -29,7 +29,7 @@ import { computeRealVsBudget, laborBudgetToDate, type RealVsBudgetRow } from "@/
 // ---------------------------------------------------------------------------
 
 export interface CostRfqCreationResult {
-  creadas: { rfqId: string; code: string; rubro: string; items: number; proveedores: number }[];
+  creadas: { rfqId: string; code: string; rubro: string; items: number; proveedores: number; reused?: boolean }[];
   rubrosSinProveedores: { rubro: string; items: number }[];
   insumosSinRubro: string[];
   sinInsumos: boolean;
@@ -134,11 +134,11 @@ export async function createCostRfqsFromProject(
         continue;
       }
 
-      const rfq=await createCanonicalRfq(supabase,{purpose:"COST_DISCOVERY",quote_type:"RFQ",
+      const rfq=await createCanonicalRfq(supabase,{purpose:"COST_DISCOVERY",quote_type:"RFQ",deduplicate_cost_request:true,
         product: rubroNombre,project_id:projectId,expires_at:expiresAt,
         observations:"Solicitud de precios para costeo, sin compra automática"},
         rubro.items.map(it=>({producto_id:it.productoId,descripcion:it.nombre,cantidad:it.cantidad,unidad:it.unidad})),providerIds);
-      result.creadas.push({ rfqId: rfq.id, code: rfq.code, rubro: rubroNombre, items: rubro.items.length, proveedores: providerIds.length });
+      result.creadas.push({ rfqId: rfq.id, code: rfq.code, rubro: rubroNombre, items: rubro.items.length, proveedores: providerIds.length, reused: rfq.reused });
     }
 
     revalidatePath(`/projects/${projectId}`);

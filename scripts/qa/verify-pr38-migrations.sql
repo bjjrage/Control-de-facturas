@@ -5,7 +5,7 @@ WITH expected(version) AS (
   VALUES ('20261018120000'),('20261018120100'),('20261018120200'),
          ('20261018120300'),('20261018120400'),('20261018120500'),
          ('20261018120600'),('20261018120700'),('20261018120800'),
-         ('20261018120900')
+         ('20261018120900'),('20261019165649')
 ), ledger AS (
   SELECT e.version, m.name, m.version IS NOT NULL AS applied
   FROM expected e LEFT JOIN supabase_migrations.schema_migrations m USING(version)
@@ -24,7 +24,7 @@ WITH expected(version) AS (
     'inventory_opening_guard','inventory_opening_key'
   )) OR (n.nspname='public' AND p.proname IN (
     'ejecutar_orden_pago_atomica','mark_apto_y_crear_op_atomica',
-    'inventory_portal_receipt'
+    'inventory_portal_receipt','rfq_create_cost_once'
   ))
 ), triggers AS (
   SELECT n.nspname AS schema,c.relname AS table_name,t.tgname AS name,

@@ -22,7 +22,7 @@ export function CostRfqDialog({ projectId, onCreated }: { projectId: string; onC
       {result && <div role="status" className="my-3 rounded-lg border-2 border-[var(--border)] bg-[var(--panel-2)] p-3 text-[13px] space-y-2">
         {result.sinInsumos ? <p>La obra todavía no tiene materiales en sus recetas APU.</p> : <>
           {!result.creadas.length && <p>No se creó ningún pedido de precios.</p>}
-          {result.creadas.map((rfq) => <p key={rfq.rfqId}><Link className="text-action" href={"/rfqs/" + rfq.rfqId}>{rfq.code}</Link> · {rfq.rubro} · {rfq.items} ítems · {rfq.proveedores} proveedores</p>)}
+          {result.creadas.map((rfq) => <p key={rfq.rfqId}><Link className="text-action" href={"/rfqs/" + rfq.rfqId}>{rfq.code}</Link> · {rfq.reused ? "Pedido existente reutilizado" : "Pedido creado"} · {rfq.rubro} · {rfq.items} ítems · {rfq.proveedores} proveedores</p>)}
           {result.rubrosSinProveedores.map((rubro) => <p key={rubro.rubro}>Sin proveedores para {rubro.rubro}: {rubro.items} ítems.</p>)}
           {!!result.insumosSinRubro.length && <p>Materiales sin rubro: {result.insumosSinRubro.join(", ")}</p>}
         </>}

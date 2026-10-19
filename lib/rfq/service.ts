@@ -28,7 +28,7 @@ export async function createCanonicalRfq(
 ) {
   purposeSchema.parse(header.purpose);
   const lines = rfqItemSchema.array().min(1).max(500).parse(items);
-  return rpc<{ id: string; code: string }>(db, "rfq_create", {
+  return rpc<{ id: string; code: string; reused?: boolean }>(db, header.deduplicate_cost_request === true ? "rfq_create_cost_once" : "rfq_create", {
     p_header: header,
     p_items: lines,
     p_provider_ids: [...new Set(providerIds)],
