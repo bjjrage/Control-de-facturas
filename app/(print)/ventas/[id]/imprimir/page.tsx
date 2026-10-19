@@ -7,6 +7,7 @@ import { SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 import { getEmpresaTemplate, renderTemplate } from "@/lib/template";
 import { LOGO_STORAGE_PATH } from "@/components/layout/branding-constants";
 import { PrintTrigger } from "./print-trigger";
+import { PrintLogo } from "@/components/ui/print-logo";
 
 // Vista para imprimir / guardar como PDF desde el navegador (Ctrl+P).
 // Sin sidebar: se sirve fuera del layout visual pesado.
@@ -56,11 +57,10 @@ export default async function ImprimirVentaPage({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto max-w-2xl bg-white text-black p-8 text-[13px] print:p-0" style={{ colorScheme: "light" }}>
       <PrintTrigger />
-      <div className="flex justify-between items-start border-b-2 border-black pb-3">
-        <div>
+      <div className="flex justify-between items-start gap-6 border-b-2 border-black pb-3">
+        <div className="min-w-0 flex-1 break-words">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Logo" className="h-12 max-w-[160px] object-contain mb-1" />
+            <PrintLogo src={logoUrl} className="h-12 max-w-[160px] object-contain mb-1" />
           ) : null}
           <div className="text-[18px] font-bold">{empresa?.nombre ?? "—"}</div>
           {empresa?.ruc ? <div className="text-[12px]">RUC: {empresa.ruc}</div> : null}
@@ -68,7 +68,7 @@ export default async function ImprimirVentaPage({ params }: { params: Promise<{ 
           {empresa?.telefono ? <div className="text-[12px]">Tel: {empresa.telefono}</div> : null}
           {empresa?.email_empresa ? <div className="text-[12px]">{empresa.email_empresa}</div> : null}
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <div className="text-[13px] font-semibold text-black/60">{docTypeLabel}</div>
           <div className="text-[20px] font-bold">{doc.code}</div>
           <div className="text-[12px]">Emisión: {formatDate(doc.issue_date)}</div>

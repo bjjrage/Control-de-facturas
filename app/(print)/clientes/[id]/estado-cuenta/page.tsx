@@ -7,6 +7,7 @@ import { salesReceivables } from "@/lib/sales-receivables";
 import { SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 import { LOGO_STORAGE_PATH } from "@/components/layout/branding-constants";
 import { PrintTrigger } from "@/app/(print)/ventas/[id]/imprimir/print-trigger";
+import { PrintLogo } from "@/components/ui/print-logo";
 
 export default async function EstadoCuentaPage({
   params,
@@ -81,13 +82,11 @@ export default async function EstadoCuentaPage({
       <PrintTrigger />
 
       {/* Header */}
-      <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-4">
-        <div>
+      <div className="flex justify-between items-start gap-6 border-b-2 border-black pb-3 mb-4">
+        <div className="min-w-0 flex-1 break-words">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <PrintLogo
               src={logoUrl}
-              alt="Logo"
               className="h-10 max-w-[140px] object-contain mb-1"
             />
           ) : null}
@@ -96,7 +95,7 @@ export default async function EstadoCuentaPage({
           {empresa?.direccion ? <div>{empresa.direccion}</div> : null}
           {empresa?.telefono ? <div>Tel: {empresa.telefono}</div> : null}
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <div className="text-[18px] font-bold">ESTADO DE CUENTA</div>
           <div className="text-[11px] text-black/60 mt-0.5">
             Al {today}
