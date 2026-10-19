@@ -10,6 +10,8 @@ import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInputStrict } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
+import { verifyInvoiceOriginal } from "../[id]/actions";
+import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
 
 function str(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -218,7 +220,7 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData): Prom
   });
   const created = createResult as { ok?: boolean; invoice_id?: string; duplicate?: boolean; error?: string } | null;
   if (error || !created?.ok || !created.invoice_id) {
-    if (!error || !error.code || !/^[0-9A-Z]{5}$/.test(error.code)) {
+    if (!error || !isDefiniteRpcRejection(error)) {
       // A transport failure or malformed success can hide a committed RPC.
       // Keep the lease and attachment intact for recovery to inspect.
       return { error: "No se pudo confirmar el resultado de creación. El job quedó protegido; verificá su estado antes de reintentar." };
@@ -288,6 +290,20 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData): Prom
     }
   }
 
+  // Manual form fields and previous extraction are not proof of issuer.
+  // Re-read the original through the canonical RUC/currency/identity gate.
+  let identityError: string | null;
+  try { identityError = (await verifyInvoiceOriginal(invoiceId)).error; }
+  catch { identityError = "No se pudo verificar el original. Revisá la factura existente antes de vincular una OC."; }
+  if (identityError) {
+    const parked = await supabase.from("invoice_jobs").update({
+      status: "needs_review", outcome: "needs_manual", invoice_id: invoiceId, locked_at: null,
+      error: identityError, message: "Factura creada, pendiente de verificar su original; no se vinculó ni concilió.",
+    }).eq("id", jobId).eq("empresa_id", empresaId).eq("status", "processing")
+      .eq("attempts", claimedAttempts).eq("invoice_id", invoiceId).select("id").maybeSingle();
+    revalidatePath("/invoices/revision"); revalidatePath("/invoices");
+    return { error: identityError, invoiceId, ...(parked.error || !parked.data ? { warning: "La factura existe; verificá también el estado del job antes de reintentar." } : {}) };
+  }
   const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId, providerId, total, empresaId });
   let itemMatchError: string | null = null;
   let itemMatchPending = 0;
