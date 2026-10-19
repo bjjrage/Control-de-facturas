@@ -423,7 +423,9 @@ function SchedulePlanEditor({
 
       <div className="flex items-center justify-between">
         {onDeletePlan && !asNew ? (
-          <Button variant="ghost" disabled={pending || saving} onClick={onDeletePlan}>
+          <Button variant="ghost" disabled={pending || saving} onClick={() => {
+            if (window.confirm("¿Eliminar esta versión del cronograma? No se puede recuperar.")) onDeletePlan();
+          }}>
             Eliminar versión
           </Button>
         ) : (

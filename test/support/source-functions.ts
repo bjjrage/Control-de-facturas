@@ -7,7 +7,13 @@ import * as React from "react";
 export function sourceFunctions(file: string, names: string[], dependencies: Record<string, unknown> = {}): Record<string, (...args: any[]) => any> {
   const source = readFileSync(file, "utf8");
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const selected = ast.statements.filter(statement => {
+  const statements: ts.Node[] = [...ast.statements];
+  function visit(node: ts.Node) {
+    if (ts.isFunctionDeclaration(node) && names.includes(node.name?.text ?? "") && !statements.includes(node)) statements.push(node);
+    ts.forEachChild(node, visit);
+  }
+  ts.forEachChild(ast, visit);
+  const selected = statements.filter(statement => {
     if (ts.isFunctionDeclaration(statement)) return names.includes(statement.name?.text ?? "");
     return ts.isVariableStatement(statement) && statement.declarationList.declarations.some(d => ts.isIdentifier(d.name) && names.includes(d.name.text));
   }).map(statement => statement.getText(ast)).join("\n");

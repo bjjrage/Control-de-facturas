@@ -472,7 +472,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
 
   async function handleDiscard() {
     if (!session) return;
-    await discardImportSession(session.id);
+    if (!window.confirm("¿Descartar esta importación y sus cambios? No se puede recuperar.")) return;
+    const result = await discardImportSession(session.id);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
     setSession(null);
   }
 
