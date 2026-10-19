@@ -11,7 +11,9 @@ http.createServer(async (req, res) => {
  try {
   if (req.url === '/login') {
    const s = await session();
-   res.writeHead(302, { 'Set-Cookie': s.jar.map(c => `${c.name}=${c.value}; Path=/; HttpOnly; SameSite=Lax`), location: 'http://localhost:3018/dashboard' });
+   // Match @supabase/ssr's normal browser-readable auth cookies: client-side
+   // catalog editors use the same session through createBrowserClient.
+   res.writeHead(302, { 'Set-Cookie': s.jar.map(c => `${c.name}=${c.value}; Path=/; SameSite=Lax`), location: 'http://localhost:3018/dashboard' });
    return res.end();
   }
   if (req.url.startsWith('/cron?')) {

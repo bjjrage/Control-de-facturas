@@ -1,0 +1,13 @@
+{
+  "saleId": "85dfdb97-f1ef-4af6-92c3-18a283ff366f",
+  "orderId": "fb4133a5-0976-47f6-bdb8-29835844734e",
+  "orderProjectId": "86b8a8d7-0b15-4e30-b623-c1d3cfe260f8",
+  "rfqId": "b7506fb7-7b81-4d0f-b678-1134f33aa2a4",
+  "rfqProjectId": "85a00ccc-9e1c-4779-8e8b-3d527352100e",
+  "portalsPrepared": {
+    "quote": true,
+    "receipt": true,
+    "warehouse": true,
+    "supplier": true
+  }
+}

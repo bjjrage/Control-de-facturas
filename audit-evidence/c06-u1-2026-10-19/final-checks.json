@@ -1,0 +1,35 @@
+{
+  "branch": "codex/compras-ventas-merge-prep",
+  "runtimeCommit": "dc99c2f",
+  "isolatedRef": "kyiihlkncatojvlasoag",
+  "releaseBuildId": "2klFrBU2Cy9KTUW0xugRk",
+  "c06CompleteE2EBuildId": "qJHHIU17fMEkhU72wPOk7",
+  "c06OriginalPreserved": true,
+  "typescriptExit": 0,
+  "buildExit": 0,
+  "vitest": {
+    "passed": 2442,
+    "skipped": 16,
+    "failed": 0,
+    "completedBeforeFinalPrintClassFix": true
+  },
+  "postSuiteChange": "dc99c2f removes two conflicting text color classes from the printed payment badge; final tsc/build/browser repeated",
+  "directedTests": {
+    "passed": 36,
+    "failed": 0
+  },
+  "currentPageRoutes": 75,
+  "projectTabs": 19,
+  "historicalEntries": 179,
+  "qaRoleRestored": true,
+  "pdfRuntimeTracing": {
+    "canvas": 12,
+    "pdfWorker": 6,
+    "pdfParse": 89
+  },
+  "newSql": false,
+  "productionAccess": false,
+  "push": false,
+  "merge": false,
+  "deploy": false
+}

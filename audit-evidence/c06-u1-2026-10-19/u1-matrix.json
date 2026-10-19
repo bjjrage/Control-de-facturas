@@ -1,0 +1,5234 @@
+{
+  "scope": "179 historical entries = 129 server actions + 50 surfaces; current page inventory is accounted separately. Captures alone do not certify keyboard or destructive behavior.",
+  "historical": [
+    {
+      "id": "COV-0001",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/actions.ts",
+      "kind": "action",
+      "action": "createClientRecord",
+      "line": 12,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0002",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/actions.ts",
+      "kind": "action",
+      "action": "updateClientRecord",
+      "line": 33,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0003",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/actions.ts",
+      "kind": "action",
+      "action": "toggleClientActive",
+      "line": 58,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0004",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/page.tsx",
+      "kind": "surface",
+      "action": "clientes",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0005",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/section-action.ts",
+      "kind": "action",
+      "action": "getClientesData",
+      "line": 13,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0006",
+      "module": "Clientes",
+      "context": "Administración",
+      "file": "app/(internal)/clientes/[id]/page.tsx",
+      "kind": "surface",
+      "action": "clientes/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0007",
+      "module": "Cobros",
+      "context": "Administración",
+      "file": "app/(internal)/cobros/page.tsx",
+      "kind": "surface",
+      "action": "cobros",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0008",
+      "module": "Cobros",
+      "context": "Administración",
+      "file": "app/(internal)/cobros/section-action.ts",
+      "kind": "action",
+      "action": "getCobrosData",
+      "line": 17,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0009",
+      "module": "Facturación de ventas",
+      "context": "Administración",
+      "file": "app/(internal)/facturas-venta/nueva/page.tsx",
+      "kind": "surface",
+      "action": "facturas-venta/nueva",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0010",
+      "module": "Facturación de ventas",
+      "context": "Administración",
+      "file": "app/(internal)/facturas-venta/page.tsx",
+      "kind": "surface",
+      "action": "facturas-venta",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0011",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventario/page.tsx",
+      "kind": "surface",
+      "action": "inventario",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0012",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "createCanonicalReceipt",
+      "line": 44,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0013",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "uploadReceiptEvidence",
+      "line": 84,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0014",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "createReceiptPortalLink",
+      "line": 135,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0015",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "createInventoryLocation",
+      "line": 194,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0016",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "updateInventoryLocationName",
+      "line": 262,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0017",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "setInventoryLocationActive",
+      "line": 288,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0018",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "createWarehousePortalLink",
+      "line": 325,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0019",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "revokeWarehousePortalLink",
+      "line": 363,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0020",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "postCanonicalInventoryMovement",
+      "line": 399,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0021",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "confirmCanonicalReceipt",
+      "line": 525,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0022",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "updateWarehouseSubmissionLine",
+      "line": 545,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0023",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "addManualWarehouseSubmissionLine",
+      "line": 643,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0024",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "processWarehouseSubmission",
+      "line": 662,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0025",
+      "module": "Inventario",
+      "context": "Administración",
+      "file": "app/(internal)/inventory/actions.ts",
+      "kind": "action",
+      "action": "confirmCanonicalWarehouseSubmission",
+      "line": 820,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0026",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/actions.ts",
+      "kind": "action",
+      "action": "reconcilePendingInvoices",
+      "line": 27,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0027",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/actions.ts",
+      "kind": "action",
+      "action": "createInvoice",
+      "line": 64,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0028",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/actions.ts",
+      "kind": "action",
+      "action": "getCandidateOrders",
+      "line": 478,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0029",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/actions.ts",
+      "kind": "action",
+      "action": "linkInvoiceToOrder",
+      "line": 553,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0030",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/bulk/page.tsx",
+      "kind": "surface",
+      "action": "invoices/bulk",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0031",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/export/route.ts",
+      "kind": "surface",
+      "action": "invoices/export",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "API_OR_EXPORT_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0032",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/export/route.ts",
+      "kind": "action",
+      "action": "GET",
+      "line": 17,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0033",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/extract-actions.ts",
+      "kind": "action",
+      "action": "extractInvoiceFromPhoto",
+      "line": 26,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0034",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/page.tsx",
+      "kind": "surface",
+      "action": "invoices",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0035",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/revision/actions.ts",
+      "kind": "action",
+      "action": "resolveInvoiceJob",
+      "line": 33,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0036",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/revision/actions.ts",
+      "kind": "action",
+      "action": "retryInvoiceJob",
+      "line": 346,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0037",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/revision/actions.ts",
+      "kind": "action",
+      "action": "discardInvoiceJob",
+      "line": 376,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0038",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/revision/page.tsx",
+      "kind": "surface",
+      "action": "invoices/revision",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0039",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/section-action.ts",
+      "kind": "action",
+      "action": "getInvoicesData",
+      "line": 18,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0040",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "matchOrder",
+      "line": 22,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0041",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "unmatchOrder",
+      "line": 94,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0042",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "approveException",
+      "line": 114,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0043",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "markAptoParaPago",
+      "line": 149,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0044",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "markAptoYCrearOp",
+      "line": 161,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0045",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "deleteInvoice",
+      "line": 210,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0046",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "getSignedInvoiceAttachmentUrl",
+      "line": 245,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0047",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "addInvoiceItem",
+      "line": 264,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0048",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "updateInvoiceItem",
+      "line": 298,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0049",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "deleteInvoiceItem",
+      "line": 387,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0050",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "createInvoiceItemMatch",
+      "line": 416,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0051",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/actions.ts",
+      "kind": "action",
+      "action": "deleteInvoiceItemMatch",
+      "line": 466,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0052",
+      "module": "Facturas de compra y conciliación",
+      "context": "Administración",
+      "file": "app/(internal)/invoices/[id]/page.tsx",
+      "kind": "surface",
+      "action": "invoices/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0053",
+      "module": "Notas de crédito",
+      "context": "Administración",
+      "file": "app/(internal)/notas-credito/page.tsx",
+      "kind": "surface",
+      "action": "notas-credito",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0054",
+      "module": "Órdenes de trabajo",
+      "context": "Administración",
+      "file": "app/(internal)/ordenes-trabajo/page.tsx",
+      "kind": "surface",
+      "action": "ordenes-trabajo",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0055",
+      "module": "Órdenes de trabajo",
+      "context": "Administración",
+      "file": "app/(internal)/ordenes-trabajo/[id]/page.tsx",
+      "kind": "surface",
+      "action": "ordenes-trabajo/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0056",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/actions.ts",
+      "kind": "action",
+      "action": "createManualOrder",
+      "line": 33,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0057",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/actions.ts",
+      "kind": "action",
+      "action": "createOrderFromInvoice",
+      "line": 41,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0058",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/actions.ts",
+      "kind": "action",
+      "action": "deleteOrder",
+      "line": 122,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0059",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/direct-purchase-actions.ts",
+      "kind": "action",
+      "action": "previewDirectPurchaseAction",
+      "line": 11,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0060",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/direct-purchase-actions.ts",
+      "kind": "action",
+      "action": "confirmDirectPurchaseAction",
+      "line": 49,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0061",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/oc-recepcion-actions.ts",
+      "kind": "action",
+      "action": "registrarRecepcion",
+      "line": 19,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0062",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/oc-recepcion-actions.ts",
+      "kind": "action",
+      "action": "confirmarRecepcion",
+      "line": 120,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0063",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/oc-recepcion-actions.ts",
+      "kind": "action",
+      "action": "updateReceiptProductMapping",
+      "line": 170,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0064",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/oc-recepcion-actions.ts",
+      "kind": "action",
+      "action": "eliminarRecepcion",
+      "line": 216,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0065",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/page.tsx",
+      "kind": "surface",
+      "action": "orders",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0066",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/receipt-document-actions.ts",
+      "kind": "action",
+      "action": "readReceiptDocument",
+      "line": 9,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0067",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/section-action.ts",
+      "kind": "action",
+      "action": "getOrdersData",
+      "line": 14,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0068",
+      "module": "Órdenes de compra y recepción",
+      "context": "Administración",
+      "file": "app/(internal)/orders/[id]/page.tsx",
+      "kind": "surface",
+      "action": "orders/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0069",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/actions.ts",
+      "kind": "action",
+      "action": "createPaymentOrder",
+      "line": 9,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0070",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/actions.ts",
+      "kind": "action",
+      "action": "createPaymentOrderFromInvoice",
+      "line": 59,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0071",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/actions.ts",
+      "kind": "action",
+      "action": "markPaymentOrderExecuted",
+      "line": 119,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0072",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/nueva/page.tsx",
+      "kind": "surface",
+      "action": "pagos/nueva",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0073",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/page.tsx",
+      "kind": "surface",
+      "action": "pagos",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0074",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/section-action.ts",
+      "kind": "action",
+      "action": "getPagosData",
+      "line": 20,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0075",
+      "module": "Órdenes de pago",
+      "context": "Administración",
+      "file": "app/(internal)/pagos/[id]/page.tsx",
+      "kind": "surface",
+      "action": "pagos/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0076",
+      "module": "Cotizaciones",
+      "context": "Administración",
+      "file": "app/(internal)/proformas/nueva/page.tsx",
+      "kind": "surface",
+      "action": "proformas/nueva",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0077",
+      "module": "Cotizaciones",
+      "context": "Administración",
+      "file": "app/(internal)/proformas/page.tsx",
+      "kind": "surface",
+      "action": "proformas",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0078",
+      "module": "Órdenes de compra y recepción",
+      "context": "Operativo/Obras",
+      "file": "app/(internal)/projects/[id]/orders/[orderId]/page.tsx",
+      "kind": "surface",
+      "action": "projects/[id]/orders/[orderId]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0079",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Operativo/Obras",
+      "file": "app/(internal)/projects/[id]/rfqs/[rfqId]/page.tsx",
+      "kind": "surface",
+      "action": "projects/[id]/rfqs/[rfqId]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0080",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/actions.ts",
+      "kind": "action",
+      "action": "createProvider",
+      "line": 47,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0081",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/actions.ts",
+      "kind": "action",
+      "action": "updateProvider",
+      "line": 75,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0082",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/actions.ts",
+      "kind": "action",
+      "action": "toggleProviderActive",
+      "line": 102,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0083",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/page.tsx",
+      "kind": "surface",
+      "action": "providers",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0084",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/section-action.ts",
+      "kind": "action",
+      "action": "getProvidersData",
+      "line": 15,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0085",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/[id]/actions.ts",
+      "kind": "action",
+      "action": "getSignedUrl",
+      "line": 6,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0086",
+      "module": "Proveedores",
+      "context": "Administración",
+      "file": "app/(internal)/providers/[id]/page.tsx",
+      "kind": "surface",
+      "action": "providers/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0087",
+      "module": "Remisiones",
+      "context": "Administración",
+      "file": "app/(internal)/remisiones/nueva/page.tsx",
+      "kind": "surface",
+      "action": "remisiones/nueva",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0088",
+      "module": "Remisiones",
+      "context": "Administración",
+      "file": "app/(internal)/remisiones/page.tsx",
+      "kind": "surface",
+      "action": "remisiones",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0089",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/actions.ts",
+      "kind": "action",
+      "action": "getPurchaseFormOptions",
+      "line": 25,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0090",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/actions.ts",
+      "kind": "action",
+      "action": "uploadRfqAttachments",
+      "line": 42,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0091",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/actions.ts",
+      "kind": "action",
+      "action": "createRfq",
+      "line": 82,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0092",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/page.tsx",
+      "kind": "surface",
+      "action": "rfqs",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0093",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/section-action.ts",
+      "kind": "action",
+      "action": "getRfqsData",
+      "line": 14,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0094",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "inviteProviders",
+      "line": 16,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0095",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "getSignedAttachmentUrl",
+      "line": 28,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0096",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "selectAndAuthorizeOffer",
+      "line": 42,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0097",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "cancelRfq",
+      "line": 57,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0098",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "reopenRfq",
+      "line": 85,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0099",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "deleteRfq",
+      "line": 141,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0100",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/actions.ts",
+      "kind": "action",
+      "action": "enterQuotePricesManually",
+      "line": 209,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0101",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/page.tsx",
+      "kind": "surface",
+      "action": "rfqs/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0102",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "openQuoteAttachmentAction",
+      "line": 42,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0103",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "renewMagicLinkAction",
+      "line": 62,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0104",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "closeDiscoveryAction",
+      "line": 75,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0105",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "saveAllocationAction",
+      "line": 88,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0106",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "authorizeAllocationAction",
+      "line": 113,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0107",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "previewOrdersAction",
+      "line": 126,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0108",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "confirmOrdersAction",
+      "line": 139,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0109",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "extractQuoteDocumentAction",
+      "line": 158,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0110",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "reviewQuoteAction",
+      "line": 176,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0111",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "revokeMagicLinkAction",
+      "line": 220,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0112",
+      "module": "Solicitudes, ofertas y adjudicación",
+      "context": "Administración",
+      "file": "app/(internal)/rfqs/[id]/workflow-actions.ts",
+      "kind": "action",
+      "action": "submitInternalQuoteAction",
+      "line": 233,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0113",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/export/route.ts",
+      "kind": "surface",
+      "action": "stock/export",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "API_OR_EXPORT_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0114",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/export/route.ts",
+      "kind": "action",
+      "action": "GET",
+      "line": 9,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0115",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/nuevo/page.tsx",
+      "kind": "surface",
+      "action": "stock/nuevo",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0116",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/page.tsx",
+      "kind": "surface",
+      "action": "stock",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0117",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "crearProducto",
+      "line": 18,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0118",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "actualizarProducto",
+      "line": 65,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0119",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "desactivarProducto",
+      "line": 89,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0120",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "reactivarProducto",
+      "line": 104,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0121",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "registrarMovimiento",
+      "line": 123,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0122",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "crearCategoria",
+      "line": 166,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0123",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "renombrarCategoria",
+      "line": 185,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0124",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "eliminarCategoria",
+      "line": 203,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0125",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "crearDeposito",
+      "line": 216,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0126",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "renombrarDeposito",
+      "line": 235,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0127",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "eliminarDeposito",
+      "line": 253,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0128",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "crearCategoriasSugeridas",
+      "line": 261,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0129",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/stock-actions.ts",
+      "kind": "action",
+      "action": "importarProductos",
+      "line": 306,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0130",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/[id]/editar/page.tsx",
+      "kind": "surface",
+      "action": "stock/[id]/editar",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0131",
+      "module": "Stock",
+      "context": "Administración",
+      "file": "app/(internal)/stock/[id]/page.tsx",
+      "kind": "surface",
+      "action": "stock/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0132",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/actions.ts",
+      "kind": "action",
+      "action": "crearCuenta",
+      "line": 20,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0133",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/actions.ts",
+      "kind": "action",
+      "action": "actualizarCuenta",
+      "line": 53,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0134",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/actions.ts",
+      "kind": "action",
+      "action": "setCuentaActiva",
+      "line": 73,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0135",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/actions.ts",
+      "kind": "action",
+      "action": "registrarMovimientoManual",
+      "line": 88,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0136",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/actions.ts",
+      "kind": "action",
+      "action": "registrarTransferencia",
+      "line": 131,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0137",
+      "module": "Tesorería",
+      "context": "Administración",
+      "file": "app/(internal)/tesoreria/page.tsx",
+      "kind": "surface",
+      "action": "tesoreria",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0138",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "createSalesDocument",
+      "line": 104,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0139",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "updateSalesDocument",
+      "line": 155,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0140",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "emitSalesDocument",
+      "line": 219,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0141",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "voidSalesDocument",
+      "line": 241,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0142",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "deleteSalesDocument",
+      "line": 264,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0143",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "addReceipt",
+      "line": 280,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0144",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/actions.ts",
+      "kind": "action",
+      "action": "reverseReceipt",
+      "line": 345,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0145",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/export/route.ts",
+      "kind": "surface",
+      "action": "ventas/export",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "API_OR_EXPORT_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0146",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/export/route.ts",
+      "kind": "action",
+      "action": "GET",
+      "line": 12,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0147",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/nueva/page.tsx",
+      "kind": "surface",
+      "action": "ventas/nueva",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0148",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/nueva-nc/page.tsx",
+      "kind": "surface",
+      "action": "ventas/nueva-nc",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0149",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/page.tsx",
+      "kind": "surface",
+      "action": "ventas",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0150",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/sifen-actions.ts",
+      "kind": "action",
+      "action": "emitirFE",
+      "line": 75,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0151",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/sifen-actions.ts",
+      "kind": "action",
+      "action": "emitirNC",
+      "line": 76,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0152",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/sifen-actions.ts",
+      "kind": "action",
+      "action": "consultarFE",
+      "line": 78,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0153",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/editar/page.tsx",
+      "kind": "surface",
+      "action": "ventas/[id]/editar",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0154",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/page.tsx",
+      "kind": "surface",
+      "action": "ventas/[id]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0155",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "createQuotationLink",
+      "line": 39,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0156",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "logQuotationLinkCopied",
+      "line": 142,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0157",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "revokeQuotationLink",
+      "line": 164,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0158",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "updateQuotationExpiry",
+      "line": 193,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0159",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "reopenQuotationToDraft",
+      "line": 230,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0160",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "updateWorkOrderStatus",
+      "line": 262,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0161",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/[id]/quotation-actions.ts",
+      "kind": "action",
+      "action": "approveWorkOrderInternal",
+      "line": 295,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0162",
+      "module": "Documentos de venta",
+      "context": "Administración",
+      "file": "app/(internal)/ventas/_components/sales-list-section-action.ts",
+      "kind": "action",
+      "action": "getSalesListData",
+      "line": 14,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0163",
+      "module": "Clientes",
+      "context": "Impresión",
+      "file": "app/(print)/clientes/[id]/estado-cuenta/page.tsx",
+      "kind": "surface",
+      "action": "clientes/[id]/estado-cuenta",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0164",
+      "module": "Órdenes de pago",
+      "context": "Impresión",
+      "file": "app/(print)/pagos/[id]/imprimir/page.tsx",
+      "kind": "surface",
+      "action": "pagos/[id]/imprimir",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0165",
+      "module": "Documentos de venta",
+      "context": "Impresión",
+      "file": "app/(print)/ventas/[id]/imprimir/page.tsx",
+      "kind": "surface",
+      "action": "ventas/[id]/imprimir",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "según requireModule/requireProfile y RLS",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0166",
+      "module": "Portal de recepción",
+      "context": "Público/API",
+      "file": "app/api/recepcion-portal/[token]/route.ts",
+      "kind": "surface",
+      "action": "api/recepcion-portal/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "API_OR_EXPORT_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0167",
+      "module": "Portal de recepción",
+      "context": "Público/API",
+      "file": "app/api/recepcion-portal/[token]/route.ts",
+      "kind": "action",
+      "action": "POST",
+      "line": 26,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0168",
+      "module": "Portal de pañol",
+      "context": "Público/API",
+      "file": "app/api/warehouse-portal/[token]/route.ts",
+      "kind": "surface",
+      "action": "api/warehouse-portal/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "API_OR_EXPORT_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0169",
+      "module": "Portal de pañol",
+      "context": "Público/API",
+      "file": "app/api/warehouse-portal/[token]/route.ts",
+      "kind": "action",
+      "action": "GET",
+      "line": 37,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0170",
+      "module": "Portal de pañol",
+      "context": "Público/API",
+      "file": "app/api/warehouse-portal/[token]/route.ts",
+      "kind": "action",
+      "action": "POST",
+      "line": 48,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0171",
+      "module": "Portal de cotización",
+      "context": "Público/API",
+      "file": "app/cotizacion/[token]/actions.ts",
+      "kind": "action",
+      "action": "acceptQuotationAction",
+      "line": 28,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0172",
+      "module": "Portal de cotización",
+      "context": "Público/API",
+      "file": "app/cotizacion/[token]/actions.ts",
+      "kind": "action",
+      "action": "rejectQuotationAction",
+      "line": 53,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0173",
+      "module": "Portal de cotización",
+      "context": "Público/API",
+      "file": "app/cotizacion/[token]/page.tsx",
+      "kind": "surface",
+      "action": "cotizacion/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0174",
+      "module": "Portal de proveedores",
+      "context": "Público/API",
+      "file": "app/cotizar/[token]/actions.ts",
+      "kind": "action",
+      "action": "submitMultiItemQuote",
+      "line": 8,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0175",
+      "module": "Portal de proveedores",
+      "context": "Público/API",
+      "file": "app/cotizar/[token]/actions.ts",
+      "kind": "action",
+      "action": "submitQuote",
+      "line": 20,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0176",
+      "module": "Portal de proveedores",
+      "context": "Público/API",
+      "file": "app/cotizar/[token]/actions.ts",
+      "kind": "action",
+      "action": "markOpened",
+      "line": 23,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "SERVER_ACTION_NOT_A_SCREEN"
+    },
+    {
+      "id": "COV-0177",
+      "module": "Portal de proveedores",
+      "context": "Público/API",
+      "file": "app/cotizar/[token]/page.tsx",
+      "kind": "surface",
+      "action": "cotizar/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0178",
+      "module": "Portal de recepción",
+      "context": "Público/API",
+      "file": "app/recepcion/[token]/page.tsx",
+      "kind": "surface",
+      "action": "recepcion/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    },
+    {
+      "id": "COV-0179",
+      "module": "Portal de pañol",
+      "context": "Público/API",
+      "file": "app/warehouse/[token]/page.tsx",
+      "kind": "surface",
+      "action": "warehouse/[token]",
+      "line": 1,
+      "status": "NO PROBADO",
+      "role": "capacidad por token o autorización API",
+      "evidence": [],
+      "notes": "Inventario estático inicial; no es aprobación funcional.",
+      "sourceExists": true,
+      "u1": "VISUAL_CAPTURED"
+    }
+  ],
+  "pages": [
+    {
+      "file": "app/(auth)/login/page.tsx",
+      "route": "/login",
+      "captures": [
+        {
+          "route": "/login",
+          "actualRoute": "/login",
+          "capture": "u1_guest_login.png",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD_GUEST",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(auth)/reset-password/page.tsx",
+      "route": "/reset-password",
+      "captures": [
+        {
+          "route": "/reset-password",
+          "actualRoute": "/reset-password",
+          "capture": "u1_guest_reset-password.png",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD_GUEST",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/agent/activity/page.tsx",
+      "route": "/agent/activity",
+      "captures": [
+        {
+          "route": "/agent/activity",
+          "actualRoute": "/agent/activity",
+          "capture": "u1__agent_activity.png",
+          "dom": "u1__agent_activity.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/clientes/page.tsx",
+      "route": "/clientes",
+      "captures": [
+        {
+          "route": "/clientes",
+          "capture": "u1_clientes.png",
+          "dom": "u1_clientes.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/clientes/[id]/page.tsx",
+      "route": "/clientes/[id]",
+      "captures": [
+        {
+          "route": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6",
+          "capture": "u1_clientes_10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6.png",
+          "dom": "u1_clientes_10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/cobros/page.tsx",
+      "route": "/cobros",
+      "captures": [
+        {
+          "route": "/cobros",
+          "capture": "u1_cobros.png",
+          "dom": "u1_cobros.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/configuracion/page.tsx",
+      "route": "/configuracion",
+      "captures": [
+        {
+          "route": "/configuracion",
+          "capture": "u1_configuracion.png",
+          "dom": "u1_configuracion.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/costs/page.tsx",
+      "route": "/costs",
+      "captures": [
+        {
+          "route": "/costs",
+          "capture": "u1_costs.png",
+          "dom": "u1_costs.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/dashboard/page.tsx",
+      "route": "/dashboard",
+      "captures": [
+        {
+          "route": "/dashboard",
+          "actualRoute": "/dashboard",
+          "capture": "u1__dashboard.png",
+          "dom": "u1__dashboard.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/empresas/page.tsx",
+      "route": "/empresas",
+      "captures": [
+        {
+          "route": "/empresas",
+          "actualRoute": "/empresas",
+          "capture": "u1_empresas_superadmin.png",
+          "stage": "VISUAL_REVIEW_QA_SUPERADMIN",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/facturas-venta/nueva/page.tsx",
+      "route": "/facturas-venta/nueva",
+      "captures": [
+        {
+          "route": "/facturas-venta/nueva",
+          "capture": "u1_facturas-venta_nueva.png",
+          "dom": "u1_facturas-venta_nueva.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/facturas-venta/page.tsx",
+      "route": "/facturas-venta",
+      "captures": [
+        {
+          "route": "/facturas-venta",
+          "capture": "u1_facturas-venta.png",
+          "dom": "u1_facturas-venta.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/flujo-caja/page.tsx",
+      "route": "/flujo-caja",
+      "captures": [
+        {
+          "route": "/flujo-caja",
+          "capture": "u1_flujo-caja.png",
+          "dom": "u1_flujo-caja.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/inventario/page.tsx",
+      "route": "/inventario",
+      "captures": [
+        {
+          "route": "/inventario",
+          "capture": "u1_inventario.png",
+          "dom": "u1_inventario.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/invoices/bulk/page.tsx",
+      "route": "/invoices/bulk",
+      "captures": [
+        {
+          "route": "/invoices/bulk",
+          "capture": "u1_invoices_bulk.png",
+          "dom": "u1_invoices_bulk.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/invoices/page.tsx",
+      "route": "/invoices",
+      "captures": [
+        {
+          "route": "/invoices",
+          "capture": "u1_invoices.png",
+          "dom": "u1_invoices.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/invoices/revision/page.tsx",
+      "route": "/invoices/revision",
+      "captures": [
+        {
+          "route": "/invoices/revision",
+          "capture": "u1_invoices_revision.png",
+          "dom": "u1_invoices_revision.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/invoices/[id]/page.tsx",
+      "route": "/invoices/[id]",
+      "captures": [
+        {
+          "route": "/invoices/c172c4b3-dc64-4f28-83a8-7261d081fb3a",
+          "capture": "u1_invoices_c172c4b3-dc64-4f28-83a8-7261d081fb3a.png",
+          "dom": "u1_invoices_c172c4b3-dc64-4f28-83a8-7261d081fb3a.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/auction-bot/page.tsx",
+      "route": "/licitaciones/auction-bot",
+      "captures": [
+        {
+          "route": "/licitaciones/auction-bot",
+          "actualRoute": "/licitaciones/auction-bot",
+          "capture": "u1_help-edge-1280.png",
+          "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/auction-lab/page.tsx",
+      "route": "/licitaciones/auction-lab",
+      "captures": [
+        {
+          "route": "/licitaciones/auction-lab",
+          "actualRoute": "/licitaciones/auction-lab",
+          "capture": "u1__licitaciones_auction-lab.png",
+          "dom": "u1__licitaciones_auction-lab.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/auction-lab/[roomId]/page.tsx",
+      "route": "/licitaciones/auction-lab/[roomId]",
+      "captures": [
+        {
+          "route": "/licitaciones/auction-lab/648c02bd-9797-4a97-a5cb-52a3ed58a61d",
+          "actualRoute": "/licitaciones/auction-lab/648c02bd-9797-4a97-a5cb-52a3ed58a61d",
+          "capture": "u1__licitaciones_auction-lab_648c02bd-9797-4a97-a5cb-52a3ed58a61d.png",
+          "dom": "u1__licitaciones_auction-lab_648c02bd-9797-4a97-a5cb-52a3ed58a61d.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/competidores/page.tsx",
+      "route": "/licitaciones/competidores",
+      "captures": [
+        {
+          "route": "/licitaciones/competidores",
+          "capture": "u1_licitaciones_competidores.png",
+          "dom": "u1_licitaciones_competidores.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/competidores/[ruc]/page.tsx",
+      "route": "/licitaciones/competidores/[ruc]",
+      "captures": [
+        {
+          "route": "/licitaciones/competidores/90",
+          "actualRoute": "/licitaciones/competidores/90",
+          "capture": "u1__licitaciones_competidores_90.png",
+          "dom": "u1__licitaciones_competidores_90.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/documentos/page.tsx",
+      "route": "/licitaciones/documentos",
+      "captures": [
+        {
+          "route": "/licitaciones/documentos",
+          "capture": "u1_licitaciones_documentos.png",
+          "dom": "u1_licitaciones_documentos.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/page.tsx",
+      "route": "/licitaciones",
+      "captures": [
+        {
+          "route": "/licitaciones",
+          "capture": "u1_licitaciones.png",
+          "dom": "u1_licitaciones.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/prebid/page.tsx",
+      "route": "/licitaciones/prebid",
+      "captures": [
+        {
+          "route": "/licitaciones/prebid",
+          "capture": "u1_licitaciones_prebid.png",
+          "dom": "u1_licitaciones_prebid.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/[id]/page.tsx",
+      "route": "/licitaciones/[id]",
+      "captures": [
+        {
+          "route": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949",
+          "actualRoute": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949",
+          "capture": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949.png",
+          "dom": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/licitaciones/[id]/prebid/page.tsx",
+      "route": "/licitaciones/[id]/prebid",
+      "captures": [
+        {
+          "route": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949/prebid",
+          "actualRoute": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949/prebid",
+          "capture": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949_prebid.png",
+          "dom": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949_prebid.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/notas-credito/page.tsx",
+      "route": "/notas-credito",
+      "captures": [
+        {
+          "route": "/notas-credito",
+          "capture": "u1_notas-credito.png",
+          "dom": "u1_notas-credito.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ordenes-trabajo/page.tsx",
+      "route": "/ordenes-trabajo",
+      "captures": [
+        {
+          "route": "/ordenes-trabajo",
+          "capture": "u1_ordenes-trabajo.png",
+          "dom": "u1_ordenes-trabajo.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ordenes-trabajo/[id]/page.tsx",
+      "route": "/ordenes-trabajo/[id]",
+      "captures": [
+        {
+          "route": "/ordenes-trabajo/6f6c0f99-151e-4fe1-9a1c-a68118a756f2",
+          "capture": "u1_ordenes-trabajo_6f6c0f99-151e-4fe1-9a1c-a68118a756f2.png",
+          "dom": "u1_ordenes-trabajo_6f6c0f99-151e-4fe1-9a1c-a68118a756f2.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/orders/page.tsx",
+      "route": "/orders",
+      "captures": [
+        {
+          "route": "/orders",
+          "capture": "u1_orders.png",
+          "dom": "u1_orders.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/orders/[id]/page.tsx",
+      "route": "/orders/[id]",
+      "captures": [
+        {
+          "route": "/orders/2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10",
+          "capture": "u1_orders_2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10.png",
+          "dom": "u1_orders_2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/pagos/nueva/page.tsx",
+      "route": "/pagos/nueva",
+      "captures": [
+        {
+          "route": "/pagos/nueva",
+          "capture": "u1_pagos_nueva.png",
+          "dom": "u1_pagos_nueva.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/pagos/page.tsx",
+      "route": "/pagos",
+      "captures": [
+        {
+          "route": "/pagos",
+          "capture": "u1_pagos.png",
+          "dom": "u1_pagos.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/pagos/[id]/page.tsx",
+      "route": "/pagos/[id]",
+      "captures": [
+        {
+          "route": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677",
+          "capture": "u1_pagos_8b9ead66-707f-41d0-834a-8dd9de5eb677.png",
+          "dom": "u1_pagos_8b9ead66-707f-41d0-834a-8dd9de5eb677.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/planillas/[id]/page.tsx",
+      "route": "/planillas/[id]",
+      "captures": [
+        {
+          "route": "/planillas/5d30b59b-7570-4717-8b05-a42cc57c8664",
+          "actualRoute": "/planillas/5d30b59b-7570-4717-8b05-a42cc57c8664",
+          "capture": "u1__planillas_5d30b59b-7570-4717-8b05-a42cc57c8664.png",
+          "dom": "u1__planillas_5d30b59b-7570-4717-8b05-a42cc57c8664.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/precios/page.tsx",
+      "route": "/precios",
+      "captures": [
+        {
+          "route": "/precios",
+          "capture": "u1_precios.png",
+          "dom": "u1_precios.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/proformas/nueva/page.tsx",
+      "route": "/proformas/nueva",
+      "captures": [
+        {
+          "route": "/proformas/nueva",
+          "capture": "u1_proformas_nueva.png",
+          "dom": "u1_proformas_nueva.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/proformas/page.tsx",
+      "route": "/proformas",
+      "captures": [
+        {
+          "route": "/proformas",
+          "capture": "u1_proformas.png",
+          "dom": "u1_proformas.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/projects/page.tsx",
+      "route": "/projects",
+      "captures": [
+        {
+          "route": "/projects",
+          "capture": "u1_projects.png",
+          "dom": "u1_projects.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/projects/[id]/orders/[orderId]/page.tsx",
+      "route": "/projects/[id]/orders/[orderId]",
+      "captures": [
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8/orders/fb4133a5-0976-47f6-bdb8-29835844734e",
+          "capture": "u1_projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_orders_fb4133a5-0976-47f6-bdb8-29835844734e-900.png",
+          "dom": "u1_projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_orders_fb4133a5-0976-47f6-bdb8-29835844734e.txt",
+          "stage": "VISUAL_REVIEW",
+          "width": 900,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/projects/[id]/page.tsx",
+      "route": "/projects/[id]",
+      "captures": [
+        {
+          "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=presupuesto",
+          "capture": "u1_project_presupuesto.png",
+          "dom": "u1_project_presupuesto.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=costeo",
+          "capture": "u1_project_costeo.png",
+          "dom": "u1_project_costeo.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=cronograma",
+          "capture": "u1_project_cronograma.png",
+          "dom": "u1_project_cronograma.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=plan-semanal",
+          "capture": "u1_project_plan-semanal.png",
+          "dom": "u1_project_plan-semanal.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=bim",
+          "capture": "u1_project_bim.png",
+          "dom": "u1_project_bim.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=proveedores",
+          "capture": "u1_project_proveedores.png",
+          "dom": "u1_project_proveedores.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=cotizaciones",
+          "capture": "u1_project_cotizaciones.png",
+          "dom": "u1_project_cotizaciones.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=compras",
+          "capture": "u1_project_compras.png",
+          "dom": "u1_project_compras.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=recepciones",
+          "capture": "u1_project_recepciones.png",
+          "dom": "u1_project_recepciones.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=facturas",
+          "capture": "u1_project_facturas.png",
+          "dom": "u1_project_facturas.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=pagos",
+          "capture": "u1_project_pagos.png",
+          "dom": "u1_project_pagos.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=ejecucion",
+          "capture": "u1_project_ejecucion.png",
+          "dom": "u1_project_ejecucion.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=inventario",
+          "capture": "u1_project_inventario.png",
+          "dom": "u1_project_inventario.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=panol",
+          "capture": "u1_project_panol.png",
+          "dom": "u1_project_panol.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=personal",
+          "capture": "u1_project_personal.png",
+          "dom": "u1_project_personal.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=subcontratistas",
+          "capture": "u1_project_subcontratistas.png",
+          "dom": "u1_project_subcontratistas.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=certificados",
+          "capture": "u1__projects_32e0b221-47d3-45eb-9729-e6a1d97c3374_tab_certificados.png",
+          "dom": "u1__projects_32e0b221-47d3-45eb-9729-e6a1d97c3374_tab_certificados.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=avance-fisico",
+          "capture": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_avance-fisico.png",
+          "dom": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_avance-fisico.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        },
+        {
+          "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=informes",
+          "capture": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_informes.png",
+          "dom": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_informes.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/projects/[id]/rfqs/[rfqId]/page.tsx",
+      "route": "/projects/[id]/rfqs/[rfqId]",
+      "captures": [
+        {
+          "route": "/projects/85a00ccc-9e1c-4779-8e8b-3d527352100e/rfqs/b7506fb7-7b81-4d0f-b678-1134f33aa2a4",
+          "capture": "u1_projects_85a00ccc-9e1c-4779-8e8b-3d527352100e_rfqs_b7506fb7-7b81-4d0f-b678-1134f33aa2a4.png",
+          "dom": "u1_projects_85a00ccc-9e1c-4779-8e8b-3d527352100e_rfqs_b7506fb7-7b81-4d0f-b678-1134f33aa2a4.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/providers/page.tsx",
+      "route": "/providers",
+      "captures": [
+        {
+          "route": "/providers",
+          "capture": "u1_providers.png",
+          "dom": "u1_providers.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/providers/[id]/page.tsx",
+      "route": "/providers/[id]",
+      "captures": [
+        {
+          "route": "/providers/cb5ad286-f6bc-485b-a6f7-eeb009080044",
+          "capture": "u1_providers_cb5ad286-f6bc-485b-a6f7-eeb009080044.png",
+          "dom": "u1_providers_cb5ad286-f6bc-485b-a6f7-eeb009080044.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/remisiones/nueva/page.tsx",
+      "route": "/remisiones/nueva",
+      "captures": [
+        {
+          "route": "/remisiones/nueva",
+          "capture": "u1_remisiones_nueva.png",
+          "dom": "u1_remisiones_nueva.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/remisiones/page.tsx",
+      "route": "/remisiones",
+      "captures": [
+        {
+          "route": "/remisiones",
+          "capture": "u1_remisiones.png",
+          "dom": "u1_remisiones.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/rfqs/page.tsx",
+      "route": "/rfqs",
+      "captures": [
+        {
+          "route": "/rfqs",
+          "capture": "u1_rfqs.png",
+          "dom": "u1_rfqs.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/rfqs/[id]/page.tsx",
+      "route": "/rfqs/[id]",
+      "captures": [
+        {
+          "route": "/rfqs/173063ae-6f2b-4518-b97e-e4b42108c69e",
+          "capture": "u1_rfqs_173063ae-6f2b-4518-b97e-e4b42108c69e.png",
+          "dom": "u1_rfqs_173063ae-6f2b-4518-b97e-e4b42108c69e.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/stock/nuevo/page.tsx",
+      "route": "/stock/nuevo",
+      "captures": [
+        {
+          "route": "/stock/nuevo",
+          "capture": "u1_stock_nuevo.png",
+          "dom": "u1_stock_nuevo.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/stock/page.tsx",
+      "route": "/stock",
+      "captures": [
+        {
+          "route": "/stock",
+          "capture": "u1_stock.png",
+          "dom": "u1_stock.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/stock/[id]/editar/page.tsx",
+      "route": "/stock/[id]/editar",
+      "captures": [
+        {
+          "route": "/stock/e97de614-aad4-4938-8643-4169a79462d6/editar",
+          "capture": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6_editar.png",
+          "dom": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6_editar.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/stock/[id]/page.tsx",
+      "route": "/stock/[id]",
+      "captures": [
+        {
+          "route": "/stock/e97de614-aad4-4938-8643-4169a79462d6",
+          "capture": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6.png",
+          "dom": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/tesoreria/page.tsx",
+      "route": "/tesoreria",
+      "captures": [
+        {
+          "route": "/tesoreria",
+          "capture": "u1_tesoreria.png",
+          "dom": "u1_tesoreria.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/users/page.tsx",
+      "route": "/users",
+      "captures": [
+        {
+          "route": "/users",
+          "capture": "u1_users.png",
+          "dom": "u1_users.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ventas/nueva/page.tsx",
+      "route": "/ventas/nueva",
+      "captures": [
+        {
+          "route": "/ventas/nueva",
+          "capture": "u1__ventas_nueva.png",
+          "dom": "u1__ventas_nueva.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ventas/nueva-nc/page.tsx",
+      "route": "/ventas/nueva-nc",
+      "captures": [
+        {
+          "route": "/ventas/nueva-nc",
+          "capture": "u1_ventas_nueva-nc.png",
+          "dom": "u1_ventas_nueva-nc.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ventas/page.tsx",
+      "route": "/ventas",
+      "captures": [
+        {
+          "route": "/ventas",
+          "capture": "u1_ventas.png",
+          "dom": "u1_ventas.txt",
+          "stage": "VISUAL_REVIEW",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ventas/[id]/editar/page.tsx",
+      "route": "/ventas/[id]/editar",
+      "captures": [
+        {
+          "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/editar",
+          "capture": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f_editar-900.png",
+          "dom": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f_editar.txt",
+          "stage": "VISUAL_REVIEW",
+          "width": 900,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(internal)/ventas/[id]/page.tsx",
+      "route": "/ventas/[id]",
+      "captures": [
+        {
+          "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f",
+          "capture": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f-900.png",
+          "dom": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f.txt",
+          "stage": "VISUAL_REVIEW",
+          "width": 900,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(print)/clientes/[id]/estado-cuenta/page.tsx",
+      "route": "/clientes/[id]/estado-cuenta",
+      "captures": [
+        {
+          "route": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6/estado-cuenta",
+          "actualRoute": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6/estado-cuenta",
+          "capture": "u1_print-account-final.png",
+          "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(print)/pagos/[id]/imprimir/page.tsx",
+      "route": "/pagos/[id]/imprimir",
+      "captures": [
+        {
+          "route": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677/imprimir",
+          "actualRoute": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677/imprimir",
+          "capture": "u1_print-payment-final.png",
+          "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/(print)/ventas/[id]/imprimir/page.tsx",
+      "route": "/ventas/[id]/imprimir",
+      "captures": [
+        {
+          "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/imprimir",
+          "actualRoute": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/imprimir",
+          "capture": "u1_print-sales-final.png",
+          "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/auction-lab/join/[token]/page.tsx",
+      "route": "/auction-lab/join/[token]",
+      "captures": [
+        {
+          "route": "/auction-lab/join/[token]",
+          "capture": "u1_extra_auction-lab_join.png",
+          "dom": "u1_extra_auction-lab_join.txt",
+          "validQaToken": true,
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/auction-lab/watch/[token]/page.tsx",
+      "route": "/auction-lab/watch/[token]",
+      "captures": [
+        {
+          "route": "/auction-lab/watch/[token]",
+          "capture": "u1_extra_auction-lab_watch.png",
+          "dom": "u1_extra_auction-lab_watch.txt",
+          "validQaToken": true,
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/avance/[token]/page.tsx",
+      "route": "/avance/[token]",
+      "captures": [
+        {
+          "route": "/avance/[token]",
+          "capture": "u1_extra_avance.png",
+          "dom": "u1_extra_avance.txt",
+          "validQaToken": true,
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/certificados/[token]/page.tsx",
+      "route": "/certificados/[token]",
+      "captures": [
+        {
+          "route": "/certificados/[token]",
+          "capture": "u1_extra_certificados.png",
+          "dom": "u1_extra_certificados.txt",
+          "validQaToken": true,
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/cotizacion/[token]/page.tsx",
+      "route": "/cotizacion/[token]",
+      "captures": [
+        {
+          "route": "/cotizacion/[token]",
+          "capture": "u1_portal_cotizacion.png",
+          "dom": "u1_portal_cotizacion.txt",
+          "stage": "VISUAL_REVIEW",
+          "validQaToken": true,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/cotizar/[token]/page.tsx",
+      "route": "/cotizar/[token]",
+      "captures": [
+        {
+          "route": "/cotizar/[token]",
+          "capture": "u1_portal_cotizar.png",
+          "dom": "u1_portal_cotizar.txt",
+          "stage": "VISUAL_REVIEW",
+          "validQaToken": true,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/page.tsx",
+      "route": "/",
+      "captures": [
+        {
+          "route": "/",
+          "actualRoute": "/dashboard",
+          "capture": "u1__.png",
+          "dom": "u1__.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "REDIRECT_OR_ALIAS"
+        }
+      ]
+    },
+    {
+      "file": "app/recepcion/[token]/page.tsx",
+      "route": "/recepcion/[token]",
+      "captures": [
+        {
+          "route": "/recepcion/[token]",
+          "capture": "u1_portal_recepcion.png",
+          "dom": "u1_portal_recepcion.txt",
+          "stage": "VISUAL_REVIEW",
+          "validQaToken": true,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/scanner/page.tsx",
+      "route": "/scanner",
+      "captures": [
+        {
+          "route": "/scanner",
+          "actualRoute": "/scanner",
+          "capture": "u1__scanner.png",
+          "dom": "u1__scanner.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/suspendido/page.tsx",
+      "route": "/suspendido",
+      "captures": [
+        {
+          "route": "/suspendido",
+          "actualRoute": "/suspendido",
+          "capture": "u1__suspendido.png",
+          "dom": "u1__suspendido.txt",
+          "stage": "VISUAL_REVIEW_FINAL_BUILD",
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    },
+    {
+      "file": "app/warehouse/[token]/page.tsx",
+      "route": "/warehouse/[token]",
+      "captures": [
+        {
+          "route": "/warehouse/[token]",
+          "capture": "u1_portal_warehouse.png",
+          "dom": "u1_portal_warehouse.txt",
+          "stage": "VISUAL_REVIEW",
+          "validQaToken": true,
+          "viewport": {
+            "width": 65536,
+            "height": 4292542531
+          },
+          "review": "VISUAL_REVIEWED"
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "route": "/clientes",
+      "capture": "u1_clientes.png",
+      "dom": "u1_clientes.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/cobros",
+      "capture": "u1_cobros.png",
+      "dom": "u1_cobros.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/facturas-venta",
+      "capture": "u1_facturas-venta.png",
+      "dom": "u1_facturas-venta.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/inventario",
+      "capture": "u1_inventario.png",
+      "dom": "u1_inventario.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/invoices",
+      "capture": "u1_invoices.png",
+      "dom": "u1_invoices.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/invoices/revision",
+      "capture": "u1_invoices_revision.png",
+      "dom": "u1_invoices_revision.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/invoices/bulk",
+      "capture": "u1_invoices_bulk.png",
+      "dom": "u1_invoices_bulk.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/notas-credito",
+      "capture": "u1_notas-credito.png",
+      "dom": "u1_notas-credito.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ordenes-trabajo",
+      "capture": "u1_ordenes-trabajo.png",
+      "dom": "u1_ordenes-trabajo.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/orders",
+      "capture": "u1_orders.png",
+      "dom": "u1_orders.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/pagos",
+      "capture": "u1_pagos.png",
+      "dom": "u1_pagos.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/proformas",
+      "capture": "u1_proformas.png",
+      "dom": "u1_proformas.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/providers",
+      "capture": "u1_providers.png",
+      "dom": "u1_providers.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/rfqs",
+      "capture": "u1_rfqs.png",
+      "dom": "u1_rfqs.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/remisiones",
+      "capture": "u1_remisiones.png",
+      "dom": "u1_remisiones.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/stock",
+      "capture": "u1_stock.png",
+      "dom": "u1_stock.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/stock/nuevo",
+      "capture": "u1_stock_nuevo.png",
+      "dom": "u1_stock_nuevo.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/tesoreria",
+      "capture": "u1_tesoreria.png",
+      "dom": "u1_tesoreria.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas",
+      "capture": "u1_ventas.png",
+      "dom": "u1_ventas.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas/nueva-nc",
+      "capture": "u1_ventas_nueva-nc.png",
+      "dom": "u1_ventas_nueva-nc.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/facturas-venta/nueva",
+      "capture": "u1_facturas-venta_nueva.png",
+      "dom": "u1_facturas-venta_nueva.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/proformas/nueva",
+      "capture": "u1_proformas_nueva.png",
+      "dom": "u1_proformas_nueva.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/remisiones/nueva",
+      "capture": "u1_remisiones_nueva.png",
+      "dom": "u1_remisiones_nueva.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/pagos/nueva",
+      "capture": "u1_pagos_nueva.png",
+      "dom": "u1_pagos_nueva.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6",
+      "capture": "u1_clientes_10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6.png",
+      "dom": "u1_clientes_10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/invoices/c172c4b3-dc64-4f28-83a8-7261d081fb3a",
+      "capture": "u1_invoices_c172c4b3-dc64-4f28-83a8-7261d081fb3a.png",
+      "dom": "u1_invoices_c172c4b3-dc64-4f28-83a8-7261d081fb3a.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ordenes-trabajo/6f6c0f99-151e-4fe1-9a1c-a68118a756f2",
+      "capture": "u1_ordenes-trabajo_6f6c0f99-151e-4fe1-9a1c-a68118a756f2.png",
+      "dom": "u1_ordenes-trabajo_6f6c0f99-151e-4fe1-9a1c-a68118a756f2.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/orders/2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10",
+      "capture": "u1_orders_2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10.png",
+      "dom": "u1_orders_2bcb7c22-4dfb-4b45-b7c9-b408ca2eaa10.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677",
+      "capture": "u1_pagos_8b9ead66-707f-41d0-834a-8dd9de5eb677.png",
+      "dom": "u1_pagos_8b9ead66-707f-41d0-834a-8dd9de5eb677.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/providers/cb5ad286-f6bc-485b-a6f7-eeb009080044",
+      "capture": "u1_providers_cb5ad286-f6bc-485b-a6f7-eeb009080044.png",
+      "dom": "u1_providers_cb5ad286-f6bc-485b-a6f7-eeb009080044.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/rfqs/173063ae-6f2b-4518-b97e-e4b42108c69e",
+      "capture": "u1_rfqs_173063ae-6f2b-4518-b97e-e4b42108c69e.png",
+      "dom": "u1_rfqs_173063ae-6f2b-4518-b97e-e4b42108c69e.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/stock/e97de614-aad4-4938-8643-4169a79462d6",
+      "capture": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6.png",
+      "dom": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/stock/e97de614-aad4-4938-8643-4169a79462d6/editar",
+      "capture": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6_editar.png",
+      "dom": "u1_stock_e97de614-aad4-4938-8643-4169a79462d6_editar.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f",
+      "capture": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f-900.png",
+      "dom": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f.txt",
+      "stage": "VISUAL_REVIEW",
+      "width": 900,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/editar",
+      "capture": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f_editar-900.png",
+      "dom": "u1_ventas_85dfdb97-f1ef-4af6-92c3-18a283ff366f_editar.txt",
+      "stage": "VISUAL_REVIEW",
+      "width": 900,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8/orders/fb4133a5-0976-47f6-bdb8-29835844734e",
+      "capture": "u1_projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_orders_fb4133a5-0976-47f6-bdb8-29835844734e-900.png",
+      "dom": "u1_projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_orders_fb4133a5-0976-47f6-bdb8-29835844734e.txt",
+      "stage": "VISUAL_REVIEW",
+      "width": 900,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/85a00ccc-9e1c-4779-8e8b-3d527352100e/rfqs/b7506fb7-7b81-4d0f-b678-1134f33aa2a4",
+      "capture": "u1_projects_85a00ccc-9e1c-4779-8e8b-3d527352100e_rfqs_b7506fb7-7b81-4d0f-b678-1134f33aa2a4.png",
+      "dom": "u1_projects_85a00ccc-9e1c-4779-8e8b-3d527352100e_rfqs_b7506fb7-7b81-4d0f-b678-1134f33aa2a4.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6/estado-cuenta",
+      "actualRoute": "/clientes/10dfddad-ad5c-4a64-a9c4-7ea4b0a4aac6/estado-cuenta",
+      "capture": "u1_print-account-final.png",
+      "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677/imprimir",
+      "actualRoute": "/pagos/8b9ead66-707f-41d0-834a-8dd9de5eb677/imprimir",
+      "capture": "u1_print-payment-final.png",
+      "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/imprimir",
+      "actualRoute": "/ventas/85dfdb97-f1ef-4af6-92c3-18a283ff366f/imprimir",
+      "capture": "u1_print-sales-final.png",
+      "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/cotizacion/[token]",
+      "capture": "u1_portal_cotizacion.png",
+      "dom": "u1_portal_cotizacion.txt",
+      "stage": "VISUAL_REVIEW",
+      "validQaToken": true,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/recepcion/[token]",
+      "capture": "u1_portal_recepcion.png",
+      "dom": "u1_portal_recepcion.txt",
+      "stage": "VISUAL_REVIEW",
+      "validQaToken": true,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/warehouse/[token]",
+      "capture": "u1_portal_warehouse.png",
+      "dom": "u1_portal_warehouse.txt",
+      "stage": "VISUAL_REVIEW",
+      "validQaToken": true,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/cotizar/[token]",
+      "capture": "u1_portal_cotizar.png",
+      "dom": "u1_portal_cotizar.txt",
+      "stage": "VISUAL_REVIEW",
+      "validQaToken": true,
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=presupuesto",
+      "capture": "u1_project_presupuesto.png",
+      "dom": "u1_project_presupuesto.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=costeo",
+      "capture": "u1_project_costeo.png",
+      "dom": "u1_project_costeo.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=cronograma",
+      "capture": "u1_project_cronograma.png",
+      "dom": "u1_project_cronograma.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=plan-semanal",
+      "capture": "u1_project_plan-semanal.png",
+      "dom": "u1_project_plan-semanal.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=bim",
+      "capture": "u1_project_bim.png",
+      "dom": "u1_project_bim.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=proveedores",
+      "capture": "u1_project_proveedores.png",
+      "dom": "u1_project_proveedores.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=cotizaciones",
+      "capture": "u1_project_cotizaciones.png",
+      "dom": "u1_project_cotizaciones.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=compras",
+      "capture": "u1_project_compras.png",
+      "dom": "u1_project_compras.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=recepciones",
+      "capture": "u1_project_recepciones.png",
+      "dom": "u1_project_recepciones.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=facturas",
+      "capture": "u1_project_facturas.png",
+      "dom": "u1_project_facturas.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=pagos",
+      "capture": "u1_project_pagos.png",
+      "dom": "u1_project_pagos.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=ejecucion",
+      "capture": "u1_project_ejecucion.png",
+      "dom": "u1_project_ejecucion.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=inventario",
+      "capture": "u1_project_inventario.png",
+      "dom": "u1_project_inventario.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=panol",
+      "capture": "u1_project_panol.png",
+      "dom": "u1_project_panol.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=personal",
+      "capture": "u1_project_personal.png",
+      "dom": "u1_project_personal.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=subcontratistas",
+      "capture": "u1_project_subcontratistas.png",
+      "dom": "u1_project_subcontratistas.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/32e0b221-47d3-45eb-9729-e6a1d97c3374?tab=certificados",
+      "capture": "u1__projects_32e0b221-47d3-45eb-9729-e6a1d97c3374_tab_certificados.png",
+      "dom": "u1__projects_32e0b221-47d3-45eb-9729-e6a1d97c3374_tab_certificados.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=avance-fisico",
+      "capture": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_avance-fisico.png",
+      "dom": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_avance-fisico.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects/86b8a8d7-0b15-4e30-b623-c1d3cfe260f8?tab=informes",
+      "capture": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_informes.png",
+      "dom": "u1__projects_86b8a8d7-0b15-4e30-b623-c1d3cfe260f8_tab_informes.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/ventas/nueva",
+      "capture": "u1__ventas_nueva.png",
+      "dom": "u1__ventas_nueva.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/projects",
+      "capture": "u1_projects.png",
+      "dom": "u1_projects.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/precios",
+      "capture": "u1_precios.png",
+      "dom": "u1_precios.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/costs",
+      "capture": "u1_costs.png",
+      "dom": "u1_costs.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/flujo-caja",
+      "capture": "u1_flujo-caja.png",
+      "dom": "u1_flujo-caja.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/configuracion",
+      "capture": "u1_configuracion.png",
+      "dom": "u1_configuracion.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/users",
+      "capture": "u1_users.png",
+      "dom": "u1_users.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/empresas",
+      "actualRoute": "/empresas",
+      "capture": "u1_empresas_superadmin.png",
+      "stage": "VISUAL_REVIEW_QA_SUPERADMIN",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones",
+      "capture": "u1_licitaciones.png",
+      "dom": "u1_licitaciones.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/prebid",
+      "capture": "u1_licitaciones_prebid.png",
+      "dom": "u1_licitaciones_prebid.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/competidores",
+      "capture": "u1_licitaciones_competidores.png",
+      "dom": "u1_licitaciones_competidores.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/documentos",
+      "capture": "u1_licitaciones_documentos.png",
+      "dom": "u1_licitaciones_documentos.txt",
+      "stage": "VISUAL_REVIEW",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/avance/[token]",
+      "capture": "u1_extra_avance.png",
+      "dom": "u1_extra_avance.txt",
+      "validQaToken": true,
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/certificados/[token]",
+      "capture": "u1_extra_certificados.png",
+      "dom": "u1_extra_certificados.txt",
+      "validQaToken": true,
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/auction-lab/join/[token]",
+      "capture": "u1_extra_auction-lab_join.png",
+      "dom": "u1_extra_auction-lab_join.txt",
+      "validQaToken": true,
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/auction-lab/watch/[token]",
+      "capture": "u1_extra_auction-lab_watch.png",
+      "dom": "u1_extra_auction-lab_watch.txt",
+      "validQaToken": true,
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/auction-bot",
+      "actualRoute": "/licitaciones/auction-bot",
+      "capture": "u1_help-edge-1280.png",
+      "stage": "VISUAL_REVIEW_RELEASE_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/auction-lab",
+      "actualRoute": "/licitaciones/auction-lab",
+      "capture": "u1__licitaciones_auction-lab.png",
+      "dom": "u1__licitaciones_auction-lab.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/auction-lab/648c02bd-9797-4a97-a5cb-52a3ed58a61d",
+      "actualRoute": "/licitaciones/auction-lab/648c02bd-9797-4a97-a5cb-52a3ed58a61d",
+      "capture": "u1__licitaciones_auction-lab_648c02bd-9797-4a97-a5cb-52a3ed58a61d.png",
+      "dom": "u1__licitaciones_auction-lab_648c02bd-9797-4a97-a5cb-52a3ed58a61d.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/competidores/90",
+      "actualRoute": "/licitaciones/competidores/90",
+      "capture": "u1__licitaciones_competidores_90.png",
+      "dom": "u1__licitaciones_competidores_90.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949",
+      "actualRoute": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949",
+      "capture": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949.png",
+      "dom": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949/prebid",
+      "actualRoute": "/licitaciones/9ab36d22-d031-4236-accc-4a56816d5949/prebid",
+      "capture": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949_prebid.png",
+      "dom": "u1__licitaciones_9ab36d22-d031-4236-accc-4a56816d5949_prebid.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/planillas/5d30b59b-7570-4717-8b05-a42cc57c8664",
+      "actualRoute": "/planillas/5d30b59b-7570-4717-8b05-a42cc57c8664",
+      "capture": "u1__planillas_5d30b59b-7570-4717-8b05-a42cc57c8664.png",
+      "dom": "u1__planillas_5d30b59b-7570-4717-8b05-a42cc57c8664.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/agent/activity",
+      "actualRoute": "/agent/activity",
+      "capture": "u1__agent_activity.png",
+      "dom": "u1__agent_activity.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/dashboard",
+      "actualRoute": "/dashboard",
+      "capture": "u1__dashboard.png",
+      "dom": "u1__dashboard.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/scanner",
+      "actualRoute": "/scanner",
+      "capture": "u1__scanner.png",
+      "dom": "u1__scanner.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/suspendido",
+      "actualRoute": "/suspendido",
+      "capture": "u1__suspendido.png",
+      "dom": "u1__suspendido.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/",
+      "actualRoute": "/dashboard",
+      "capture": "u1__.png",
+      "dom": "u1__.txt",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "REDIRECT_OR_ALIAS"
+    },
+    {
+      "route": "/login",
+      "actualRoute": "/login",
+      "capture": "u1_guest_login.png",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD_GUEST",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    },
+    {
+      "route": "/reset-password",
+      "actualRoute": "/reset-password",
+      "capture": "u1_guest_reset-password.png",
+      "stage": "VISUAL_REVIEW_FINAL_BUILD_GUEST",
+      "viewport": {
+        "width": 65536,
+        "height": 4292542531
+      },
+      "review": "VISUAL_REVIEWED"
+    }
+  ]
+}

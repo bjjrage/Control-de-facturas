@@ -1,0 +1,82 @@
+[
+  {
+    "id": "U1-help-Escape",
+    "enterOpens": true,
+    "escapeClosesHelp": true,
+    "parentRemainsOpen": true
+  },
+  {
+    "id": "U1-APU-cancel",
+    "cancelKeepsTemplate": true,
+    "focusRestored": "Borrar plantilla QA fase6 error de borrado"
+  },
+  {
+    "id": "C06-UI",
+    "readNotice": true,
+    "number": "009-006-0000001",
+    "total": "110000"
+  },
+  {
+    "id": "U1-invalid-recovery",
+    "invalidNotice": true,
+    "backToLogin": true
+  },
+  {
+    "id": "U1-form-keyboard",
+    "stockNext": "Categoría",
+    "salesNext": "Cantidad del ítem 1"
+  },
+  {
+    "id": "U1-Empresas",
+    "ownCompanyDeactivationDisabled": true,
+    "newDialogCancel": true,
+    "focusRestored": "Nueva empresa"
+  },
+  {
+    "id": "U1-help-viewport",
+    "width900": {
+      "clientWidth": 885,
+      "scrollWidth": 885,
+      "tipRight": 877
+    },
+    "width1280": {
+      "scroll": 1265,
+      "tips": [
+        {
+          "left": 991,
+          "right": 1257
+        }
+      ],
+      "width": 1265
+    }
+  },
+  {
+    "id": "U1-help-content-boundary-final",
+    "width900": {
+      "clientWidth": 885,
+      "mainRight": 885,
+      "scrollWidth": 885,
+      "tips": [
+        {
+          "left": 611,
+          "right": 877
+        }
+      ]
+    },
+    "width1280": {
+      "clientWidth": 1265,
+      "scrollWidth": 1265,
+      "mainRight": 1213,
+      "tipRight": 1205
+    }
+  },
+  {
+    "id": "U1-print-final",
+    "salesHeaderReadable": true,
+    "accountHeaderReadable": true,
+    "paymentStatusReadable": true,
+    "brokenBrandingAbsent": true,
+    "paymentCorrectionAwaitingFinalCapture": false,
+    "paymentStatusColor": "#14532d"
+  }
+]

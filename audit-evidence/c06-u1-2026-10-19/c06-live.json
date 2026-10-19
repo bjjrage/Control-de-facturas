@@ -1,0 +1,43 @@
+{
+  "ref": "kyiihlkncatojvlasoag",
+  "buildId": "qJHHIU17fMEkhU72wPOk7",
+  "extraction": {
+    "provider_name": "Proveedor QA",
+    "provider_tax_id": "800999991",
+    "invoice_number": "009-006-0000001",
+    "invoice_date": "2026-10-19",
+    "due_date": null,
+    "currency": "PYG",
+    "subtotal": 100000,
+    "vat": 10000,
+    "total": 110000,
+    "timbrado": null,
+    "order_reference": null,
+    "product_description": null,
+    "items": [],
+    "provider_id": "4c69208c-6ef1-4b08-9f4a-533e4270818c",
+    "validation": {
+      "status": "VALIDA",
+      "issues": []
+    }
+  },
+  "tamperedFileRejected": true,
+  "invoice": {
+    "id": "2a6af514-a95c-4f9f-a659-a788343247a6",
+    "attachment_id": "ca1fb9de-6b67-4d68-bbf9-ecdec0b0095f",
+    "status": "PENDIENTE",
+    "total": 110000
+  },
+  "verified": {
+    "error": null
+  },
+  "identity": {
+    "invoice_id": "2a6af514-a95c-4f9f-a659-a788343247a6",
+    "attachment_id": "ca1fb9de-6b67-4d68-bbf9-ecdec0b0095f",
+    "invoice_number": "009-006-0000001",
+    "total": 110000,
+    "currency": "PYG"
+  },
+  "originalSha256": "168aa4c02f00b69b1d0509203a0715a82d26280661cf5119b056205dff5eda97",
+  "originalBytesPreserved": true
+}
