@@ -29,6 +29,25 @@ export type WarehousePortalStockItem = {
   quantity: number;
 };
 
+export function aggregateWarehouseStock(rows: Array<{
+  producto_id: string; producto: string; unidad: string; quantity: number | null;
+}>): WarehousePortalStockItem[] {
+  const totals = new Map<string, WarehousePortalStockItem>();
+  for (const row of rows) {
+    const previous = totals.get(row.producto_id);
+    const quantity = Number(row.quantity ?? 0);
+    if (previous) {
+      previous.quantity += quantity;
+    } else {
+      totals.set(row.producto_id, {
+        productId: row.producto_id, productName: row.producto,
+        unit: row.unidad, quantity,
+      });
+    }
+  }
+  return [...totals.values()];
+}
+
 export type WarehousePortalBudgetItem = {
   id: string;
   code: string;
@@ -171,12 +190,7 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
     .eq("location_id", location.id)
     .eq("empresa_id", link.empresa_id);
 
-  const stock: WarehousePortalStockItem[] = (balancesData ?? []).map((b) => ({
-    productId: b.producto_id,
-    productName: b.producto,
-    unit: b.unidad,
-    quantity: Number(b.quantity || 0),
-  }));
+  const stock = aggregateWarehouseStock(balancesData ?? []);
 
   // 4. Fetch all active products for the company
   const { data: allProductsData } = await admin
