@@ -10,6 +10,7 @@ export function sourceFunctions(file: string, names: string[], dependencies: Rec
   const statements: ts.Node[] = [...ast.statements];
   function visit(node: ts.Node) {
     if (ts.isFunctionDeclaration(node) && names.includes(node.name?.text ?? "") && !statements.includes(node)) statements.push(node);
+    if (ts.isVariableStatement(node) && node.declarationList.declarations.some(d => ts.isIdentifier(d.name) && names.includes(d.name.text)) && !statements.includes(node)) statements.push(node);
     ts.forEachChild(node, visit);
   }
   ts.forEachChild(ast, visit);
