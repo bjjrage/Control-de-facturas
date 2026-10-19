@@ -25,6 +25,12 @@ describe("readSpreadsheet", () => {
     const latin1 = new Uint8Array([...csv].map(ch => ch.charCodeAt(0)));
     expect(header(readSpreadsheet(XLSX, toBuffer(latin1), "presupuesto.csv"))).toEqual(["Código", "Descripción", "Cantidad"]);
   });
+  it("CSV Windows-1252 also preserves grouped text amounts for locale selection",()=>{
+    const text="Código,Cantidad\n001,350.000\n";
+    const bytes=new Uint8Array([...text].map(ch=>ch.charCodeAt(0)));
+    const wb=readSpreadsheet(XLSX,toBuffer(bytes),"presupuesto.csv");
+    expect(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1})[1]).toEqual(["001","350.000"]);
+  });
   it("XLSX no se ve afectado", () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Código", "Descripción"], ["T1", "Muro"]]), "P");

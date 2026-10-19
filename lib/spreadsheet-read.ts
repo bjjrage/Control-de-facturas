@@ -21,5 +21,5 @@ export function readSpreadsheet(
       /* no es UTF-8 válido: lectura por defecto */
     }
   }
-  return XLSX.read(buffer, { ...options, type: "array" });
+  return XLSX.read(buffer, { ...options, type: "array", ...(/\.csv$/i.test(fileName) ? { raw: true } : {}) });
 }
