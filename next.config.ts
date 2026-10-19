@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
     "/rfqs/*": pdfRuntimeFiles,
     "/cotizar/*": pdfRuntimeFiles,
     "/api/agent/chat": pdfRuntimeFiles,
+    "/invoices": pdfRuntimeFiles,
+    "/invoices/*": pdfRuntimeFiles,
+    "/orders/*": pdfRuntimeFiles,
+    "/projects/*": pdfRuntimeFiles,
   },
   experimental: {
     // 20 MiB of portal evidence plus multipart/form field overhead.

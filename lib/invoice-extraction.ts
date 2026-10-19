@@ -2,9 +2,8 @@ import { printedInvoiceHeader, printedMoney } from "./invoice-header-text";
 import type { CurrencyCode } from "./types";
 /**
  * Reads an invoice — either a photo of a paper invoice (GPT-4o-mini vision)
- * or a digital PDF (factura electrónica, read by its embedded text — no
- * vision call needed, cheaper and exact since the text is already real, not
- * a guess) — and returns structured fields. Shared by the single-invoice
+ * or a PDF (embedded text when present, page images for scans/mixed documents)
+ * and returns structured fields. Shared by the single-invoice
  * dialog (app/(internal)/invoices/extract-actions.ts) and the batch upload
  * flow (app/(internal)/invoices/bulk-actions.ts) so the OpenAI call/schema
  * live in exactly one place.
@@ -112,7 +111,8 @@ Respondé únicamente con el JSON pedido, sin texto adicional.`;
 async function callOpenAI(
   systemPrompt: string,
   userContent: unknown,
-  documentType: "invoice" | "receipt" = "invoice"
+  documentType: "invoice" | "receipt" = "invoice",
+  model: "gpt-4o-mini" | "gpt-4o" = "gpt-4o-mini"
 ): Promise<{ data: ExtractedInvoiceFields | null; error: string | null }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { data: null, error: "La lectura automática no está configurada (falta OPENAI_API_KEY)." };
@@ -125,7 +125,7 @@ async function callOpenAI(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         temperature: 0,
         response_format: {
           type: "json_schema",
@@ -177,32 +177,51 @@ export async function extractInvoiceFields(
   ], documentType);
 }
 
-/** Digital PDF (factura electrónica), read by its embedded text — no vision call. */
+/** Digital PDFs use embedded text; scanned/mixed PDFs use bounded page images. */
 export async function extractInvoiceFieldsFromPdf(
   bytes: Buffer,
   documentType: "invoice" | "receipt" = "invoice"
 ): Promise<{ data: ExtractedInvoiceFields | null; error: string | null }> {
-  let text: string;
+  if (bytes.length > MAX_INVOICE_FILE_BYTES) return { data: null, error: "El PDF supera el límite de 20 MB." };
+  let parser: InstanceType<typeof import("pdf-parse").PDFParse> | undefined;
   try {
     const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: bytes });
+    parser = new PDFParse({ data: bytes });
+    // Check the count before reading/rendering pages. Never extract just a prefix.
+    const info = await parser.getInfo();
+    if (info.total < 1 || info.total > 10) return { data: null, error: "La lectura admite PDF de hasta 10 páginas. Separá el documento completo por factura." };
     const result = await parser.getText();
-    await parser.destroy();
-    text = result.text.trim();
+    const text = result.text.trim();
+    if (result.pages.some(page => page.text.trim().length < 20)) {
+      const dimensions = await parser.getInfo({ parsePageInfo: true });
+      if (dimensions.pages.length !== info.total) throw new Error("Incomplete PDF page information");
+      const content: unknown[] = [{ type: "text", text: "Leé todas las páginas de este único documento, en orden. No dupliques líneas repetidas de cabecera o resumen." }];
+      let renderedBytes = 0;
+      for (const page of dimensions.pages) {
+        if (!Number.isFinite(page.width) || !Number.isFinite(page.height) || page.width <= 0 || page.height <= 0) throw new Error("Invalid PDF page dimensions");
+        // Bound BOTH dimensions before the canvas allocation, including very tall pages.
+        const width = 2400 * page.width / Math.max(page.width, page.height);
+        const images = await parser.getScreenshot({ partial: [page.pageNumber], desiredWidth: width, imageBuffer: false, imageDataUrl: true });
+        if (images.pages.length !== 1 || !images.pages[0].dataUrl?.startsWith("data:image/png;base64,")) throw new Error("Incomplete PDF render");
+        renderedBytes += Buffer.byteLength(images.pages[0].dataUrl);
+        if (renderedBytes > MAX_INVOICE_FILE_BYTES) return { data: null, error: "Las páginas renderizadas superan el límite de lectura de 20 MB. Reducí la resolución del PDF." };
+        content.push({ type: "text", text: `Página ${page.pageNumber} de ${info.total}` }, { type: "image_url", image_url: { url: images.pages[0].dataUrl } });
+      }
+      // The small photo model repeats digits on scanned RUCs in C06's real
+      // fixture. Use the stronger vision reader for PDFs; keep digital/photo
+      // behavior and all identity/arithmetic checks unchanged.
+      return await callOpenAI(PHOTO_SYSTEM_PROMPT, content, documentType, "gpt-4o");
+    }
+    const extracted = await callOpenAI(PDF_SYSTEM_PROMPT, `Texto del documento:\n\n${text.slice(0, 8000)}`, documentType);
+    if (extracted.data) extracted.data = { ...extracted.data, ...printedInvoiceHeader(text) };
+    return extracted;
   } catch {
     return { data: null, error: "No se pudo abrir el PDF (¿está dañado o protegido con contraseña?)." };
+  } finally {
+    // Cleanup must also run after rendering/model failures; cleanup cannot discard
+    // an otherwise successful extraction or replace its original error.
+    await parser?.destroy().catch(() => undefined);
   }
-
-  if (text.length < 20) {
-    return {
-      data: null,
-      error: "El PDF no tiene texto (parece un escaneo/foto guardada como PDF) — cargalo como imagen en vez de PDF.",
-    };
-  }
-
-  const result = await callOpenAI(PDF_SYSTEM_PROMPT, `Texto del documento:\n\n${text.slice(0, 8000)}`, documentType);
-  if (result.data) result.data = { ...result.data, ...printedInvoiceHeader(text) };
-  return result;
 }
 
 /** Dispatches to the photo or PDF reader depending on the file's mime type. */

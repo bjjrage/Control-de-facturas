@@ -7,7 +7,7 @@ import config from "../next.config";
 describe("QA ADMIN real quote PDFs", () => {
   it("preserves the native Node entry needed by PDF.js in the deployed build", () => {
     expect(config.serverExternalPackages).toContain("pdf-parse");
-    for (const route of ["/rfqs/*", "/api/agent/chat"]) {
+    for (const route of ["/rfqs/*", "/api/agent/chat", "/invoices", "/invoices/*", "/orders/*", "/projects/*"]) {
       const files = config.outputFileTracingIncludes?.[route];
       expect(files).toContain("./node_modules/pdf-parse/dist/pdf-parse/**");
       expect(files).toContain("./node_modules/pdfjs-dist/legacy/build/*.mjs");
