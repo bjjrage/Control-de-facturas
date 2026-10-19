@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
     "/api/agent/chat": pdfRuntimeFiles,
   },
   experimental: {
+    // 20 MiB of portal evidence plus multipart/form field overhead.
+    proxyClientMaxBodySize: "21mb",
     serverActions: {
       // Next.js defaults Server Action request bodies to 1MB, but a real
       // phone photo of an invoice is routinely several MB — raise it to

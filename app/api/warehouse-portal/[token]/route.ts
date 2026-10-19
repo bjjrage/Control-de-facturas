@@ -69,7 +69,15 @@ export async function POST(request: Request, context: RouteContext) {
   if (!resolved) return NextResponse.json({ error: "Enlace inválido o vencido." }, { status: 404 });
 
   const { admin, link, location } = resolved;
-  const formData = await request.formData();
+  if (Number(request.headers.get("content-length") ?? 0) > 21 * 1024 * 1024) {
+    return NextResponse.json({ error: "El envío supera el límite de 20 MB. Dividí los archivos en varios envíos." }, { status: 413 });
+  }
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "No se pudo leer el envío. Revisá los archivos y el límite de 20 MB." }, { status: 400 });
+  }
   const action = String(formData.get("action") ?? "").trim().toLowerCase();
 
   // =========================================================================
