@@ -729,15 +729,16 @@ export async function upsertCertificateUnitProgress(
   if (!cert) return { error: "Certificado no encontrado." };
   if (cert.status !== "BORRADOR") return { error: "El certificado ya está elaborado." };
 
-  for (const v of values) {
-    if (v.pct_avance < 0 || v.pct_avance > 100) continue;
-    await supabase
-      .from("project_certificate_unit_progress")
-      .upsert(
-        { certificate_id: certificateId, unit_id: v.unit_id, pct_avance: v.pct_avance, updated_at: new Date().toISOString() },
-        { onConflict: "certificate_id,unit_id" }
-      );
+  if (values.some(v => !Number.isFinite(v.pct_avance) || v.pct_avance < 0 || v.pct_avance > 100)) {
+    return { error: "El avance debe ser un porcentaje entre 0 y 100." };
   }
+  if (values.length === 0) return {};
+  // A single statement prevents partially saving a group of units.
+  const { error } = await supabase.from("project_certificate_unit_progress").upsert(
+    values.map(v => ({ certificate_id: certificateId, unit_id: v.unit_id, pct_avance: v.pct_avance, updated_at: new Date().toISOString() })),
+    { onConflict: "certificate_id,unit_id" }
+  );
+  if (error) return { error: "No se pudo guardar el avance por unidad. Conservá los valores y reintentá." };
 
   revalidatePath(`/projects/${cert.project_id}`);
   return {};
