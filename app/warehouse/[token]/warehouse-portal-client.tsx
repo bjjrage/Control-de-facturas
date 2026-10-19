@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import type { WarehousePortalContext, WarehousePortalOrder } from "@/lib/inventory/warehouse-portal-data";
+import { clearRejectedConsumptionAttempt } from "@/lib/inventory/warehouse-portal-client-state";
 
 type TabMode = "receipt" | "consumption" | "submission";
 
@@ -174,6 +175,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       const data = await response.json();
       if (!response.ok) {
         setConsumptionError(data.error ?? "No se pudo registrar la salida.");
+        consumptionAttempt.current = clearRejectedConsumptionAttempt(localStorage, storageKey, consumptionAttempt.current);
       } else if (data.uploadIncomplete) {
         setConsumptionSuccess(`Salida ${data.movementId} registrada y descontada del stock.`);
         setConsumptionError("Quedaron adjuntos sin guardar. Reenvia los mismos datos y archivos para completar la evidencia sin duplicar la salida.");
