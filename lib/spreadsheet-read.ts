@@ -15,7 +15,8 @@ export function readSpreadsheet(
   if (/\.csv$/i.test(fileName)) {
     try {
       const text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-      return XLSX.read(text, { ...options, type: "string" });
+      // Preserve textual amounts/codes until the user chooses the locale.
+      return XLSX.read(text, { ...options, type: "string", raw: true });
     } catch {
       /* no es UTF-8 válido: lectura por defecto */
     }

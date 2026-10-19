@@ -9,9 +9,12 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Input } from "@/components/ui/input";
 import { importProductionRecipe, saveProductionRecipe } from "../production-recipe-actions";
 import { readSpreadsheet } from "@/lib/spreadsheet-read";
+import { parseParaguayNumber, type SpreadsheetNumberFormat } from "@/lib/spreadsheet-number-format";
+import { SpreadsheetNumberFormatSelect } from "@/components/ui/spreadsheet-number-format-select";
 
 // Mismo patrón que import-budget-dialog (parse PY + detección de columnas).
-function parsePyNumber(raw: unknown): number | null {
+function parsePyNumber(raw: unknown, format: SpreadsheetNumberFormat = "strict"): number | null {
+  if (format === "py") return parseParaguayNumber(raw);
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
   let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
@@ -77,6 +80,7 @@ interface ParsedRow {
   unidadProduccion: string;
   partidaCodigo: string;
   cantidad: number | null;
+  rawCantidad?: unknown;
   unidad: string;
   manualItemId: string;
 }
@@ -101,6 +105,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [manualRows, setManualRows] = useState<ManualRow[]>([{ ...EMPTY_MANUAL_ROW }]);
+  const [numberFormat, setNumberFormat] = useState<SpreadsheetNumberFormat>("strict");
 
   function updateManualRow(idx: number, field: keyof ManualRow, value: string) {
     setManualRows((prev) =>
@@ -206,7 +211,10 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     return { kind: "ok", itemId: found[0].id };
   }
 
-  const preview = useMemo(() => rows.map((r) => ({ row: r, st: matchStatus(r) })), [rows, byCode, budgetItems]);
+  const preview = useMemo(() => rows.map((r) => {
+    const row = { ...r, cantidad: parsePyNumber(r.rawCantidad ?? r.cantidad, numberFormat) };
+    return { row, st: matchStatus(row) };
+  }), [rows, byCode, budgetItems, numberFormat]);
   const okCount = preview.filter((p) => p.st.kind !== "error").length;
   const errCount = preview.length - okCount;
 
@@ -242,7 +250,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
         const r = raw[i] as unknown[];
         const get = (f: string) => (colIdx[f] === undefined ? "" : r[colIdx[f]]);
         const partidaCodigo = String(get("partidaCodigo") ?? "").trim();
-        const cantidad = parsePyNumber(get("cantidad"));
+        const cantidad = parsePyNumber(get("cantidad"), numberFormat);
         if (r.every(cell => !String(cell ?? "").trim())) continue;
         parsed.push({
           idx: i,
@@ -250,6 +258,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
           unidadProduccion: String(get("unidadProduccion") ?? "").trim(),
           partidaCodigo,
           cantidad,
+          rawCantidad: get("cantidad"),
           unidad: String(get("unidad") ?? "").trim(),
           manualItemId: "",
         });
@@ -343,6 +352,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
 
         {mode === "excel" && (
         <>
+        <SpreadsheetNumberFormatSelect id="recipe-number-format" value={numberFormat} onChange={setNumberFormat} />
         <label className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--border)] p-3 text-xs cursor-pointer hover:bg-[var(--panel-2)]">
           <Upload className="h-4 w-4 text-[var(--muted)]" />
           <span className="text-[var(--muted)]">{fileName || "Elegir archivo .xlsx / .csv"}</span>

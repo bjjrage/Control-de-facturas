@@ -9,6 +9,8 @@ import { Label, Select } from "@/components/ui/input";
 import { formatNumber } from "@/lib/format";
 import type { ProjectCertificateItem } from "@/lib/types";
 import { bulkSetCertificatePresente } from "../certificado-actions";
+import { parseParaguayNumber, type SpreadsheetNumberFormat } from "@/lib/spreadsheet-number-format";
+import { SpreadsheetNumberFormatSelect } from "@/components/ui/spreadsheet-number-format-select";
 
 type MatchMode = "orden" | "codigo";
 
@@ -21,7 +23,8 @@ function parseGrid(text: string): string[][] {
 }
 
 /** "1.234,56" | "1,234.56" | "1234.56" -> number */
-function parseNumber(raw: unknown): number | null {
+function parseNumber(raw: unknown, format: SpreadsheetNumberFormat = "strict"): number | null {
+  if (format === "py") return parseParaguayNumber(raw);
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
   let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
@@ -66,6 +69,7 @@ export function PasteAvanceDialog({
   const [codeCol, setCodeCol] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [numberFormat, setNumberFormat] = useState<SpreadsheetNumberFormat>("strict");
   const router = useRouter();
 
   const sortedItems = useMemo(
@@ -84,7 +88,7 @@ export function PasteAvanceDialog({
       const byCode = new Map<string, number>();
       for (const r of dataRows) {
         const code = (r[codeCol] ?? "").trim();
-        const val = parseNumber(r[col] ?? "");
+        const val = parseNumber(r[col] ?? "", numberFormat);
         if (code && val != null) byCode.set(code.toLowerCase(), val);
       }
       return sortedItems.map((it) => ({
@@ -94,9 +98,9 @@ export function PasteAvanceDialog({
     }
     return sortedItems.map((it, i) => ({
       item: it,
-      nuevo: dataRows[i] ? parseNumber(dataRows[i][col] ?? "") : null,
+      nuevo: dataRows[i] ? parseNumber(dataRows[i][col] ?? "", numberFormat) : null,
     }));
-  }, [dataRows, mode, sortedItems, col, codeCol]);
+  }, [dataRows, mode, sortedItems, col, codeCol, numberFormat]);
 
   const matched = preview.filter((p) => p.nuevo != null).length;
   const rowMismatch = mode === "orden" && dataRows.length > 0 && dataRows.length !== sortedItems.length;
@@ -104,7 +108,7 @@ export function PasteAvanceDialog({
     const codes = new Set(sortedItems.map(item => (item.codigo ?? "").trim().toLowerCase()));
     const seen = new Set<string>();
     for (const [index, row] of dataRows.entries()) {
-      const value = parseNumber(row[col] ?? "");
+      const value = parseNumber(row[col] ?? "", numberFormat);
       if (value === null || value < 0) return `Fila ${index + 1}: cantidad inválida o ambigua. Aclará el número antes de importar.`;
       if (mode === "codigo") {
         const code = (row[codeCol] ?? "").trim().toLowerCase();
@@ -113,7 +117,7 @@ export function PasteAvanceDialog({
       }
     }
     return rowMismatch ? "La cantidad de filas no coincide con los rubros. No se omitirá ninguna fila." : null;
-  }, [dataRows, col, codeCol, mode, sortedItems, rowMismatch]);
+  }, [dataRows, col, codeCol, mode, sortedItems, rowMismatch, numberFormat]);
 
   async function apply() {
     if (sourceError) { setError(sourceError); return; }
@@ -140,6 +144,7 @@ export function PasteAvanceDialog({
       </DialogTrigger>
       <DialogContent title={<span>Pegar avance del mes desde Excel<InfoTooltip className="ml-1" label="Pegar avance del mes" content={'En Excel, copiá la columna "presente" y, si querés emparejar por código, también código o rubro. Pegá las celdas desde la primera fila.'} /></span>} className="max-w-3xl">
         <div className="space-y-3">
+          <SpreadsheetNumberFormatSelect id="paste-number-format" value={numberFormat} onChange={setNumberFormat} />
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

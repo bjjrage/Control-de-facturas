@@ -7,6 +7,12 @@ const toBuffer = (bytes: Uint8Array) => bytes.buffer.slice(bytes.byteOffset, byt
 const header = (wb: XLSX.WorkBook) => (XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 })[0] as string[]);
 
 describe("readSpreadsheet", () => {
+  it("CSV preserves grouped amounts and leading zero codes for an explicit locale choice",()=>{
+    const text='Código,Descripción,Cantidad,Precio\n001,Material,350.000,"1.234,56"\n';
+    const wb=readSpreadsheet(XLSX,toBuffer(new TextEncoder().encode(text)),"presupuesto.csv");
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+    expect(rows[1]).toEqual(["001","Material","350.000","1.234,56"]);
+  });
   it("CSV UTF-8 sin BOM conserva tildes en los encabezados (antes quedaban como mojibake)", () => {
     const wb = readSpreadsheet(XLSX, toBuffer(new TextEncoder().encode(csv)), "presupuesto.csv");
     expect(header(wb)).toEqual(["Código", "Descripción", "Cantidad"]);

@@ -8,6 +8,8 @@ import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
 import { readSpreadsheet } from "@/lib/spreadsheet-read";
+import { parseParaguayNumber, type SpreadsheetNumberFormat } from "@/lib/spreadsheet-number-format";
+import { SpreadsheetNumberFormatSelect } from "@/components/ui/spreadsheet-number-format-select";
 
 type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "line_total" | "start_date" | "end_date";
 type ColumnAssignment = FieldKey | "ignore";
@@ -45,7 +47,8 @@ function normalize(s: string): string {
 }
 
 // Preserve raw Excel numbers; reject ambiguous text instead of guessing locale.
-function parsePyNumber(raw: unknown): number | null {
+function parsePyNumber(raw: unknown, format: SpreadsheetNumberFormat = "strict"): number | null {
+  if (format === "py") return parseParaguayNumber(raw);
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string") return null;
   let s = raw.trim().replace(/^(?:gs\.?|pyg)\s*|\s*(?:gs\.?|pyg)$/gi, "");
@@ -139,6 +142,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
   const [rawRows, setRawRows] = useState<unknown[][]>([]);
   const [hasHeaders, setHasHeaders] = useState(true);
   const [mapping, setMapping] = useState<Record<number, ColumnAssignment>>({});
+  const [numberFormat, setNumberFormat] = useState<SpreadsheetNumberFormat>("strict");
 
   function reset() {
     setStep("upload");
@@ -235,11 +239,11 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       const priceStr = String(priceRaw ?? "").trim();
       const startStr = String(startRaw ?? "").trim();
       const endStr = String(endRaw ?? "").trim();
-      const quantity = qtyStr ? parsePyNumber(qtyRaw) : null;
-      const unit_price = priceStr ? parsePyNumber(priceRaw) : null;
+      const quantity = qtyStr ? parsePyNumber(qtyRaw, numberFormat) : null;
+      const unit_price = priceStr ? parsePyNumber(priceRaw, numberFormat) : null;
       const totalRaw = totalCol !== undefined ? row[Number(totalCol)] : null;
       const totalStr = String(totalRaw ?? "").trim();
-      const declaredTotal = totalStr ? parsePyNumber(totalRaw) : null;
+      const declaredTotal = totalStr ? parsePyNumber(totalRaw, numberFormat) : null;
       const start_date = startStr ? parseDateCell(startRaw) : null;
       const end_date = endStr ? parseDateCell(endRaw) : null;
 
@@ -261,7 +265,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
         reason,
       };
     });
-  }, [dataRows, mapping]);
+  }, [dataRows, mapping, numberFormat]);
 
   const validItems = previewRows.filter((r) => r.valid).map((r) => r.item);
   const invalidCount = previewRows.length - validItems.length;
@@ -297,6 +301,7 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
         <Button variant="secondary">Importar Excel</Button>
       </DialogTrigger>
       <DialogContent title={<span className="inline-flex items-center gap-1.5">Importar presupuesto<InfoTooltip label="Importar presupuesto" content="Subí un XLSX o CSV y vinculá sus columnas con el cómputo métrico antes de importar." /></span>} className="max-w-2xl">
+        <SpreadsheetNumberFormatSelect id="budget-number-format" value={numberFormat} onChange={setNumberFormat} />
         {error ? (
           <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)] mb-3">
             {error}
