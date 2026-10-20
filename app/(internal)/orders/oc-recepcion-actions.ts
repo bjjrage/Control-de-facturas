@@ -1,4 +1,6 @@
 "use server";
+import { materializeDocument, internalUploadPrincipal } from "@/lib/document-upload-server";
+
 
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan, requireProfile } from "@/lib/auth";
@@ -24,12 +26,14 @@ export async function registrarRecepcion(
   notas?: string,
   idempotency_key?: string,
   remision_number?: string,
-  document?: File
+  document?: File | string
 ): Promise<{ error?: string; receiptId?: string }> {
   const supabase = await createClient();
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
   if (document) {
+    try { document = await materializeDocument(document, internalUploadPrincipal(profile)); }
+    catch (error) { return { error: error instanceof Error ? error.message : "No se pudo recuperar el remito." }; }
     if (!(document instanceof File) || !document.size || document.size > MAX_INVOICE_FILE_BYTES || !ACCEPTED_INVOICE_FILE_TYPES.includes(document.type) || !isReceiptPortalEvidenceSignature(new Uint8Array(await document.arrayBuffer()), document.type)) return { error: "El remito debe ser PDF o imagen válido de hasta 20 MB." };
   }
   if (typeof order_id !== "string" || !order_id.trim()) return { error: "Falta la orden de compra." };
@@ -93,7 +97,7 @@ export async function registrarRecepcion(
     });
   }
 
-  if (document) {
+  if (document instanceof File) {
     const evidence = await uploadReceiptEvidence(created.data.receiptId, [document]);
     if (evidence.error || evidence.uploaded !== 1) return { error: "No se pudo conservar el remito. La recepción sigue en borrador, sin afectar stock. Reintentá.", receiptId: created.data.receiptId };
   }

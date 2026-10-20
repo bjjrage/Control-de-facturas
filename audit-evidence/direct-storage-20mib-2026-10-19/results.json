@@ -1,0 +1,167 @@
+{
+  "project": "kyiihlkncatojvlasoag",
+  "base": "http://localhost:3018",
+  "baseCommit": "291ab36973816a9258fd8bbd6d931948c46afdca",
+  "buildId": "kxh-X7-k2ju1x6LiIMqIn",
+  "file": {
+    "bytes": 20971520,
+    "sha256": "4bd8819a74026e974494da7803d92888a65d30c84e61a914661c34f7822ccdfd"
+  },
+  "checks": [
+    {
+      "name": "20 MiB + 1 rejected before signing",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous internal upload rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Storage independently rejects 20 MiB + 1",
+      "status": "PASS"
+    },
+    {
+      "name": "modified bytes rejected before OCR",
+      "status": "PASS"
+    },
+    {
+      "name": "browser reads exact 20 MiB PDF through direct Storage",
+      "status": "PASS"
+    },
+    {
+      "name": "browser saves 20 MiB original byte-for-byte and verified identity",
+      "status": "PASS",
+      "invoice": {
+        "id": "5df6d413-e538-45e2-ac85-a7bdfc802323",
+        "attachment_id": "49aea5d3-8c22-4e8a-9cd2-0e5f63425947",
+        "status": "PENDIENTE",
+        "total": 110000
+      },
+      "largestAppRequestBytes": 3452
+    },
+    {
+      "name": "initial QR token cannot authorize upload",
+      "status": "PASS"
+    },
+    {
+      "name": "mobile scanner stores exact 20 MiB and blocks replay",
+      "status": "PASS",
+      "sessionId": "c32b63b6-3be9-4391-9a0d-8a8320e17e28"
+    },
+    {
+      "name": "internal receipt stores exact 20 MiB and retry does not duplicate receipt",
+      "status": "PASS",
+      "receiptId": "4e4bc755-3600-4752-9df0-9c4f18907b45"
+    },
+    {
+      "name": "anonymous receipt portal confirms with exact 20 MiB original",
+      "status": "PASS",
+      "receiptId": "e450c54a-af18-45ef-ac8a-a5719df878cc"
+    },
+    {
+      "name": "consumed receipt capability cannot authorize another upload",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous warehouse portal stores exact 20 MiB evidence",
+      "status": "PASS",
+      "submissionId": "a98bf3ae-9c20-4c29-8ab6-4673a13ae101"
+    },
+    {
+      "name": "revoked warehouse capability cannot authorize upload",
+      "status": "PASS"
+    }
+  ],
+  "appRequests": [
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/api/document-uploads",
+      "bytes": 185,
+      "action": false
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 12,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 12,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 11,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 790,
+      "action": true
+    },
+    {
+      "route": "/invoices",
+      "bytes": 2,
+      "action": true
+    },
+    {
+      "route": "/api/document-uploads",
+      "bytes": 185,
+      "action": false
+    },
+    {
+      "route": "/invoices",
+      "bytes": 3452,
+      "action": true
+    }
+  ],
+  "storageRequests": [
+    {
+      "bytes": 20971816,
+      "method": "PUT"
+    },
+    {
+      "bytes": 20971816,
+      "method": "PUT"
+    }
+  ]
+}

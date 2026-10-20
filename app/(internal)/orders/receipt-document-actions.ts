@@ -1,4 +1,5 @@
 "use server";
+import { materializeDocumentForm, internalUploadPrincipal } from "@/lib/document-upload-server";
 
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -11,6 +12,8 @@ export async function readReceiptDocument(orderId: string, form: FormData) {
   const db = await createClient();
   const order = await db.from("authorized_orders").select("id,code,provider_id").eq("id", orderId).eq("empresa_id", profile.empresa_id).maybeSingle();
   if (order.error || !order.data) return { error: "Orden no encontrada para esta empresa." };
+  try { form = await materializeDocumentForm(form, internalUploadPrincipal(profile)); }
+  catch (error) { return { error: error instanceof Error ? error.message : "No se pudo recuperar el archivo." }; }
   const file = form.get("file");
   if (!(file instanceof File) || !file.size || file.size > MAX_INVOICE_FILE_BYTES || !ACCEPTED_INVOICE_FILE_TYPES.includes(file.type)) return { error: "Subí un PDF, JPG, PNG o WEBP de hasta 20 MB." };
   const bytes = Buffer.from(await file.arrayBuffer());

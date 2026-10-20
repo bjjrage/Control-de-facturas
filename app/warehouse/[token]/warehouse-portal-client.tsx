@@ -1,4 +1,6 @@
 "use client";
+import { prepareDirectUploadForm } from "@/lib/document-upload-client";
+
 
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
@@ -99,7 +101,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     try {
       const response = await fetch(`/api/warehouse-portal/${encodeURIComponent(context.token)}`, {
         method: "POST",
-        body: form,
+        body: await prepareDirectUploadForm(form, { kind: "warehouse", token: context.token }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -170,7 +172,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     try {
       const response = await fetch(`/api/warehouse-portal/${encodeURIComponent(context.token)}`, {
         method: "POST",
-        body: form,
+        body: await prepareDirectUploadForm(form, { kind: "warehouse", token: context.token }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -213,7 +215,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     try {
       const response = await fetch(`/api/warehouse-portal/${encodeURIComponent(context.token)}`, {
         method: "POST",
-        body: form,
+        body: await prepareDirectUploadForm(form, { kind: "warehouse", token: context.token }),
       });
       const data = await response.json();
       const result = classifyWarehouseSubmission(response.status, data);

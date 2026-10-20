@@ -1,4 +1,6 @@
 "use client";
+import { prepareDirectUploadForm } from "@/lib/document-upload-client";
+
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,7 +94,7 @@ export function InvoiceDialog({
     try {
       const fd = new FormData();
       fd.set("file", file);
-      const result = await extractInvoiceFromPhoto(fd);
+      const result = await extractInvoiceFromPhoto(await prepareDirectUploadForm(fd));
       if (generation !== extractionGeneration.current) return;
       if (result.error || !result.data) {
         setScanNotice(result.error ?? "No se pudo leer la factura. Completá los datos a mano.");
@@ -232,7 +234,7 @@ export function InvoiceDialog({
             setPending(true);
             setError(null);
             try {
-            const result = await createInvoice(formData);
+            const result = await createInvoice(await prepareDirectUploadForm(formData));
             if (result.error) {
               setError(result.error);
               return;

@@ -1,4 +1,5 @@
 "use server";
+import { materializeDocumentForm, internalUploadPrincipal } from "@/lib/document-upload-server";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
@@ -28,6 +29,8 @@ export async function extractInvoiceFromPhoto(
 ): Promise<ExtractionResult> {
   const profile = await requireProfile(["administracion", "admin"]);
 
+  try { formData = await materializeDocumentForm(formData, internalUploadPrincipal(profile)); }
+  catch (error) { return fail(error instanceof Error ? error.message : "No se pudo recuperar el archivo."); }
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return fail("Elegí una foto o PDF de la factura.");
   if (file.size > MAX_INVOICE_FILE_BYTES) return fail("El archivo no puede superar los 20MB.");

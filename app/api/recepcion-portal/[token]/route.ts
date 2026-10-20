@@ -1,3 +1,6 @@
+import { materializeDocumentForm } from "@/lib/document-upload-server";
+import { uploadPrincipal } from "@/lib/document-upload-ticket";
+import { authorizeDocumentUpload } from "@/lib/document-upload-authorization";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -37,6 +40,10 @@ export async function POST(request: Request, context: RouteContext) {
   let form: FormData;
   try {
     form = await request.formData();
+    if ([...form.values()].some(value => typeof value === "string" && value.startsWith("direct-upload:v1:"))) {
+      await authorizeDocumentUpload({ kind: "receipt", token });
+      form = await materializeDocumentForm(form, uploadPrincipal("receipt", token));
+    }
   } catch {
     return NextResponse.json({ error: "El formulario enviado no es válido." }, { status: 400 });
   }

@@ -1,0 +1,15 @@
+{
+  "project": "kyiihlkncatojvlasoag",
+  "buildId": "97gzcgX0C6zmQIWpvCcqU",
+  "checks": [
+    "unsigned Storage upload rejected",
+    "final mint endpoint and Storage listing work",
+    "signed direct upload accepted",
+    "real C06 scanned PDF read correctly",
+    "temporary object removed",
+    "cleanup by owned reference is idempotent"
+  ],
+  "scannedPdfBytes": 55368,
+  "extractedTotal": 110000,
+  "status": "PASS"
+}

@@ -1,4 +1,6 @@
 "use client";
+import { prepareDirectUploadForm } from "@/lib/document-upload-client";
+
 
 import { useState, type FormEvent } from "react";
 import { formatNumber } from "@/lib/format";
@@ -29,7 +31,7 @@ export function ReceiptPortalForm({ token, order }: { token: string; order: Rece
     try {
       const response = await fetch(`/api/recepcion-portal/${encodeURIComponent(token)}`, {
         method: "POST",
-        body: form,
+        body: await prepareDirectUploadForm(form, { kind: "receipt", token: token }),
         cache: "no-store",
       });
       const result = await response.json() as { error?: string; status?: string };

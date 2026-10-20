@@ -1,3 +1,6 @@
+import { materializeDocumentForm } from "@/lib/document-upload-server";
+import { uploadPrincipal } from "@/lib/document-upload-ticket";
+import { authorizeDocumentUpload } from "@/lib/document-upload-authorization";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -76,6 +79,10 @@ export async function POST(request: Request, context: RouteContext) {
   let formData: FormData;
   try {
     formData = await request.formData();
+    if ([...formData.values()].some(value => typeof value === "string" && value.startsWith("direct-upload:v1:"))) {
+      await authorizeDocumentUpload({ kind: "warehouse", token });
+      formData = await materializeDocumentForm(formData, uploadPrincipal("warehouse", token));
+    }
   } catch {
     return NextResponse.json({ error: "No se pudo leer el envío. Revisá los archivos y el límite de 20 MB." }, { status: 400 });
   }

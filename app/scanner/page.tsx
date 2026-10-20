@@ -1,4 +1,6 @@
 "use client";
+import { prepareDirectUploadForm } from "@/lib/document-upload-client";
+
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -483,7 +485,7 @@ function ScannerContent() {
       const res = await fetch("/api/scanner/upload", {
         method: "POST",
         credentials: "same-origin",
-        body: formData,
+        body: await prepareDirectUploadForm(formData, { kind: "scanner", mobileClaimToken: mobileClaimToken || undefined }),
       });
 
       const data = await res.json();

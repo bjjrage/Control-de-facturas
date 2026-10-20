@@ -1,3 +1,5 @@
+import { materializeDocument } from "@/lib/document-upload-server";
+import { uploadPrincipal } from "@/lib/document-upload-ticket";
 import { NextRequest, NextResponse } from 'next/server';
 import { completeScanSession, getScanSessionByCredential } from '@/lib/scanner/session-service';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -11,7 +13,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const token = formData.get('token') as string | null;
     const mobileClaimToken = formData.get('mobileClaimToken') as string | null;
-    const file = formData.get('file') as File | null;
+    let file = formData.get('file') as File | null;
     const pageCountStr = formData.get('pageCount') as string | null;
     const pageCount = pageCountStr ? parseInt(pageCountStr, 10) : 1;
 
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    file = await materializeDocument(file, uploadPrincipal("scanner", credential));
 
     // 2. Validar contenido real del archivo (magic bytes %PDF-)
     const arrayBuffer = await file.arrayBuffer();
