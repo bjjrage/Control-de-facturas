@@ -1,4 +1,5 @@
 "use server";
+import { materializeDocumentForm, internalUploadPrincipal } from "@/lib/document-upload-server";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -65,6 +66,8 @@ function num(formData: FormData, key: string) {
 export async function createInvoice(formData: FormData): Promise<CreateInvoiceResult> {
   const profile = await requireProfile(["administracion", "admin"]);
 
+  try { formData = await materializeDocumentForm(formData, internalUploadPrincipal(profile)); }
+  catch (error) { return { error: error instanceof Error ? error.message : "No se pudo recuperar el archivo." }; }
   const vatRate = str(formData, "vat_rate");
   if (vatRate && vatRate !== "document") {
     const amounts = calculateInvoiceVat(

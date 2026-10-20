@@ -1,0 +1,166 @@
+{
+  "baseCommit": "291ab36973816a9258fd8bbd6d931948c46afdca",
+  "branch": "codex/direct-storage-20mib",
+  "productionAccessed": false,
+  "otherProjectsChanged": false,
+  "push": false,
+  "merge": false,
+  "deploy": false,
+  "autodeployReactivated": false,
+  "migration": {
+    "file": "supabase/migrations/20261020003604_direct_document_upload_staging.sql",
+    "qaAppliedVersion": "20261020003604",
+    "productionApplied": false
+  },
+  "build": {
+    "command": "next build --webpack",
+    "status": "PASS",
+    "id": "97gzcgX0C6zmQIWpvCcqU"
+  },
+  "tests": {
+    "command": "vitest run --maxWorkers=2",
+    "passed": 2456,
+    "failed": 0,
+    "skipped": 16,
+    "finalUploadUnitTestsPassed": 14
+  },
+  "qa": {
+    "twentyMiBChecksPassed": 13,
+    "twentyMiBBuildId": "kxh-X7-k2ju1x6LiIMqIn",
+    "finalBuildSmokeChecksPassed": 6,
+    "note": "After the 20 MiB run, the mint endpoint gained cleanup of same-principal temporary files older than three hours. The final build smoke checks minting, real signed upload, actual scanned-PDF OCR and cleanup.",
+    "largestBrowserAppRequestBytes": 3452,
+    "directStorageRequestBytes": [
+      20971816,
+      20971816
+    ]
+  },
+  "lint": {
+    "newTransportCode": "PASS",
+    "componentBaseline": [
+      {
+        "file": "app/(internal)/invoices/invoice-dialog.tsx",
+        "baselineErrors": 0,
+        "currentErrors": 0,
+        "unchangedDiagnostics": true
+      },
+      {
+        "file": "app/(internal)/orders/[id]/recepcion-section.tsx",
+        "baselineErrors": 0,
+        "currentErrors": 0,
+        "unchangedDiagnostics": true
+      },
+      {
+        "file": "app/warehouse/[token]/warehouse-portal-client.tsx",
+        "baselineErrors": 0,
+        "currentErrors": 0,
+        "unchangedDiagnostics": true
+      },
+      {
+        "file": "app/recepcion/[token]/receipt-portal-form.tsx",
+        "baselineErrors": 0,
+        "currentErrors": 0,
+        "unchangedDiagnostics": true
+      },
+      {
+        "file": "app/scanner/page.tsx",
+        "baselineErrors": 2,
+        "currentErrors": 2,
+        "unchangedDiagnostics": true
+      }
+    ],
+    "note": "The scanner has two pre-existing react-hooks/set-state-in-effect errors; this change adds no diagnostics."
+  },
+  "limits": {
+    "perFileBytes": 20971520,
+    "perBatchBytes": 52428800,
+    "maxFiles": 20,
+    "ticketLifetimeMinutes": 15,
+    "abandonedTemporaryCleanupMinimumHours": 3
+  },
+  "transport": "Browser uploads to a private temporary Storage bucket. The server validates the scoped ticket, actual size, SHA-256 and file signature, consumes the temporary object, then executes existing business validations and permanent-evidence persistence.",
+  "lifecycle": "Successful materialization removes the temporary object. Failed multipart preparation cancels completed stages. New uploads reclaim only the same principal's temporary UUID objects older than three hours. The QA maintenance script can inspect or clean abandoned temporary objects across QA principals.",
+  "futureDeploymentRequirements": [
+    "Apply the included private-bucket migration to the intended environment before releasing this code.",
+    "Keep the existing deployment plan requirements for 291ab36; this candidate does not apply any production migrations or change deployment controls."
+  ],
+  "scope": "Invoice manual read/save, internal receipt document read/save, mobile scanner, receipt portal and warehouse portal. Bulk invoices already upload directly. RFQ, template and spreadsheet-import flows are outside this fix.",
+  "runtimeSources": [
+    {
+      "file": "app/(internal)/invoices/actions.ts",
+      "sha256": "2422033ae920184e8e046fcf892f301db67099aeb913e416672c2561df01cad2"
+    },
+    {
+      "file": "app/(internal)/invoices/extract-actions.ts",
+      "sha256": "8a60956eda7bbc32f4b50f982044e4ec484390a56f1078b864950c0ef7828202"
+    },
+    {
+      "file": "app/(internal)/invoices/invoice-dialog.tsx",
+      "sha256": "7a5a12ba1dedb419f759cfc5897698d3f6580154ec96a4638f56e119c82e3740"
+    },
+    {
+      "file": "app/(internal)/orders/[id]/recepcion-section.tsx",
+      "sha256": "704a226d2bcc9c91fb47991c6723f1659d47a3c6c5a7e690f4424b4c9fe23826"
+    },
+    {
+      "file": "app/(internal)/orders/oc-recepcion-actions.ts",
+      "sha256": "78a26a83506632eeeffdfc0d15e4b12b515f95d19d3f5876073ce49568766d62"
+    },
+    {
+      "file": "app/(internal)/orders/receipt-document-actions.ts",
+      "sha256": "9f076480e295d5f8e90936efae9b3bbd1bed104d09c40a2e9e929861229b3879"
+    },
+    {
+      "file": "app/api/recepcion-portal/[token]/route.ts",
+      "sha256": "ca6ea92063eb86bcf0a7bb25d845e90395aaa645cb8b2836f72712415543cdb9"
+    },
+    {
+      "file": "app/api/scanner/upload/route.ts",
+      "sha256": "ef40eff81ee9f96777c2536dcfc7015e1bccd9899c9e5e40dc6434d5abdc9714"
+    },
+    {
+      "file": "app/api/warehouse-portal/[token]/route.ts",
+      "sha256": "966e20db6b8b2af36758bd68b68009ad0c8a321063c23c85bb17246e48104416"
+    },
+    {
+      "file": "app/recepcion/[token]/receipt-portal-form.tsx",
+      "sha256": "da624bb33fffe89245bac6cf09646590c524002504ec15f93a5454730eb8a4a5"
+    },
+    {
+      "file": "app/scanner/page.tsx",
+      "sha256": "3dfeedb365ab3059df779ca0c3be51a2208f7dd164a1c942efa5243654df77a0"
+    },
+    {
+      "file": "app/warehouse/[token]/warehouse-portal-client.tsx",
+      "sha256": "497cc781da0201fcde9fc032c95f2c357237a7c3be8d376e21102791e62f825b"
+    },
+    {
+      "file": "proxy.ts",
+      "sha256": "4095721c6483972ff61280339407d612c9ac92e67c86d46edebf52185d61904e"
+    },
+    {
+      "file": "app/api/document-uploads/route.ts",
+      "sha256": "32e0715c18a7a4ff848caa459728698868f26bc64bcb85c0f82f8d1f548cced3"
+    },
+    {
+      "file": "lib/document-upload.ts",
+      "sha256": "7993a365e3ff4bfb492a66a95fbd6d73dc60ff98d17cb51c5e47e709298bcdae"
+    },
+    {
+      "file": "lib/document-upload-ticket.ts",
+      "sha256": "5d3120fb3c6b9a6f9b6958369589014b144eb4746425d529d2cb6294442f4462"
+    },
+    {
+      "file": "lib/document-upload-server.ts",
+      "sha256": "fce2b6c337ff3136f6484a08e563109b25ce6eb2f40b3542086db13aae73e6c9"
+    },
+    {
+      "file": "lib/document-upload-client.ts",
+      "sha256": "915ae314f963561a03bc3befb844c583a6eb55759e01679acff66f1b09dc6a10"
+    },
+    {
+      "file": "lib/document-upload-authorization.ts",
+      "sha256": "568c15a8c18e5746292e004efb8bbf6b2eef0439254e0b42ba9835446361cd06"
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 "use client";
+import { prepareDirectUploadForm, uploadDirectDocument } from "@/lib/document-upload-client";
+
 
 import { Select } from "@/components/ui/select";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -93,7 +95,7 @@ export function RegisterReceiptDialog({
     try {
       const form = new FormData();
       form.set("file", file);
-      const result = await readReceiptDocument(orderId, form);
+      const result = await readReceiptDocument(orderId, await prepareDirectUploadForm(form));
       if (result.error || !result.data) { setError(result.error ?? "No se pudo leer el remito."); return; }
       setCantidades(result.data.quantities);
       setRemisionNumber(result.data.number ?? "");
@@ -135,7 +137,7 @@ export function RegisterReceiptDialog({
         notas || undefined,
         idempotencyKey.current,
         remisionNumber || undefined,
-        document ?? undefined,
+        document ? await uploadDirectDocument(document) : undefined,
       );
       if (res.error) {
         setError(res.error);
