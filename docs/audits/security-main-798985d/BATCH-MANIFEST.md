@@ -7,7 +7,7 @@ Rama local: `batch/security-main-798985d`.
 
 Autorización posterior del usuario: hacer commit, publicar esta rama en un PR contra main, aplicar y probar las dos migraciones en el proyecto QA `kyiihlkncatojvlasoag` y revisar checks. Sigue prohibido mergear, desplegar a producción o modificar otros proyectos. La app de pruebas se ejecutará localmente contra ese QA; la evidencia posterior se documentará por separado.
 
-Corregir SEC-01 scanner, SEC-02 versión de Next, SEC-03 Gmail y SEC-04 plantillas del informe de auditoría. No modificar producción, otras ramas/proyectos, ni realizar push, merge o deploy. No incorporar commits históricos. Preservar archivos ajenos de los checkouts existentes.
+Corregir SEC-01 scanner, SEC-02 versión de Next, SEC-03 Gmail y SEC-04 plantillas del informe de auditoría. Publicar únicamente el candidato de esta rama y su evidencia en un PR contra main, según la autorización posterior. No modificar producción, otras ramas/proyectos, ni realizar merge o deploy. No incorporar commits históricos. Preservar archivos ajenos de los checkouts existentes.
 
 ## Archivos previstos
 
@@ -22,7 +22,7 @@ Corregir SEC-01 scanner, SEC-02 versión de Next, SEC-03 Gmail y SEC-04 plantill
 
 Pruebas locales negativas de rol/tenant/propiedad y rutas manipuladas de scanner, incluyendo RLS/grants en PGlite y lectura segura del overview; autoridad de aprobaciones y rol actual Gmail; XSS de HTML en renderer/preview; ejecución de migraciones en base efímera local cuando esté disponible; regresión Vitest, tipado y build. No usar credenciales productivas ni llamar a proveedores reales. Revisar diff contra la base y dejar constancia de cualquier limitación verificable.
 
-Las migraciones se preparan y verifican localmente; no se aplican a producción ni QA cloud en esta tarea.
+Las migraciones se verifican localmente y en el proyecto QA autorizado; no se aplican a producción.
 
 ## Archivos finales del candidato
 
@@ -35,6 +35,7 @@ Las migraciones se preparan y verifican localmente; no se aplican a producción 
 - app/api/scanner/upload/route.ts
 - docs/audits/security-main-798985d/BATCH-MANIFEST.md
 - docs/audits/security-main-798985d/RESULTADO.md
+- docs/audits/security-main-798985d/QA_RESULTADO.md
 - docs/audits/security-main-798985d/gmail-result.md
 - docs/audits/security-main-798985d/scanner-result.md
 - docs/audits/security-main-798985d/templates-result.md
@@ -63,4 +64,4 @@ Las migraciones se preparan y verifican localmente; no se aplican a producción 
 
 ## Cierre local
 
-Build y tipado aprobados; Vitest consolidado: 2.496 PASS, 16 omitidos, cero fallos pendientes. Sin hallazgos de lint nuevos frente a la base. Las dos migraciones no se aplicaron a cloud. No hay commits históricos añadidos ni integración de otras ramas. Resultado detallado en RESULTADO.md.
+Build y tipado aprobados; Vitest consolidado: 2.496 PASS, 16 omitidos, cero fallos pendientes. Sin hallazgos de lint nuevos frente a la base. Las dos migraciones se aplicaron únicamente a QA; nueve pruebas seleccionadas de integración aprobadas. No hay commits históricos añadidos ni integración de otras ramas. Código publicado en d85bfb4 y PR #41; la documentación posterior no cambia ese código. Resultado detallado en RESULTADO.md y QA_RESULTADO.md.

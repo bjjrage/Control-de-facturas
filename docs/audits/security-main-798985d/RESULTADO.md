@@ -3,7 +3,7 @@
 Fecha: 22/10/2026. Base: `798985d355fb8ed96796237e6f198c172db98709`.
 Rama local: `batch/security-main-798985d`.
 
-**Fix implementado y validado localmente para SEC-01, SEC-02, SEC-03 y SEC-04.** Los cambios están en este worktree, todavía sin commit ni publicación. Main y producción no se modificaron. No se hicieron push, merge, deploy, envíos de correo ni cambios de configuración o datos cloud.
+**Fix implementado para SEC-01, SEC-02, SEC-03 y SEC-04, publicado en el [PR #41](https://github.com/bjjrage/Control-de-facturas/pull/41).** El candidato de código `d85bfb49a56b0420f1cb935043d2202dd0733e1e` se probó localmente contra el Supabase de QA; ambas migraciones se aplicaron allí y las nueve pruebas de integración seleccionadas pasaron. Ver [QA_RESULTADO.md](QA_RESULTADO.md) para alcance, evidencia y límites. Main y producción no se modificaron; no hubo merge, despliegue ni envíos de correo.
 
 ## Cambios
 
@@ -28,12 +28,12 @@ Se ajustaron los fixtures de scanner y orquestador al contrato nuevo y se agrega
 
 Evidencia local fuera del repo: `../security-fix-validation` respecto al worktree. Incluye `build.log`, `vitest-all.json`, `vitest-final-recovery.json`, `vitest-final-fixes.json`, `vitest-consolidated.json`, `template-browser-proof.json`, `dependency-verification.json` y `eslint-verification.json`.
 
-## Migraciones preparadas, no aplicadas a cloud
+## Migraciones aplicadas solo en QA
 
 1. `supabase/migrations/20261022231201_scanner_session_authorization.sql`.
 2. `supabase/migrations/20261022231211_sec03_gmail_approval_authority.sql`.
 
-Antes de integrar/publicar, probar el candidato y ambas migraciones en QA con roles reales, scanner móvil/carga directa de 20 MiB, creación de factura desde scanner, decisiones legítimas de Gmail y revalidación de rol, y formato de plantillas existentes. La verificación local no sustituye ese E2E sobre infraestructura.
+Ambas migraciones se aplicaron en `kyiihlkncatojvlasoag`, con versiones de historial alineadas a los archivos del repositorio. Pasaron los controles de permisos con usuarios reales, scanner con carga directa de 20 MiB, decisiones legítimas de aprobación y saneamiento de una plantilla almacenada en la ruta de impresión real. No se ejecutaron la extracción mediante proveedor IA y el guardado final de factura, OAuth/envío real de Gmail ni un worker desplegado. Estas pruebas seleccionadas no equivalen a un E2E completo de todos los procesos de negocio.
 
 La migración de Gmail retira escrituras directas y la RPC antigua de cancelación. Su aplicación requiere una ventana coordinada con versiones compatibles de app y worker; una versión antigua puede fallar durante una actualización descoordinada. Las aprobaciones antiguas canceladas sin intento deben solicitarse otra vez. Los originales enviados y sus intentos se preservan.
 
@@ -41,4 +41,4 @@ La migración de Gmail retira escrituras directas y la RPC antigua de cancelaci�
 
 El fix no cambia planes comerciales, vistas de información pública, WAF/cuotas ni el proxy de voz independiente cuya exposición no se confirmó. Tampoco reabre esos puntos como bloqueantes sin nueva evidencia. El CSS complejo o recursos externos de plantillas se eliminan deliberadamente y pueden requerir ajuste de formato en QA.
 
-Los checkouts originales y sus archivos pendientes quedaron preservados. No se mezclaron otras ramas. Este resultado cierra la implementación local; **el riesgo de producción solo queda corregido allí cuando se autorice y complete el despliegue coordinado**.
+Los checkouts originales y sus archivos pendientes quedaron preservados. No se mezclaron otras ramas. Este resultado cierra la implementación y la validación seleccionada en QA; **el riesgo de producción solo queda corregido allí cuando se autorice y complete el despliegue coordinado**.
