@@ -1,0 +1,57 @@
+{
+  "project": "kyiihlkncatojvlasoag",
+  "checks": [
+    {
+      "table": "cuentas_financieras",
+      "anon": 0,
+      "admin_a": 29,
+      "administracion_a": 29,
+      "comercial_a": 0,
+      "admin_b": 0
+    },
+    {
+      "table": "movimientos_tesoreria",
+      "anon": 0,
+      "admin_a": 93,
+      "administracion_a": 93,
+      "comercial_a": 0,
+      "admin_b": 0
+    },
+    {
+      "table": "gastos_recurrentes",
+      "anon": 0,
+      "admin_a": 1,
+      "administracion_a": 1,
+      "comercial_a": 0,
+      "admin_b": 0
+    }
+  ],
+  "status": "PASS",
+  "cashflow": [
+    {
+      "role": "anon",
+      "denied": true,
+      "code": "42501"
+    },
+    {
+      "role": "admin_a",
+      "allowed": true,
+      "ownTenant": true
+    },
+    {
+      "role": "administracion_a",
+      "allowed": true,
+      "ownTenant": true
+    },
+    {
+      "role": "comercial_a",
+      "denied": true,
+      "code": "42501"
+    },
+    {
+      "role": "admin_b",
+      "allowed": true,
+      "ownTenant": true
+    }
+  ]
+}

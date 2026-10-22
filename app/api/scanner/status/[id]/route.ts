@@ -37,7 +37,7 @@ export async function GET(
     }
 
     let currentStatus = session.status;
-    if (isSessionExpired(session.expires_at) && currentStatus !== 'completed') {
+    if (isSessionExpired(session.expires_at) && currentStatus !== 'completed' && currentStatus !== 'canceled') {
       currentStatus = 'expired';
     }
 

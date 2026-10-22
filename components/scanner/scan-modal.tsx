@@ -65,6 +65,23 @@ export function ScanModal({
   const [receivedDoc, setReceivedDoc] = useState<ReceivedDocument | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const sessionIdRef = useRef<string | null>(null);
+
+  async function cancelSession(id: string) {
+    const response = await fetch('/api/scanner/session', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: id }) });
+    if (!response.ok) throw new Error('No se pudo cancelar la sesión de escaneo. Reintentá.');
+  }
+  async function handleOpenChange(next: boolean) {
+    if (next) { setOpen(true); return; }
+    if (isLoadingSession || isCanceling) return;
+    setIsCanceling(true);
+    try {
+      if (sessionIdRef.current && statusRef.current !== 'completed') await cancelSession(sessionIdRef.current);
+      setOpen(false);
+    } catch (error) { setErrorNotice(error instanceof Error ? error.message : 'No se pudo cancelar la sesión.'); }
+    finally { setIsCanceling(false); }
+  }
 
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -130,6 +147,8 @@ export function ScanModal({
     setQrDataUrl(null);
 
     try {
+      if (sessionIdRef.current && statusRef.current !== 'completed') await cancelSession(sessionIdRef.current);
+      sessionIdRef.current = null;
       const res = await fetch("/api/scanner/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,6 +166,7 @@ export function ScanModal({
         throw new Error(data.error || "No se pudo iniciar la sesión de escaneo");
       }
 
+      sessionIdRef.current = data.sessionId;
       setSessionId(data.sessionId);
       setPinCode(data.pinCode);
       setStatus("waiting");
@@ -234,7 +254,7 @@ export function ScanModal({
     : pinCode;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={(next) => { void handleOpenChange(next); }}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent title="Control Scanner" className="max-w-md">
         <div className="p-1 space-y-4">
@@ -252,7 +272,8 @@ export function ScanModal({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setOpen(false)}
+                  disabled={isLoadingSession || isCanceling}
+                  onClick={() => { void handleOpenChange(false); }}
                   className="text-xs"
                 >
                   Cancelar
@@ -329,7 +350,8 @@ export function ScanModal({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setOpen(false)}
+                  disabled={isLoadingSession || isCanceling}
+                  onClick={() => { void handleOpenChange(false); }}
                   className="text-xs"
                 >
                   Cancelar
@@ -424,7 +446,8 @@ export function ScanModal({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setOpen(false)}
+                  disabled={isLoadingSession || isCanceling}
+                  onClick={() => { void handleOpenChange(false); }}
                   className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
                   Cancelar

@@ -66,7 +66,7 @@ export async function createProvider(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !created) return { error: error?.message ?? "No se pudo crear el proveedor." };
+  if (error || !created) return { error: error?.code === "23505" ? "Ya existe un proveedor con ese RUC en esta empresa." : error?.message ?? "No se pudo crear el proveedor." };
   const rubrosError = await syncProviderRubros(supabase, profile.empresa_id, created.id, formData);
   refreshAfterSave("/providers");
   return { error: rubrosError ? `Proveedor creado, pero no se guardaron los rubros: ${rubrosError}` : null };
@@ -93,7 +93,7 @@ export async function updateProvider(id: string, formData: FormData) {
     })
     .eq("id", id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: error.code === "23505" ? "Ya existe un proveedor con ese RUC en esta empresa." : error.message };
   const rubrosError = await syncProviderRubros(supabase, profile.empresa_id, id, formData);
   refreshAfterSave("/providers");
   return { error: rubrosError ? `Proveedor guardado, pero no se guardaron los rubros: ${rubrosError}` : null };

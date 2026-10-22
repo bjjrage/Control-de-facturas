@@ -2,7 +2,7 @@
 
 import { Select } from "@/components/ui/select";
 
-import { useCallback, useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore, type FormEvent, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -92,6 +92,8 @@ export function CargaInicialStockDialog({
   const [fileError, setFileError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [batchCompleted, setCompleted] = useState(false);
+  const running = useRef(false);
   const subscribe = useCallback((onStoreChange: () => void) => {
     const onStorage = (event: StorageEvent) => { if (event.key === attemptStorageKey || event.key === null) onStoreChange(); };
     const onLocal = () => onStoreChange();
@@ -173,7 +175,8 @@ export function CargaInicialStockDialog({
   }
 
   async function runBatch(batch: StoredBatch) {
-    if (pending) return;
+    if (running.current || batchCompleted) return;
+    running.current = true;
     setPending(true);
     setMessage(null);
     let completed = 0;
@@ -189,12 +192,16 @@ export function CargaInicialStockDialog({
       localStorage.removeItem(attemptStorageKey);
       window.dispatchEvent(new Event("inventory-initial-stock-attempt"));
       setMessage(`${completed} movimiento(s) de carga inicial registrados en el inventario canónico.`);
+      setCompleted(true);
+      setMaterialId(""); setQuantity(""); setLocationId(""); setUnitCost(""); setExchangeRate(""); setNote("");
+      setHeaders([]); setSourceRows([]); setRowEdits({}); setFileName("");
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error
         ? `No se pudo confirmar la carga luego de ${completed} movimiento(s). Reintentá con el mismo intento guardado. ${error.message}`
         : "No se pudo confirmar la carga. Reintentá con el mismo intento guardado.");
     } finally {
+      running.current = false;
       setPending(false);
     }
   }
@@ -341,7 +348,7 @@ export function CargaInicialStockDialog({
   }, {});
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => { if (running.current) return; if (next) { setCompleted(false); setMessage(null); } setOpen(next); }}>
       <DialogTrigger asChild>
         <Button variant="secondary" className="h-9 px-3 text-[12px]">{storedBatch ? "Reanudar carga inicial" : "Carga inicial de stock"}</Button>
       </DialogTrigger>
@@ -411,8 +418,8 @@ export function CargaInicialStockDialog({
                     ) : null}
                     <div className="flex items-end text-[11px] text-[var(--muted)]">Se registra como ajuste de entrada canónico (INITIAL_STOCK); nunca se edita el saldo directamente.</div>
                   </div>
-                  {message ? <p role="alert" className="text-[12px] text-[var(--error)]">{message}</p> : null}
-                  <div className="flex justify-end"><Button type="submit" disabled={pending || optionsBlocked || !!storedBatch}>{pending ? "Registrando…" : "Registrar carga inicial"}</Button></div>
+                  {message ? <p className={`text-[12px] ${batchCompleted ? "text-[var(--ok)]" : "text-[var(--error)]"}`} role={batchCompleted ? "status" : "alert"}>{message}</p> : null}
+                  <div className="flex justify-end"><Button type="submit" disabled={pending || batchCompleted || optionsBlocked || !!storedBatch}>{pending ? "Registrando…" : "Registrar carga inicial"}</Button></div>
                 </form>
               ) : (
                 <div className="space-y-3">
@@ -458,8 +465,8 @@ export function CargaInicialStockDialog({
                       {importRows.length > 0 ? <p className="text-[11px] text-[var(--muted)]">Vista previa: {importRows.length} filas · Total por moneda: {Object.entries(initialTotalsByCurrency).map(([code, total]) => formatMoney(total, code as CurrencyCode)).join(" · ") || "pendiente de completar"}. No se aceptan filas ambiguas.</p> : null}
                     </>
                   ) : null}
-                  {message ? <p role="alert" className="text-[12px] text-[var(--error)]">{message}</p> : null}
-                  <div className="flex justify-end"><Button type="button" onClick={() => void confirmImport()} disabled={pending || optionsBlocked || sourceRows.length === 0 || columnMappingErrors.length > 0 || rowErrors.some((errors) => errors.length > 0) || !effectiveDate}>{pending ? "Registrando…" : `Confirmar ${importRows.length} movimiento(s)`}</Button></div>
+                  {message ? <p className={`text-[12px] ${batchCompleted ? "text-[var(--ok)]" : "text-[var(--error)]"}`} role={batchCompleted ? "status" : "alert"}>{message}</p> : null}
+                  <div className="flex justify-end"><Button type="button" onClick={() => void confirmImport()} disabled={pending || batchCompleted || optionsBlocked || sourceRows.length === 0 || columnMappingErrors.length > 0 || rowErrors.some((errors) => errors.length > 0) || !effectiveDate}>{pending ? "Registrando…" : `Confirmar ${importRows.length} movimiento(s)`}</Button></div>
                 </div>
               )}
             </>

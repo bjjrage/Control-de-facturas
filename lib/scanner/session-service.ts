@@ -10,6 +10,7 @@ import {
   generateScanPin,
   generateScanToken,
   hashScanToken,
+  hashScanPin,
   isSessionExpired,
 } from './tokens';
 
@@ -40,11 +41,14 @@ export async function createScanSession(
 
   // Bucle de reintento para garantizar unicidad DB-backed del PIN entre sesiones reclamables
   let session: ScanSession | null = null;
+  let issuedPin: string | null = null;
   let lastError: Error | null = null;
   const MAX_PIN_RETRIES = 5;
 
   for (let attempt = 0; attempt < MAX_PIN_RETRIES; attempt++) {
     const pinCode = generateScanPin();
+    issuedPin = pinCode;
+    const pinHash = hashScanPin(pinCode);
 
     // 1. Intentar creación atómica vía RPC si está disponible
     try {
@@ -52,7 +56,7 @@ export async function createScanSession(
         p_empresa_id: empresaId,
         p_user_id: userId,
         p_token_hash: tokenHash,
-        p_pin_code: pinCode,
+        p_pin_code: pinHash,
         p_expires_at: expiresAt,
         p_context_type: contextType,
         p_context_id: contextId,
@@ -89,7 +93,7 @@ export async function createScanSession(
     const { data: existingActive } = await admin
       .from('scan_sessions')
       .select('id, expires_at')
-      .eq('pin_code', pinCode)
+      .eq('pin_code', pinHash)
       .eq('status', 'waiting')
       .gt('expires_at', new Date().toISOString())
       .maybeSingle();
@@ -108,7 +112,7 @@ export async function createScanSession(
         target_field: targetField,
         status: 'waiting',
         token_hash: tokenHash,
-        pin_code: pinCode,
+        pin_code: pinHash,
         expires_at: expiresAt,
         storage_bucket: storageBucket,
         metadata,
@@ -142,7 +146,7 @@ export async function createScanSession(
   const joinUrl = `/scanner?t=${token}`;
 
   return {
-    session,
+    session: { ...session, pin_code: issuedPin! }, // Plain PIN is returned once, never persisted.
     token,
     joinUrl,
   };
@@ -168,7 +172,7 @@ export async function getScanSessionByCredential(credential: string): Promise<Sc
   if (byMobileToken) {
     const session = byMobileToken as ScanSession;
     if (isSessionExpired(session.expires_at) && session.status !== 'completed') {
-      await admin.from('scan_sessions').update({ status: 'expired' }).eq('id', session.id);
+      await admin.from('scan_sessions').update({ status: 'expired' }).eq('id', session.id).in('status', ['waiting', 'connected', 'scanning', 'processing']);
       session.status = 'expired';
     }
     return session;
@@ -195,7 +199,7 @@ export async function getScanSessionByToken(token: string): Promise<ScanSession 
   if (byToken) {
     const session = byToken as ScanSession;
     if (isSessionExpired(session.expires_at) && session.status === 'waiting') {
-      await admin.from('scan_sessions').update({ status: 'expired' }).eq('id', session.id);
+      await admin.from('scan_sessions').update({ status: 'expired' }).eq('id', session.id).in('status', ['waiting', 'connected', 'scanning', 'processing']);
       session.status = 'expired';
     }
     return session;
@@ -266,7 +270,7 @@ export async function verifyAndGetSessionByPin(
   const { data, error } = await admin
     .from('scan_sessions')
     .select('*')
-    .eq('pin_code', cleanPin)
+    .eq('pin_code', hashScanPin(cleanPin))
     .eq('status', 'waiting')
     .gt('expires_at', now.toISOString())
     .maybeSingle();
@@ -388,7 +392,7 @@ export async function claimScanSession(
       const { data: connectedWithPin } = await admin
         .from('scan_sessions')
         .select('*')
-        .eq('pin_code', cleanPin)
+        .eq('pin_code', hashScanPin(cleanPin))
         .eq('status', 'connected')
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -481,6 +485,8 @@ export async function updateScanSessionStatus(
     .from('scan_sessions')
     .update({ status })
     .eq('id', session.id)
+    .eq('mobile_claim_token_hash', hashScanToken(credential))
+    .in('status', ['connected', 'scanning', 'processing'])
     .select()
     .single();
 
