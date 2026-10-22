@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-22",
+  "base": "ec090593c647daa928e59a188428f334152ba75a",
+  "qa": "kyiihlkncatojvlasoag",
+  "productionWrites": false,
+  "push": false,
+  "deploy": false,
+  "unit": {
+    "passed": 2467,
+    "skipped": 16,
+    "filesPassed": 267,
+    "filesSkipped": 2
+  },
+  "browser": {
+    "startTime": "2026-10-22T03:43:56.215Z",
+    "duration": 78607.894,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0,
+    "tests": [
+      {
+        "title": "A4: normalized duplicate RUC rejected with a clear message",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 12956
+          }
+        ]
+      },
+      {
+        "title": "A5: opening stock clears the form, shows success and writes once on double click",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 13076
+          }
+        ]
+      },
+      {
+        "title": "A6: desktop cancel retires PIN and revokes an already connected mobile",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 15363
+          }
+        ]
+      },
+      {
+        "title": "A2/A3: cap quantity, refresh totals, approve and open the sales draft",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 32472
+          }
+        ]
+      }
+    ]
+  },
+  "typeScript": "PASS",
+  "build": "PASS",
+  "lintNewFiles": "PASS",
+  "runtimeLint": "6 pre-existing errors, 2 warnings; no new runtime lint errors",
+  "production": {
+    "app": {
+      "id": "dpl_EiQ6cpNY8emtWu9VjkGQHGa4xHVZ",
+      "state": "READY",
+      "sha": "ec090593c647daa928e59a188428f334152ba75a"
+    },
+    "database": {
+      "migrations": 79,
+      "beta": 0,
+      "acceptQuotationFix": true,
+      "releaseFunctionsPresent": 27
+    },
+    "worker": "NOT RECONFIRMED: Railway connector and CLI authentication expired",
+    "openAIProductionKeyPresent": true,
+    "openAIProductionModelAccess": "NOT VERIFIED",
+    "goekuaConfigured": false,
+    "realBetaInvoice": "PENDING",
+    "backup": "Prior release backup from 2026-10-20 01:40 UTC located; new backup/restore test pending"
+  }
+}

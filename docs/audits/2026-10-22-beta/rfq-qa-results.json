@@ -1,0 +1,28 @@
+{
+  "qa": "kyiihlkncatojvlasoag",
+  "status": "PASS",
+  "checks": [
+    {
+      "higherFreight": false,
+      "id": "79c01ce6-9f23-4c5c-a7c8-1b61e800790d",
+      "is_cheapest": true,
+      "selection_reason": null,
+      "selection_reason_detail": "Precio conveniente"
+    },
+    {
+      "higherFreight": true,
+      "id": "0f06ff34-f8c8-4e8b-9be8-d234226bcff8",
+      "is_cheapest": false,
+      "selection_reason": "OTRO",
+      "selection_reason_detail": "Precio conveniente"
+    }
+  ],
+  "createdIds": [
+    {
+      "rfq": "f7f779f1-858c-4b19-994b-b70462c4f6bd"
+    },
+    {
+      "rfq": "e13c9a68-4df4-46a6-a874-0496be7ffe4f"
+    }
+  ]
+}

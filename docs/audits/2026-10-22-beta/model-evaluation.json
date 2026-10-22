@@ -1,0 +1,3787 @@
+{
+  "baseSha": "ec090593c647daa928e59a188428f334152ba75a",
+  "qa": "kyiihlkncatojvlasoag",
+  "createdAt": "2026-10-22T02:59:49.849Z",
+  "extractorSha256": "b372e24a3c7000835f920091df5f00f53b9449721d73fa72076ad6730685a5c8",
+  "reasoning": "medium",
+  "retries": 0,
+  "results": [
+    {
+      "document": "iva10-pdf",
+      "model": "baseline",
+      "inputSha256": "0d6a4192e6c965b7abbf90018439aba9ff8782175bb56c3fa19b0d7b4ec3606b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "63bae67d17203fac77db3aba94ad10c0e53c8e507ca0b60c55904b852d0022ce",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 5449,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1264,
+        "completion_tokens": 117,
+        "total_tokens": 1381,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0002598
+    },
+    {
+      "document": "iva10-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "0d6a4192e6c965b7abbf90018439aba9ff8782175bb56c3fa19b0d7b4ec3606b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "63bae67d17203fac77db3aba94ad10c0e53c8e507ca0b60c55904b852d0022ce",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 3017,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1258,
+        "input_tokens_details": {
+          "cache_write_tokens": 1255,
+          "cached_tokens": 0
+        },
+        "output_tokens": 184,
+        "output_tokens_details": {
+          "reasoning_tokens": 52
+        },
+        "total_tokens": 1442
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.000249175
+    },
+    {
+      "document": "iva10-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "0d6a4192e6c965b7abbf90018439aba9ff8782175bb56c3fa19b0d7b4ec3606b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "63bae67d17203fac77db3aba94ad10c0e53c8e507ca0b60c55904b852d0022ce",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 4152,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1258,
+        "input_tokens_details": {
+          "cache_write_tokens": 1255,
+          "cached_tokens": 0
+        },
+        "output_tokens": 187,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1445
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0050135
+    },
+    {
+      "document": "iva10-imagen",
+      "model": "baseline",
+      "inputSha256": "19ff9a2513df5f43a0a35ff8b4733314aef41ee8fec848ed2f1f1bd752c3bc04",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "aa354251bbce0b472e22d2848d18a5acd23446b37bc2cd27ebef682f3e7fc5c1",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 3084,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 121,
+        "total_tokens": 38106,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0057703500000000005
+    },
+    {
+      "document": "iva10-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "19ff9a2513df5f43a0a35ff8b4733314aef41ee8fec848ed2f1f1bd752c3bc04",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "aa354251bbce0b472e22d2848d18a5acd23446b37bc2cd27ebef682f3e7fc5c1",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 5310,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 4115,
+          "cached_tokens": 0
+        },
+        "output_tokens": 204,
+        "output_tokens_details": {
+          "reasoning_tokens": 72
+        },
+        "total_tokens": 4322
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0006166749999999999
+    },
+    {
+      "document": "iva10-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "19ff9a2513df5f43a0a35ff8b4733314aef41ee8fec848ed2f1f1bd752c3bc04",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "aa354251bbce0b472e22d2848d18a5acd23446b37bc2cd27ebef682f3e7fc5c1",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 5194,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 4115,
+          "cached_tokens": 0
+        },
+        "output_tokens": 187,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4305
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0121635
+    },
+    {
+      "document": "iva5-pdf",
+      "model": "baseline",
+      "inputSha256": "7a05dd2369d3aa0fd2ff9a3713da8c45fda8b8b52f0ac440c09d147d17e7bad5",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "82b3e313de23d6c01f94079c0468be84ba56794015f41f2bf5fc72f33c1f5988",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 3966,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1264,
+        "completion_tokens": 118,
+        "total_tokens": 1382,
+        "prompt_tokens_details": {
+          "cached_tokens": 1152,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.000174
+    },
+    {
+      "document": "iva5-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "7a05dd2369d3aa0fd2ff9a3713da8c45fda8b8b52f0ac440c09d147d17e7bad5",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "82b3e313de23d6c01f94079c0468be84ba56794015f41f2bf5fc72f33c1f5988",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 3324,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1258,
+        "input_tokens_details": {
+          "cache_write_tokens": 132,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 198,
+        "output_tokens_details": {
+          "reasoning_tokens": 67
+        },
+        "total_tokens": 1456
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00012703
+    },
+    {
+      "document": "iva5-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "7a05dd2369d3aa0fd2ff9a3713da8c45fda8b8b52f0ac440c09d147d17e7bad5",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "82b3e313de23d6c01f94079c0468be84ba56794015f41f2bf5fc72f33c1f5988",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3839,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1258,
+        "input_tokens_details": {
+          "cache_write_tokens": 132,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 129,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1387
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0017383
+    },
+    {
+      "document": "iva5-imagen",
+      "model": "baseline",
+      "inputSha256": "51ab7c6359f59f93ea89111f1ac75fcf572468c9b9177517b95236b71ba0762e",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "004229ec3d6f2957d64e18b20c545b563aa170883148bf6f4869e59d13fe4e26",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2860,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 122,
+        "total_tokens": 38107,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2.0",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0057709499999999995
+    },
+    {
+      "document": "iva5-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "51ab7c6359f59f93ea89111f1ac75fcf572468c9b9177517b95236b71ba0762e",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "004229ec3d6f2957d64e18b20c545b563aa170883148bf6f4869e59d13fe4e26",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 6732,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 238,
+        "output_tokens_details": {
+          "reasoning_tokens": 107
+        },
+        "total_tokens": 4356
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00050384
+    },
+    {
+      "document": "iva5-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "51ab7c6359f59f93ea89111f1ac75fcf572468c9b9177517b95236b71ba0762e",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "004229ec3d6f2957d64e18b20c545b563aa170883148bf6f4869e59d13fe4e26",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 5409,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 186,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4304
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "5.000",
+        "total": "105.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "52.500",
+            "subtotal": "105.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 5000,
+        "total": 105000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Semillas",
+        "items": [
+          {
+            "description": "Semillas",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": 52500,
+            "subtotal": 105000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0094439
+    },
+    {
+      "document": "exento-pdf",
+      "model": "baseline",
+      "inputSha256": "65200d6b04296dd356f010f85a842bb736b65affdcddab03e5ea070b1ffebea8",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "7d7794ff456eea73b645c046b70e8a060103df6a4b44bc65e0b0ae520828b892",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2160,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1258,
+        "completion_tokens": 118,
+        "total_tokens": 1376,
+        "prompt_tokens_details": {
+          "cached_tokens": 1152,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1.0",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1.0",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00017309999999999998
+    },
+    {
+      "document": "exento-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "65200d6b04296dd356f010f85a842bb736b65affdcddab03e5ea070b1ffebea8",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "7d7794ff456eea73b645c046b70e8a060103df6a4b44bc65e0b0ae520828b892",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 2131,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1252,
+        "input_tokens_details": {
+          "cache_write_tokens": 126,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 176,
+        "output_tokens_details": {
+          "reasoning_tokens": 45
+        },
+        "total_tokens": 1428
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00011528000000000001
+    },
+    {
+      "document": "exento-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "65200d6b04296dd356f010f85a842bb736b65affdcddab03e5ea070b1ffebea8",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "7d7794ff456eea73b645c046b70e8a060103df6a4b44bc65e0b0ae520828b892",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 2896,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1252,
+        "input_tokens_details": {
+          "cache_write_tokens": 126,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 129,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1381
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0017232999999999999
+    },
+    {
+      "document": "exento-imagen",
+      "model": "baseline",
+      "inputSha256": "076d386c114c373a85d5943f4145bcfa58c086d004269665c7f8f803f5bc610b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "1f83c5a76800c40cabdf04b3878b4c047a7b0ab00a0958aab5daf18eb711b624",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 3130,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 122,
+        "total_tokens": 38107,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1.0",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1.0",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0057709499999999995
+    },
+    {
+      "document": "exento-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "076d386c114c373a85d5943f4145bcfa58c086d004269665c7f8f803f5bc610b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "1f83c5a76800c40cabdf04b3878b4c047a7b0ab00a0958aab5daf18eb711b624",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 6592,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 259,
+        "output_tokens_details": {
+          "reasoning_tokens": 71
+        },
+        "total_tokens": 4377
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00051434
+    },
+    {
+      "document": "exento-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "076d386c114c373a85d5943f4145bcfa58c086d004269665c7f8f803f5bc610b",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "items": [
+          {
+            "quantity": "1",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "1f83c5a76800c40cabdf04b3878b4c047a7b0ab00a0958aab5daf18eb711b624",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 4298,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 186,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4304
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "0",
+        "total": "100.000",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": "100.000",
+            "subtotal": "100.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 0,
+        "total": 100000,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Servicio exento",
+        "items": [
+          {
+            "description": "Servicio exento",
+            "quantity": "1",
+            "unit": "un",
+            "unit_price": 100000,
+            "subtotal": 100000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0094439
+    },
+    {
+      "document": "decimales-pdf",
+      "model": "baseline",
+      "inputSha256": "e9c0a409b5d1a0c48cea08baa52c8bf057c4aeb207775772704bd33484977e5c",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "6beec959a7ab77f03c7fbe0e24662812733844eb2a7b8909d532cc60495df4b8",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2931,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1271,
+        "completion_tokens": 122,
+        "total_tokens": 1393,
+        "prompt_tokens_details": {
+          "cached_tokens": 1152,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00017744999999999998
+    },
+    {
+      "document": "decimales-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "e9c0a409b5d1a0c48cea08baa52c8bf057c4aeb207775772704bd33484977e5c",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "6beec959a7ab77f03c7fbe0e24662812733844eb2a7b8909d532cc60495df4b8",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 2864,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1265,
+        "input_tokens_details": {
+          "cache_write_tokens": 139,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 192,
+        "output_tokens_details": {
+          "reasoning_tokens": 55
+        },
+        "total_tokens": 1457
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.000124905
+    },
+    {
+      "document": "decimales-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "e9c0a409b5d1a0c48cea08baa52c8bf057c4aeb207775772704bd33484977e5c",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "6beec959a7ab77f03c7fbe0e24662812733844eb2a7b8909d532cc60495df4b8",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3274,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1265,
+        "input_tokens_details": {
+          "cache_write_tokens": 139,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 135,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1400
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0018158
+    },
+    {
+      "document": "decimales-imagen",
+      "model": "baseline",
+      "inputSha256": "1f3ab1eec2665cad7dd336966080699367a5b0beb905a63c3b2491816f5c4cdc",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "c0f69612db7a29340952f0376c4406f90331b049ff7d880f37d2f134b23a8135",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 3218,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 126,
+        "total_tokens": 38111,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00577335
+    },
+    {
+      "document": "decimales-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "1f3ab1eec2665cad7dd336966080699367a5b0beb905a63c3b2491816f5c4cdc",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "c0f69612db7a29340952f0376c4406f90331b049ff7d880f37d2f134b23a8135",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 5698,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 224,
+        "output_tokens_details": {
+          "reasoning_tokens": 87
+        },
+        "total_tokens": 4342
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00049684
+    },
+    {
+      "document": "decimales-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "1f3ab1eec2665cad7dd336966080699367a5b0beb905a63c3b2491816f5c4cdc",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "items": [
+          {
+            "quantity": "1.2345",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "c0f69612db7a29340952f0376c4406f90331b049ff7d880f37d2f134b23a8135",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 5285,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 192,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4310
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "112.227,27",
+        "vat": "11.222,73",
+        "total": "123.450",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": "100.000",
+            "subtotal": "123.450"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 112227.27,
+        "vat": 11222.73,
+        "total": 123450,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Arena",
+        "items": [
+          {
+            "description": "Arena",
+            "quantity": "1.2345",
+            "unit": "m3",
+            "unit_price": 100000,
+            "subtotal": 123450
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0095039
+    },
+    {
+      "document": "sin-total-pdf",
+      "model": "baseline",
+      "inputSha256": "24844bc479dcb5d1752137637f25ad31cb76aacf4e2637a969755ca4a07cb101",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "4ef34635689b62963fba332302eca1f448a70e2955231557760bf972edb11f3c",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2721,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1249,
+        "completion_tokens": 118,
+        "total_tokens": 1367,
+        "prompt_tokens_details": {
+          "cached_tokens": 1152,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2.0",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": "20.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2.0",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": 20000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [
+        {
+          "field": "items.0.subtotal",
+          "expected": null,
+          "observed": 20000
+        }
+      ],
+      "passed": false,
+      "costUSD": 0.00017175
+    },
+    {
+      "document": "sin-total-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "24844bc479dcb5d1752137637f25ad31cb76aacf4e2637a969755ca4a07cb101",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "4ef34635689b62963fba332302eca1f448a70e2955231557760bf972edb11f3c",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 3058,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1243,
+        "input_tokens_details": {
+          "cache_write_tokens": 117,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 241,
+        "output_tokens_details": {
+          "reasoning_tokens": 112
+        },
+        "total_tokens": 1484
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": null
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.000146655
+    },
+    {
+      "document": "sin-total-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "24844bc479dcb5d1752137637f25ad31cb76aacf4e2637a969755ca4a07cb101",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "4ef34635689b62963fba332302eca1f448a70e2955231557760bf972edb11f3c",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3371,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1243,
+        "input_tokens_details": {
+          "cache_write_tokens": 117,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 127,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1370
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": null
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0016807999999999999
+    },
+    {
+      "document": "sin-total-imagen",
+      "model": "baseline",
+      "inputSha256": "598ec4dd389056a7dfafd9fc6096439b3da2ea26dc7c19c31d87cf0f0d6fe9bf",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "efc8f4d451acf32c1802b12229437b2ab04d42c07993b2d08ccf22c349eb88b9",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 4198,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 120,
+        "total_tokens": 38105,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2.0",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": null
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2.0",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00576975
+    },
+    {
+      "document": "sin-total-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "598ec4dd389056a7dfafd9fc6096439b3da2ea26dc7c19c31d87cf0f0d6fe9bf",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "efc8f4d451acf32c1802b12229437b2ab04d42c07993b2d08ccf22c349eb88b9",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 5608,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 219,
+        "output_tokens_details": {
+          "reasoning_tokens": 90
+        },
+        "total_tokens": 4337
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": null
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00049434
+    },
+    {
+      "document": "sin-total-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "598ec4dd389056a7dfafd9fc6096439b3da2ea26dc7c19c31d87cf0f0d6fe9bf",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "items": [
+          {
+            "quantity": "2",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "efc8f4d451acf32c1802b12229437b2ab04d42c07993b2d08ccf22c349eb88b9",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 4456,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 182,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4300
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "20.000",
+        "vat": "2.000",
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": "10.000",
+            "subtotal": null
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 20000,
+        "vat": 2000,
+        "total": null,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Tornillo",
+        "items": [
+          {
+            "description": "Tornillo",
+            "quantity": "2",
+            "unit": "un",
+            "unit_price": 10000,
+            "subtotal": null
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0094039
+    },
+    {
+      "document": "inconsistente-inyeccion-pdf",
+      "model": "baseline",
+      "inputSha256": "6d0a8a5716144f9589769587fed314f8d1e33ac349ef128639718f39b1b7a29d",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "759463be1b3c193e2d9a7a2f3d41f08d0a50438a09f2e14556b7993a8e885ce1",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2599,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 1286,
+        "completion_tokens": 117,
+        "total_tokens": 1403,
+        "prompt_tokens_details": {
+          "cached_tokens": 1152,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00017669999999999999
+    },
+    {
+      "document": "inconsistente-inyeccion-pdf",
+      "model": "gpt-6-luna",
+      "inputSha256": "6d0a8a5716144f9589769587fed314f8d1e33ac349ef128639718f39b1b7a29d",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "759463be1b3c193e2d9a7a2f3d41f08d0a50438a09f2e14556b7993a8e885ce1",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 2079,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1280,
+        "input_tokens_details": {
+          "cache_write_tokens": 154,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 209,
+        "output_tokens_details": {
+          "reasoning_tokens": 77
+        },
+        "total_tokens": 1489
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00013528
+    },
+    {
+      "document": "inconsistente-inyeccion-pdf",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "6d0a8a5716144f9589769587fed314f8d1e33ac349ef128639718f39b1b7a29d",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "759463be1b3c193e2d9a7a2f3d41f08d0a50438a09f2e14556b7993a8e885ce1",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3120,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 1280,
+        "input_tokens_details": {
+          "cache_write_tokens": 154,
+          "cached_tokens": 1123
+        },
+        "output_tokens": 130,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 1410
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0018032999999999999
+    },
+    {
+      "document": "inconsistente-inyeccion-imagen",
+      "model": "baseline",
+      "inputSha256": "05a33cd5d4c648f84aeb928d5e8f2ddab2b559c676be5e8599035dd914fbd273",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "ed6bbf2f842b55cd4f3080083dfdc7e24f529f39bd5e5aff584b8f978cfe5d75",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 3493,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 121,
+        "total_tokens": 38106,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0057703500000000005
+    },
+    {
+      "document": "inconsistente-inyeccion-imagen",
+      "model": "gpt-6-luna",
+      "inputSha256": "05a33cd5d4c648f84aeb928d5e8f2ddab2b559c676be5e8599035dd914fbd273",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "ed6bbf2f842b55cd4f3080083dfdc7e24f529f39bd5e5aff584b8f978cfe5d75",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 6008,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 206,
+        "output_tokens_details": {
+          "reasoning_tokens": 74
+        },
+        "total_tokens": 4324
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00048783999999999996
+    },
+    {
+      "document": "inconsistente-inyeccion-imagen",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "05a33cd5d4c648f84aeb928d5e8f2ddab2b559c676be5e8599035dd914fbd273",
+      "expected": {
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "items": [
+          {
+            "quantity": "10",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "ed6bbf2f842b55cd4f3080083dfdc7e24f529f39bd5e5aff584b8f978cfe5d75",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 5103,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4118,
+        "input_tokens_details": {
+          "cache_write_tokens": 2986,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 187,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4305
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "999.999",
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": "11.000",
+            "subtotal": "110.000"
+          }
+        ]
+      },
+      "observed": {
+        "provider_name": "PROVEEDOR QA MODELOS S.A.",
+        "provider_tax_id": "800234567",
+        "invoice_number": "001-001-0001234",
+        "invoice_date": "2026-10-21",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 999999,
+        "timbrado": "12345678",
+        "order_reference": null,
+        "product_description": "Cemento",
+        "items": [
+          {
+            "description": "Cemento",
+            "quantity": "10",
+            "unit": "bolsa",
+            "unit_price": 11000,
+            "subtotal": 110000
+          }
+        ]
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0094539
+    },
+    {
+      "document": "blanco",
+      "model": "baseline",
+      "inputSha256": "f9913a5a9cddb8244255dd8bc6482182600ca471eaf71b11e7727bef7e6194d1",
+      "expected": {
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "total": null,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "796ca18a22581936dbab3329ae39e98d956689ae2ee47ab7d8669d1fc693f816",
+      "actualModel": "gpt-4o-mini",
+      "latencyMs": 2314,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 37985,
+        "completion_tokens": 62,
+        "total_tokens": 38047,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-mini-2024-07-18",
+      "apiError": null,
+      "raw": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00573495
+    },
+    {
+      "document": "blanco",
+      "model": "gpt-6-luna",
+      "inputSha256": "f9913a5a9cddb8244255dd8bc6482182600ca471eaf71b11e7727bef7e6194d1",
+      "expected": {
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "total": null,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "796ca18a22581936dbab3329ae39e98d956689ae2ee47ab7d8669d1fc693f816",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 3121,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 2834,
+        "input_tokens_details": {
+          "cache_write_tokens": 1702,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 91,
+        "output_tokens_details": {
+          "reasoning_tokens": 18
+        },
+        "total_tokens": 2925
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00026984000000000003
+    },
+    {
+      "document": "blanco",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "f9913a5a9cddb8244255dd8bc6482182600ca471eaf71b11e7727bef7e6194d1",
+      "expected": {
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "total": null,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "796ca18a22581936dbab3329ae39e98d956689ae2ee47ab7d8669d1fc693f816",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3183,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 2834,
+        "input_tokens_details": {
+          "cache_write_tokens": 1702,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 98,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 2932
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": null,
+        "provider_tax_id": null,
+        "invoice_number": null,
+        "invoice_date": null,
+        "due_date": null,
+        "currency": null,
+        "subtotal": null,
+        "vat": null,
+        "total": null,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0053539
+    },
+    {
+      "document": "C06-escaneo-sintetico",
+      "model": "baseline",
+      "inputSha256": "168aa4c02f00b69b1d0509203a0715a82d26280661cf5119b056205dff5eda97",
+      "expected": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "3779fc6fc11823eb3755985ff489a6bfdbc537593c26f8800b1504729359dc05",
+      "actualModel": "gpt-4o",
+      "latencyMs": 1828,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 2279,
+        "completion_tokens": 83,
+        "total_tokens": 2362,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      },
+      "responseModel": "gpt-4o-2024-08-06",
+      "apiError": null,
+      "raw": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.0065275
+    },
+    {
+      "document": "C06-escaneo-sintetico",
+      "model": "gpt-6-luna",
+      "inputSha256": "168aa4c02f00b69b1d0509203a0715a82d26280661cf5119b056205dff5eda97",
+      "expected": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "3779fc6fc11823eb3755985ff489a6bfdbc537593c26f8800b1504729359dc05",
+      "actualModel": "gpt-6-luna",
+      "latencyMs": 4854,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4142,
+        "input_tokens_details": {
+          "cache_write_tokens": 3010,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 153,
+        "output_tokens_details": {
+          "reasoning_tokens": 59
+        },
+        "total_tokens": 4295
+      },
+      "responseModel": "gpt-6-luna",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.00046434
+    },
+    {
+      "document": "C06-escaneo-sintetico",
+      "model": "gpt-6.1-sol",
+      "inputSha256": "168aa4c02f00b69b1d0509203a0715a82d26280661cf5119b056205dff5eda97",
+      "expected": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "items": []
+      },
+      "limitedGroundTruth": false,
+      "promptHash": "3779fc6fc11823eb3755985ff489a6bfdbc537593c26f8800b1504729359dc05",
+      "actualModel": "gpt-6.1-sol",
+      "latencyMs": 3664,
+      "httpStatus": 200,
+      "usage": {
+        "input_tokens": 4142,
+        "input_tokens_details": {
+          "cache_write_tokens": 3010,
+          "cached_tokens": 1129
+        },
+        "output_tokens": 127,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 4269
+      },
+      "responseModel": "gpt-6.1-sol",
+      "apiError": null,
+      "responseStatus": "completed",
+      "raw": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": "100.000",
+        "vat": "10.000",
+        "total": "110.000",
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "observed": {
+        "provider_name": "Proveedor QA",
+        "provider_tax_id": "800999991",
+        "invoice_number": "009-006-0000001",
+        "invoice_date": "2026-10-19",
+        "due_date": null,
+        "currency": "PYG",
+        "subtotal": 100000,
+        "vat": 10000,
+        "total": 110000,
+        "timbrado": null,
+        "order_reference": null,
+        "product_description": null,
+        "items": []
+      },
+      "error": null,
+      "differences": [],
+      "passed": true,
+      "costUSD": 0.008913899999999999
+    }
+  ],
+  "limitations": [
+    "Corpus totalmente sintetico, incluido C06 rasterizado. No hay manuscritos, fotos reales ni multipagina revisados por una persona.",
+    "Se puntuan RUC, numero, fecha, moneda, subtotal, IVA, total, cantidad/precio/importe y longitud de lineas; no todos los campos textuales.",
+    "La extraccion transcribe inconsistencias; no autoriza ni valida documentos por si misma. Faltan negativos de negocio y flujos 15/16/17 con candidato app/worker.",
+    "No se modifica el lector ni se aprueba una migracion por esta muestra."
+  ],
+  "costMethod": {
+    "ratesUSDPerMillion": {
+      "gpt-4o-mini": {
+        "input": 0.15,
+        "cached": 0.075,
+        "write": 0.15,
+        "output": 0.6
+      },
+      "gpt-4o": {
+        "input": 2.5,
+        "cached": 1.25,
+        "write": 2.5,
+        "output": 10
+      },
+      "gpt-6-luna": {
+        "input": 0.1,
+        "cached": 0.01,
+        "write": 0.125,
+        "output": 0.5
+      },
+      "gpt-6.1-sol": {
+        "input": 2,
+        "cached": 0.1,
+        "write": 2.5,
+        "output": 10
+      }
+    },
+    "sourceDate": "2026-10-22",
+    "description": "Consumo medido por respuesta multiplicado por tarifa estandar, con lectura/escritura de cache. Costo calculado; no conciliado con factura OpenAI."
+  },
+  "summary": [
+    {
+      "model": "baseline",
+      "passed": 13,
+      "total": 14,
+      "latencyAverageMs": 3139,
+      "costUSD": 0.04802095
+    },
+    {
+      "model": "gpt-6-luna",
+      "passed": 14,
+      "total": 14,
+      "latencyAverageMs": 4314,
+      "costUSD": 0.00474638
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "passed": 14,
+      "total": 14,
+      "latencyAverageMs": 4089,
+      "costUSD": 0.0874558
+    }
+  ]
+}
