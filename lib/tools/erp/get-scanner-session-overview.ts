@@ -10,7 +10,7 @@ export type GetScannerSessionOverviewInput = z.infer<typeof GetScannerSessionOve
 async function handler(ctx: AgentToolContext, input: GetScannerSessionOverviewInput, deps: { db: SupabaseClient }) {
   const { data, error } = await deps.db
     .from("scan_sessions")
-    .select("id, empresa_id, context_type, context_id, target_field, status, expires_at, storage_path, file_name, file_size_bytes, page_count, metadata, created_at, claimed_at, completed_at")
+    .select("id, empresa_id, context_type, context_id, target_field, status, expires_at, storage_path, file_name, file_size_bytes, page_count, created_at, claimed_at, completed_at")
     .eq("id", input.session_id)
     .eq("empresa_id", ctx.empresaId)
     .maybeSingle();
@@ -19,8 +19,6 @@ async function handler(ctx: AgentToolContext, input: GetScannerSessionOverviewIn
 
   const row = data as Record<string, unknown>;
   const boundedFileName = typeof row.file_name === "string" ? row.file_name.slice(0, 200) : null;
-  const metadataAvailable = Boolean(row.metadata && typeof row.metadata === "object" && Object.keys(row.metadata as object).length > 0);
-
   // Whitelist explicita: no se expone la fila DB, metadata arbitraria ni
   // referencias de Storage. Esos valores pueden contener tokens o prompt injection.
   const session = {
@@ -36,14 +34,16 @@ async function handler(ctx: AgentToolContext, input: GetScannerSessionOverviewIn
     created_at: typeof row.created_at === "string" ? row.created_at : null,
     claimed_at: typeof row.claimed_at === "string" ? row.claimed_at : null,
     completed_at: typeof row.completed_at === "string" ? row.completed_at : null,
-    metadata_available: metadataAvailable,
+    // Metadata remains intentionally unavailable because scan_sessions now
+    // grants authenticated readers only the safe status columns.
+    metadata_available: null,
   };
 
   return {
     session,
     completed_document: row.status === "completed" && Boolean(row.storage_path),
     reference: row.storage_path ? { available: true, file_name: boundedFileName } : null,
-    secrets_excluded: ["token_hash", "mobile_claim_token_hash", "pin_code", "claimed_device_info"],
+    secrets_excluded: ["token_hash", "mobile_claim_token_hash", "pin_code", "claimed_device_info", "metadata"],
   };
 }
 

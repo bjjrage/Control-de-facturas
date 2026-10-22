@@ -144,7 +144,7 @@ describe("ERP entity resolution and safe physical actions", () => {
       { db }
     );
     const serialized = JSON.stringify(output);
-    expect(output.session).toMatchObject({ id: "session-1", metadata_available: true, file_name: "factura.pdf" });
+    expect(output.session).toMatchObject({ id: "session-1", metadata_available: null, file_name: "factura.pdf" });
     expect(output.reference).toEqual({ available: true, file_name: "factura.pdf" });
     expect(serialized).not.toContain("private-bucket");
     expect(serialized).not.toContain("private.pdf");

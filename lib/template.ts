@@ -1,5 +1,9 @@
+import "server-only";
+
 import { Empresa, SalesDocument, SalesDocumentItem, SalesDocType, Client } from "./types";
 import { formatDate, formatMoney } from "./format";
+import { LOGO_STORAGE_PATH } from "@/components/layout/branding-constants";
+import { sanitizeTemplateHtml, substituteTemplateValues } from "./template-sanitizer";
 
 export const TEMPLATE_VARIABLES = `
 {{EMPRESA_NOMBRE}}   — Nombre de la empresa emisora
@@ -23,7 +27,12 @@ export const TEMPLATE_VARIABLES = `
 `.trim();
 
 function esc(s: string | null | undefined): string {
-  return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return (s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function buildItemsHtml(items: SalesDocumentItem[], currency: SalesDocument["currency"]): string {
@@ -80,23 +89,97 @@ export function renderTemplate(
 ): string {
   const itemsHtml = buildItemsHtml(items, doc.currency);
 
-  return template
-    .replaceAll("{{EMPRESA_NOMBRE}}", esc(empresa.nombre))
-    .replaceAll("{{EMPRESA_RUC}}", esc(empresa.ruc))
-    .replaceAll("{{EMPRESA_DIRECCION}}", esc(empresa.direccion))
-    .replaceAll("{{EMPRESA_TELEFONO}}", esc(empresa.telefono))
-    .replaceAll("{{EMPRESA_EMAIL}}", esc(empresa.email_empresa))
-    .replaceAll("{{LOGO_URL}}", logoUrl)
-    .replaceAll("{{DOC_TIPO}}", esc(docTypeLabel))
-    .replaceAll("{{DOC_CODIGO}}", esc(doc.code))
-    .replaceAll("{{DOC_FECHA_EMISION}}", esc(formatDate(doc.issue_date)))
-    .replaceAll("{{DOC_FECHA_VENCIMIENTO}}", doc.due_date ? esc(formatDate(doc.due_date)) : "")
-    .replaceAll("{{CLIENTE_NOMBRE}}", esc(client?.name))
-    .replaceAll("{{CLIENTE_RUC}}", esc(client?.tax_id))
-    .replaceAll("{{CLIENTE_DIRECCION}}", esc(client?.address))
-    .replaceAll("{{ITEMS_HTML}}", itemsHtml)
-    .replaceAll("{{NETO}}", formatMoney(doc.subtotal, doc.currency))
-    .replaceAll("{{IVA}}", formatMoney(doc.vat_amount, doc.currency))
-    .replaceAll("{{TOTAL}}", formatMoney(doc.total, doc.currency))
-    .replaceAll("{{NOTAS}}", esc(doc.notes));
+  return substituteTemplateValues(
+    sanitizeTemplateHtml(template),
+    {
+      "{{EMPRESA_NOMBRE}}": empresa.nombre ?? "",
+      "{{EMPRESA_RUC}}": empresa.ruc ?? "",
+      "{{EMPRESA_DIRECCION}}": empresa.direccion ?? "",
+      "{{EMPRESA_TELEFONO}}": empresa.telefono ?? "",
+      "{{EMPRESA_EMAIL}}": empresa.email_empresa ?? "",
+      "{{DOC_TIPO}}": docTypeLabel,
+      "{{DOC_CODIGO}}": doc.code,
+      "{{DOC_FECHA_EMISION}}": formatDate(doc.issue_date),
+      "{{DOC_FECHA_VENCIMIENTO}}": doc.due_date ? formatDate(doc.due_date) : "",
+      "{{CLIENTE_NOMBRE}}": client?.name ?? "",
+      "{{CLIENTE_RUC}}": client?.tax_id ?? "",
+      "{{CLIENTE_DIRECCION}}": client?.address ?? "",
+      "{{NETO}}": formatMoney(doc.subtotal, doc.currency),
+      "{{IVA}}": formatMoney(doc.vat_amount, doc.currency),
+      "{{TOTAL}}": formatMoney(doc.total, doc.currency),
+      "{{NOTAS}}": doc.notes ?? "",
+    },
+    itemsHtml,
+    trustedLogoUrl(logoUrl)
+  );
+}
+
+function trustedLogoUrl(candidate: string): string {
+  try {
+    const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!configuredUrl || !candidate) return "";
+
+    const configured = new URL(configuredUrl);
+    const logo = new URL(candidate);
+    const localDevelopmentHost = ["localhost", "127.0.0.1", "::1"].includes(configured.hostname);
+    if (configured.protocol !== "https:" && !(localDevelopmentHost && configured.protocol === "http:")) return "";
+    if (configured.username || configured.password || logo.username || logo.password) return "";
+    if (logo.origin !== configured.origin) return "";
+    if (logo.pathname !== `/storage/v1/object/public/branding/${LOGO_STORAGE_PATH}`) return "";
+    if (logo.search || logo.hash) return "";
+    return logo.href;
+  } catch {
+    return "";
+  }
+}
+
+export function renderTemplatePreview(template: string): string {
+  const sampleItems: SalesDocumentItem[] = [
+    {
+      id: "preview-item-1",
+      empresa_id: "preview",
+      sales_document_id: "preview",
+      description: "Servicio de dise\u00f1o web",
+      quantity: 1,
+      unit_price: 500000,
+      vat_rate: 10,
+      line_total: 500000,
+      created_at: "",
+    },
+    {
+      id: "preview-item-2",
+      empresa_id: "preview",
+      sales_document_id: "preview",
+      description: "Hosting anual",
+      quantity: 1,
+      unit_price: 200000,
+      vat_rate: 10,
+      line_total: 200000,
+      created_at: "",
+    },
+  ];
+
+  return substituteTemplateValues(
+    sanitizeTemplateHtml(template),
+    {
+      "{{EMPRESA_NOMBRE}}": "Empresa Ejemplo S.A.",
+      "{{EMPRESA_RUC}}": "80012345-6",
+      "{{EMPRESA_DIRECCION}}": "Av. Mariscal L\u00f3pez 1234, Asunci\u00f3n",
+      "{{EMPRESA_TELEFONO}}": "+595 21 555-0000",
+      "{{EMPRESA_EMAIL}}": "info@empresa.com",
+      "{{DOC_TIPO}}": "Factura",
+      "{{DOC_CODIGO}}": "F-000001",
+      "{{DOC_FECHA_EMISION}}": "03/09/2026",
+      "{{DOC_FECHA_VENCIMIENTO}}": "03/10/2026",
+      "{{CLIENTE_NOMBRE}}": "Cliente Demo S.R.L.",
+      "{{CLIENTE_RUC}}": "9876543-2",
+      "{{CLIENTE_DIRECCION}}": "Calle Principal 456, Asunci\u00f3n",
+      "{{NETO}}": "Gs. 636.364",
+      "{{IVA}}": "Gs. 63.636",
+      "{{TOTAL}}": "Gs. 700.000",
+      "{{NOTAS}}": "Pago dentro de 30 d\u00edas.",
+    },
+    buildItemsHtml(sampleItems, "PYG"),
+    ""
+  );
 }

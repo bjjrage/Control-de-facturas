@@ -14,6 +14,7 @@ import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { applyDeterministicItemMatches, parseInvoiceLinesInputStrict } from "@/lib/invoice-items";
 import { persistInvoiceIdentity, requireInvoiceIdentity } from "@/lib/invoice-identity";
 import { verifyInvoiceExtractionProof, invoiceIssuerMatches } from "@/lib/invoice-extraction-proof";
+import { isScannerObjectReferenceValid } from "@/lib/scanner/session-access";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -209,9 +210,10 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
     // 1. Consultar scan_sessions SERVER-SIDE con admin client restringido al tenant actual
     const { data: session, error: sessionError } = await admin
       .from("scan_sessions")
-      .select("id, empresa_id, status, storage_bucket, storage_path, file_name, file_size_bytes, page_count, context_type")
+      .select("id, empresa_id, created_by, status, storage_bucket, storage_path, file_name, file_size_bytes, page_count, context_type")
       .eq("id", scannerSessionId)
       .eq("empresa_id", empresaId)
+      .eq("created_by", profile.id)
       .eq("status", "completed")
       .maybeSingle();
 
@@ -219,8 +221,8 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
       sessionError ||
       !session ||
       session.context_type !== "invoice" ||
-      session.storage_bucket !== "invoice-files" ||
-      !session.storage_path
+      session.created_by !== profile.id ||
+      !isScannerObjectReferenceValid(session)
     ) {
       return { error: "Sesión de Control Scanner inválida o no disponible." };
     }

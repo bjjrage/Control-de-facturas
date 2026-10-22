@@ -3,8 +3,10 @@
 // Server-only. Usa Supabase (service_role o RLS-scoped client).
 // El gateway crea el registro en estado REQUESTED; la ejecución posterior
 // valida que payload_hash coincida con lo aprobado (previene bug payload A->B).
+import "server-only";
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ApprovalStatus =
   | "REQUESTED"
@@ -36,6 +38,13 @@ export interface AgentApprovalRow {
   approved_content_hash?: string | null;
 }
 
+function approvalFromRpc(data: unknown, error: { message: string } | null, operation: string): AgentApprovalRow {
+  if (error) throw new Error(`${operation} fallo: ${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") throw new Error(`${operation} fallo: sin data`);
+  return row as AgentApprovalRow;
+}
+
 /** Serialización canónica determinística para hashing (keys ordenadas). */
 export function canonicalJsonStringify(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -65,6 +74,8 @@ export async function createApproval(params: {
   requestedBy?: string | null;
   expiresAt?: string | null;
 }): Promise<AgentApprovalRow> {
+  const requestedBy = params.requestedBy ?? null;
+  if (!requestedBy) throw new Error("createApproval requiere un actor autenticado");
   const payloadHash = hashPayload(params.payload);
   const payloadRecord = params.payload as Record<string, unknown>;
   const approvedRevision =
@@ -75,26 +86,21 @@ export async function createApproval(params: {
     params.toolName === "send_email" && typeof payloadRecord?.draft_hash === "string"
       ? payloadRecord.draft_hash
       : null;
-  const { data, error } = await params.db
-    .from("agent_approvals")
-    .insert({
-      empresa_id: params.empresaId,
-      task_id: params.taskId,
-      run_id: params.runId ?? null,
-      tool_name: params.toolName,
-      payload_json: params.payload as never,
-      payload_hash: payloadHash,
-      risk_level: params.riskLevel,
-      status: "REQUESTED",
-      requested_by: params.requestedBy ?? null,
-      expires_at: params.expiresAt ?? null,
-      approved_revision: approvedRevision,
-      approved_content_hash: approvedContentHash,
-    })
-    .select("*")
-    .single();
-  if (error || !data) throw new Error(`createApproval fallo: ${error?.message ?? "sin data"}`);
-  return data as AgentApprovalRow;
+  const { data, error } = await createAdminClient().rpc("create_agent_approval", {
+    p_task_id: params.taskId,
+    p_run_id: params.runId ?? null,
+    p_empresa_id: params.empresaId,
+    p_tool_name: params.toolName,
+    p_payload_json: params.payload as never,
+    p_payload_hash: payloadHash,
+    p_risk_level: params.riskLevel,
+    p_requested_by: requestedBy,
+    p_expires_at: params.expiresAt ?? null,
+    p_approved_revision: approvedRevision,
+    p_approved_content_hash: approvedContentHash,
+    p_actor_id: requestedBy,
+  });
+  return approvalFromRpc(data, error, "createApproval");
 }
 
 export async function getApproval(db: SupabaseClient, approvalId: string): Promise<AgentApprovalRow | null> {
@@ -112,6 +118,7 @@ export async function decideApproval(params: {
   empresaId: string; // scoping: solo puede decidir dentro de su tenant
   decidedBy: string;
   decision: "APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED";
+  allowedRoles?: readonly string[];
 }): Promise<AgentApprovalRow> {
   if (!["APPROVED", "REJECTED", "CANCELLED", "EXPIRED"].includes(params.decision)) {
     throw new Error(`decision invalida: ${params.decision}`);
@@ -121,22 +128,22 @@ export async function decideApproval(params: {
   if (!current) throw new Error(`Approval no encontrado: ${params.approvalId}`);
   if (current.empresa_id !== params.empresaId) throw new Error("Approval no pertenece a tu empresa");
   if (current.status !== "REQUESTED") throw new Error(`Approval ya decidido: ${current.status}`);
-
-  const { data, error } = await params.db
-    .from("agent_approvals")
-    .update({
-      status: params.decision,
-      decided_by: params.decidedBy,
-      decided_at: new Date().toISOString(),
-    })
-    .eq("id", params.approvalId)
-    .eq("empresa_id", params.empresaId)
-    .eq("status", "REQUESTED")
-    .select("*")
-    .maybeSingle();
-  if (error) throw new Error(`decideApproval fallo: ${error.message}`);
-  if (!data) throw new Error("Approval ya fue decidido por otra solicitud concurrente");
-  return data as AgentApprovalRow;
+  if (params.decision === "EXPIRED") {
+    const result = await createAdminClient().rpc("expire_agent_approval", {
+      p_approval_id: params.approvalId,
+      p_empresa_id: params.empresaId,
+    });
+    return approvalFromRpc(result.data, result.error, "expireApproval");
+  }
+  const allowedRoles = params.allowedRoles ?? ["comercial", "administracion", "admin"];
+  const { data, error } = await createAdminClient().rpc("decide_agent_approval", {
+    p_approval_id: params.approvalId,
+    p_empresa_id: params.empresaId,
+    p_decision: params.decision,
+    p_actor_id: params.decidedBy,
+    p_allowed_roles: [...allowedRoles],
+  });
+  return approvalFromRpc(data, error, "decideApproval");
 }
 
 /**
@@ -151,7 +158,7 @@ export async function expireApproval(params: {
     db: params.db,
     approvalId: params.approvalId,
     empresaId: params.empresaId,
-    decidedBy: "system:timeout",
+    decidedBy: "",
     decision: "EXPIRED",
   });
 }
@@ -167,20 +174,13 @@ export async function claimApprovalForExecution(params: {
   approvalId: string;
   empresaId: string;
 }): Promise<AgentApprovalRow> {
-  const { data, error } = await params.db
-    .from("agent_approvals")
-    .update({ status: "EXECUTING" })
-    .eq("id", params.approvalId)
-    .eq("empresa_id", params.empresaId)
-    .eq("status", "APPROVED")
-    .select("*")
-    .maybeSingle();
+  const { data, error } = await createAdminClient().rpc("transition_agent_approval", {
+    p_approval_id: params.approvalId,
+    p_empresa_id: params.empresaId,
+    p_transition: "claim",
+  });
 
-  if (error) {
-    throw new Error(`claimApprovalForExecution error: ${error.message}`);
-  }
-
-  if (!data) {
+  if (error || !data) {
     // Si no actualizó nada, verificar por qué
     const current = await getApproval(params.db, params.approvalId);
     if (!current) {
@@ -194,7 +194,7 @@ export async function claimApprovalForExecution(params: {
     );
   }
 
-  return data as AgentApprovalRow;
+  return approvalFromRpc(data, error, "claimApprovalForExecution");
 }
 
 /**
@@ -205,19 +205,12 @@ export async function markApprovalExecuted(params: {
   approvalId: string;
   empresaId: string;
 }): Promise<AgentApprovalRow> {
-  const { data, error } = await params.db
-    .from("agent_approvals")
-    .update({ status: "EXECUTED" })
-    .eq("id", params.approvalId)
-    .eq("empresa_id", params.empresaId)
-    .eq("status", "EXECUTING")
-    .select("*")
-    .single();
-
-  if (error || !data) {
-    throw new Error(`markApprovalExecuted fallo: ${error?.message ?? "sin data"}`);
-  }
-  return data as AgentApprovalRow;
+  const { data, error } = await createAdminClient().rpc("transition_agent_approval", {
+    p_approval_id: params.approvalId,
+    p_empresa_id: params.empresaId,
+    p_transition: "executed",
+  });
+  return approvalFromRpc(data, error, "markApprovalExecuted");
 }
 
 /**
@@ -229,18 +222,12 @@ export async function markApprovalFailed(params: {
   empresaId: string;
   errorMessage: string;
 }): Promise<AgentApprovalRow> {
-  const { data, error } = await params.db
-    .from("agent_approvals")
-    .update({ status: "FAILED" })
-    .eq("id", params.approvalId)
-    .eq("empresa_id", params.empresaId)
-    .select("*")
-    .single();
-
-  if (error || !data) {
-    throw new Error(`markApprovalFailed fallo: ${error?.message ?? "sin data"}`);
-  }
-  return data as AgentApprovalRow;
+  const { data, error } = await createAdminClient().rpc("transition_agent_approval", {
+    p_approval_id: params.approvalId,
+    p_empresa_id: params.empresaId,
+    p_transition: "failed",
+  });
+  return approvalFromRpc(data, error, "markApprovalFailed");
 }
 
 /**

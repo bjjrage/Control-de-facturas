@@ -3,6 +3,11 @@ import { AgentOrchestrator, DeepSeekConfigError, serializeToolResultForModel } f
 import { toolRegistry } from "../registry";
 import { z } from "zod";
 
+const adminApprovalRpcMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({ rpc: adminApprovalRpcMock }),
+}));
+
 // Mock global fetch
 const originalFetch = globalThis.fetch;
 
@@ -32,6 +37,7 @@ describe("orchestrator", () => {
   beforeEach(() => {
     toolRegistry.clearForTests();
     vi.restoreAllMocks();
+    adminApprovalRpcMock.mockReset();
   });
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -263,16 +269,30 @@ describe("orchestrator", () => {
       json: async () => first,
     } as unknown as Response);
 
-    // Mock db para approval path: from(agent_approvals).insert().select().single()
+    adminApprovalRpcMock.mockResolvedValue({
+      data: {
+        id: "ap-999",
+        task_id: "task-1",
+        run_id: "run-1",
+        empresa_id: "emp1",
+        tool_name: "needs_approval",
+        payload_json: { amount: 999 },
+        payload_hash: "x",
+        risk_level: 3,
+        status: "REQUESTED",
+        requested_by: "u1",
+        decided_by: null,
+        decided_at: null,
+        expires_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      error: null,
+    });
+
+    // La creación de approvals usa la RPC service-only, no escrituras Data API.
     const db = {
       from: vi.fn((table: string) => {
-        if (table === "agent_approvals") {
-          return {
-            insert: vi.fn().mockReturnThis(),
-            select: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: { id: "ap-999", payload_hash: "x" }, error: null }),
-          };
-        }
         if (table === "agent_steps") {
           return {
             select: vi.fn().mockReturnThis(),
@@ -303,5 +323,13 @@ describe("orchestrator", () => {
     });
     expect(result.stoppedReason).toBe("approval_required");
     expect(result.approvalId).toBe("ap-999");
+    expect(adminApprovalRpcMock).toHaveBeenCalledWith("create_agent_approval", expect.objectContaining({
+      p_task_id: "task-1",
+      p_run_id: "run-1",
+      p_empresa_id: "emp1",
+      p_actor_id: "u1",
+      p_requested_by: "u1",
+      p_tool_name: "needs_approval",
+    }));
   });
 });

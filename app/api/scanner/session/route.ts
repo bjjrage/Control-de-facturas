@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentProfile } from '@/lib/auth';
 import { createScanSession } from '@/lib/scanner/session-service';
+import { canCreateScannerContext } from '@/lib/scanner/session-access';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
@@ -14,10 +15,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { contextType, contextId, targetField, metadata, ttlMinutes } = body;
+    const { contextId, targetField, metadata, ttlMinutes } = body;
+    const contextType = body.contextType ?? 'general';
+    if (contextType !== 'general' && contextType !== 'invoice') {
+      return NextResponse.json({ error: 'Contexto de escaneo no válido.' }, { status: 400 });
+    }
+    if (!canCreateScannerContext(profile.role, contextType)) {
+      return NextResponse.json({ error: 'No tiene permiso para crear esta sesión de escaneo.' }, { status: 403 });
+    }
 
     const result = await createScanSession(profile.empresa_id, profile.id, {
-      contextType: contextType || 'general',
+      contextType,
       contextId,
       targetField,
       metadata,
