@@ -362,9 +362,12 @@ export async function bulkSetCertificatePresente(
 
   const { data: items } = await supabase
     .from("project_certificate_items")
-    .select("id")
+    .select("id, qty_anterior, qty_contractual")
     .eq("certificate_id", certificateId);
   const validIds = new Set((items ?? []).map((i) => i.id as string));
+  if (values.some(v => !validIds.has(v.itemId) || !Number.isFinite(v.qty_presente) || v.qty_presente < 0)) {
+    return { error: "La carga contiene líneas ajenas o cantidades inválidas.", updated: 0 };
+  }
 
   let updated = 0;
   for (const v of values) {
@@ -374,7 +377,12 @@ export async function bulkSetCertificatePresente(
       .from("project_certificate_items")
       .update({ qty_presente: v.qty_presente })
       .eq("id", v.itemId);
-    if (!error) updated++;
+    if (error) {
+      await recomputeCertificateTotals(supabase, certificateId);
+      refreshAfterSave(`/projects/${cert.project_id}`);
+      return { error: error.code === "23514" ? "El avance acumulado supera la cantidad contratada. Revisá la carga; no se aplicaron las filas restantes." : "No se pudo completar la carga de avance.", updated };
+    }
+    updated++;
   }
 
   await recomputeCertificateTotals(supabase, certificateId);
@@ -396,7 +404,7 @@ export async function updateCertificateItem(
 
   const { data: item } = await supabase
     .from("project_certificate_items")
-    .select("id, certificate_id")
+    .select("id, certificate_id, qty_anterior, qty_presente, qty_contractual")
     .eq("id", itemId)
     .single();
   if (!item) return { error: "Línea no encontrada." };
@@ -407,20 +415,20 @@ export async function updateCertificateItem(
 
   const patch: Record<string, number> = {};
   if (values.qty_anterior !== undefined) {
-    if (!(values.qty_anterior >= 0)) return { error: "La cantidad anterior no puede ser negativa." };
+    if (!Number.isFinite(values.qty_anterior) || !(values.qty_anterior >= 0)) return { error: "La cantidad anterior no puede ser negativa." };
     patch.qty_anterior = values.qty_anterior;
   }
   if (values.qty_presente !== undefined) {
-    if (!(values.qty_presente >= 0)) return { error: "La cantidad del período no puede ser negativa." };
+    if (!Number.isFinite(values.qty_presente) || !(values.qty_presente >= 0)) return { error: "La cantidad del período no puede ser negativa." };
     patch.qty_presente = values.qty_presente;
   }
   if (Object.keys(patch).length === 0) return { error: null };
 
   const { error } = await supabase.from("project_certificate_items").update(patch).eq("id", itemId);
-  if (error) return { error: "No se pudo actualizar la línea." };
+  if (error) return { error: error.code === "23514" ? "El avance acumulado supera la cantidad contratada. Revisá las cantidades anterior y presente." : "No se pudo actualizar la línea." };
 
   await recomputeCertificateTotals(supabase, cert.id);
-  revalidatePath(`/projects/${cert.project_id}`);
+  refreshAfterSave(`/projects/${cert.project_id}`);
   return { error: null };
 }
 

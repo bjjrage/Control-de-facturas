@@ -253,7 +253,7 @@ function CertificadoDetalle({
     if (res.error) {
       setError(res.error);
     } else {
-      router.push(`/facturas-venta/${res.salesDocumentId}`);
+      router.push(`/ventas/${res.salesDocumentId}`);
     }
   }
   const editableQty = c.status === "BORRADOR";
@@ -271,8 +271,9 @@ function CertificadoDetalle({
   async function saveField(fn: () => Promise<{ error: string | null }>) {
     setError(null);
     const res = await fn();
-    if (res.error) setError(res.error);
-    else router.refresh();
+    if (res.error) { setError(res.error); return false; }
+    router.refresh();
+    return true;
   }
 
   const deducciones =
@@ -386,6 +387,8 @@ function CertificadoDetalle({
                   <td className="num">
                     {editableQty ? (
                       <QtyInput
+                        key={`anterior-${it.id}-${it.qty_anterior}`}
+                        label={`Cantidad anterior: ${it.codigo}`}
                         value={it.qty_anterior}
                         onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_anterior: v }))}
                       />
@@ -396,6 +399,8 @@ function CertificadoDetalle({
                   <td className="num">
                     {editableQty ? (
                       <QtyInput
+                        key={`presente-${it.id}-${it.qty_presente}`}
+                        label={`Cantidad presente: ${it.codigo}`}
                         value={it.qty_presente}
                         onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_presente: v }))}
                       />
@@ -715,17 +720,23 @@ function LiqRow({
   );
 }
 
-function QtyInput({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+function QtyInput({ value, label, onSave }: { value: number; label: string; onSave: (v: number) => Promise<boolean> }) {
   return (
     <input
       type="number"
       step="any"
       min="0"
       defaultValue={value}
-      onBlur={(e) => {
+      aria-label={label}
+      onBlur={async (e) => {
         if (!e.target.value.trim()) { e.target.value = String(value); return; }
         const v = Number(e.target.value);
-        if (Number.isFinite(v) && v >= 0 && v !== value) onSave(v);
+        if (Number.isFinite(v) && v >= 0 && v !== value) {
+          const input = e.currentTarget;
+          if (!await onSave(v)) input.value = String(value);
+        } else if (!Number.isFinite(v) || v < 0) {
+          e.currentTarget.value = String(value);
+        }
       }}
       className="w-24 rounded border border-[var(--border)] bg-[var(--panel-2)] px-1.5 py-0.5 text-right"
     />

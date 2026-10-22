@@ -2,11 +2,11 @@ import { expect,it,vi } from "vitest";
 import { sourceFunctions } from "./support/source-functions";
 const file="app/(internal)/projects/[id]/certificados-table.tsx";
 const {QtyInput,LiqRow}=sourceFunctions(file,["QtyInput","LiqRow"]);
-it.each(["quantity","deduction"])("#33 clearing a %s does not persist zero",kind=>{
- const save=vi.fn();const node=kind==="quantity"?QtyInput({value:10,onSave:save}):LiqRow({label:"Retención",value:10,editable:true,onSave:save});
+it.each(["quantity","deduction"])("#33 clearing a %s does not persist zero",async kind=>{
+ const save=vi.fn().mockResolvedValue(true);const node=kind==="quantity"?QtyInput({value:10,label:"Presente",onSave:save}):LiqRow({label:"Retención",value:10,editable:true,onSave:save});
  const input=kind==="quantity"?node:[node.props.children].flat().find((n:any)=>n?.type==="input");
- input.props.onBlur({target:{value:""}});expect(save).not.toHaveBeenCalled();
- input.props.onBlur({target:{value:"0"}});expect(save).toHaveBeenCalledWith(0);
+ await input.props.onBlur({target:{value:""},currentTarget:{value:""}});expect(save).not.toHaveBeenCalled();
+ await input.props.onBlur({target:{value:"0"},currentTarget:{value:"0"}});expect(save).toHaveBeenCalledWith(0);
 });
 it("#33 reports a rejected unit progress save and does not refresh as if saved",async()=>{
  const setters:any[]=[],refresh=vi.fn(),pending:Promise<unknown>[]=[];
@@ -20,3 +20,5 @@ it("#33 reports a rejected unit progress save and does not refresh as if saved",
  find(node).props.onBlur({target:{value:"20"}});await Promise.all(pending);
  expect(refresh).not.toHaveBeenCalled();expect(setters.some(setter=>setter.mock.calls.some((args:any[])=>String(args[0]).includes("No se pudo guardar")))).toBe(true);
 });
+
+it("restores the quantity field when the server rejects over-certification",async()=>{const save=vi.fn().mockResolvedValue(false),input={value:"105"};const node=QtyInput({value:10,label:"Presente",onSave:save});await node.props.onBlur({target:input,currentTarget:input});expect(save).toHaveBeenCalledWith(105);expect(input.value).toBe("10");});
