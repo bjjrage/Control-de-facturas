@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   claimScanSession,
   completeScanSession,
@@ -8,7 +8,7 @@ import {
   updateScanSessionStatus,
   verifyAndGetSessionByPin,
 } from '../session-service';
-import { hashScanToken } from '../tokens';
+import { hashScanToken, hashScanPin } from '../tokens';
 
 // In-memory mock de base de datos Supabase
 const mockSessions = new Map<string, any>();
@@ -238,7 +238,9 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 describe('Scanner Session Service Lifecycle & Security', () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
   beforeEach(() => {
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'scanner-unit-test-key');
     mockSessions.clear();
     mockPinAttempts.clear();
   });
@@ -254,6 +256,8 @@ describe('Scanner Session Service Lifecycle & Security', () => {
     expect(result.session.id).toBeDefined();
     expect(result.token).toBeDefined();
     expect(result.session.pin_code).toMatch(/^\d{6}$/);
+    expect(mockSessions.get(result.session.id).pin_code).toBe(hashScanPin(result.session.pin_code));
+    expect(mockSessions.get(result.session.id).pin_code).not.toBe(result.session.pin_code);
     expect(result.session.status).toBe('waiting');
     expect(result.session.token_hash).toBe(hashScanToken(result.token));
     expect(result.joinUrl).toContain(`/scanner?t=${result.token}`);
@@ -341,7 +345,7 @@ describe('Scanner Session Service Lifecycle & Security', () => {
       const collisionAttempt = new MockQueryBuilder('scan_sessions').insert({
         empresa_id: 'tenant-B',
         created_by: 'user-B',
-        pin_code: pinA,
+        pin_code: hashScanPin(pinA),
         status: 'waiting',
         expires_at: new Date(Date.now() + 100000).toISOString(),
       });
@@ -366,13 +370,13 @@ describe('Scanner Session Service Lifecycle & Security', () => {
       const s2Row = await new MockQueryBuilder('scan_sessions').insert({
         empresa_id: 'tenant-B',
         created_by: 'user-B',
-        pin_code: pin,
+        pin_code: hashScanPin(pin),
         status: 'waiting',
         expires_at: new Date(Date.now() + 100000).toISOString(),
       }).single();
 
       expect(s2Row.error).toBeNull();
-      expect(s2Row.data?.pin_code).toBe(pin);
+      expect(s2Row.data?.pin_code).toBe(hashScanPin(pin));
     });
 
     it('sesión expirada libera el PIN para nuevas sesiones waiting', async () => {
@@ -387,7 +391,7 @@ describe('Scanner Session Service Lifecycle & Security', () => {
       const s2Row = await new MockQueryBuilder('scan_sessions').insert({
         empresa_id: 'tenant-B',
         created_by: 'user-B',
-        pin_code: pin,
+        pin_code: hashScanPin(pin),
         status: 'waiting',
         expires_at: new Date(Date.now() + 100000).toISOString(),
       }).single();

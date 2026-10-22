@@ -1,4 +1,4 @@
-﻿import { createHash, randomBytes } from 'crypto';
+﻿import { createHash, createHmac, randomBytes, randomInt } from 'crypto';
 
 /**
  * Genera un token aleatorio criptográficamente seguro de 32 bytes en formato hex.
@@ -19,9 +19,16 @@ export function hashScanToken(token: string): string {
 /**
  * Genera un código PIN corto de 6 dígitos numéricos para ingreso manual.
  */
+/** Domain separation keeps the low-entropy PIN protected even after a DB-only leak. */
+export function hashScanPin(pin: string): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error('No se pudo preparar el PIN de escaneo.');
+  return 'hmac-v1:' + createHmac('sha256', key).update('scanner-pin-v1:' + pin.trim()).digest('hex');
+}
+
 export function generateScanPin(): string {
   // 6 dígitos aleatorios entre 100000 y 999999
-  const val = Math.floor(100000 + Math.random() * 900000);
+  const val = randomInt(100000, 1000000);
   return val.toString();
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import {
   claimScanSession,
@@ -156,7 +156,9 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','beta-test-hmac-key');
     mockSessions.clear();
     mockStorageFiles.clear();
     storageRemovedFiles.length = 0;
