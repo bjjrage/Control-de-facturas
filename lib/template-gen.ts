@@ -1,5 +1,6 @@
 import { SalesDocType } from "./types";
 import { TEMPLATE_VARIABLES } from "./template";
+import { sanitizeTemplateHtml } from "./template-sanitizer";
 
 const DOC_TYPE_NAME: Record<SalesDocType, string> = {
   PROFORMA:     "Proforma",
@@ -80,7 +81,9 @@ export async function generateTemplateFromImage(
     content = content.replace(/^```html?\n?/i, "").replace(/\n?```$/i, "").trim();
 
     if (!content) return { html: null, error: "La IA no devolvió contenido." };
-    return { html: content, error: null };
+    const sanitizedHtml = sanitizeTemplateHtml(content);
+    if (!sanitizedHtml.trim()) return { html: null, error: "La IA no generó contenido imprimible seguro." };
+    return { html: sanitizedHtml, error: null };
   } catch {
     return { html: null, error: "No se pudo conectar con la IA para generar la plantilla." };
   }

@@ -42,6 +42,7 @@ vi.mock('next/cache', () => ({
 interface MockScanSession {
   id: string;
   empresa_id: string;
+  created_by: string;
   status: string;
   storage_bucket: string;
   storage_path: string | null;
@@ -259,6 +260,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-xyz',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
@@ -310,10 +312,11 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-tenant-222',
       empresa_id: 'empresa-tenant-222', // Pertenece a otra empresa
+      created_by: 'user-other-222',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
-      storage_path: 'empresa-tenant-222/scans/session-222/otra-factura.pdf',
+      storage_path: 'empresa-tenant-222/scans/session-tenant-222/otra-factura.pdf',
       file_name: 'otra-factura.pdf',
       file_size_bytes: 300000,
     });
@@ -338,6 +341,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-waiting-123',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'waiting',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
@@ -365,6 +369,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-xyz',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
@@ -395,10 +400,69 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     expect(mockAttachmentsInserted[0].size_bytes).toBe(123456);
   });
 
+  it('rechaza una sesión del mismo tenant creada por otro usuario', async () => {
+    mockScanSessions.push({
+      id: 'session-other-owner',
+      empresa_id: 'empresa-tenant-111',
+      created_by: 'user-other-123',
+      status: 'completed',
+      context_type: 'invoice',
+      storage_bucket: 'invoice-files',
+      storage_path: 'empresa-tenant-111/scans/session-other-owner/factura.pdf',
+      file_name: 'factura.pdf',
+      file_size_bytes: 123456,
+    });
+
+    const formData = new FormData();
+    formData.set('provider_id', 'provider-abc-123');
+    formData.set('invoice_number', '001-001-0004570');
+    formData.set('invoice_date', '2026-09-20');
+    formData.set('currency', 'PYG');
+    formData.set('total', '150000');
+    formData.set('scanner_session_id', 'session-other-owner');
+
+    const result = await createInvoice(formData);
+
+    expect(result.error).toBe('Sesión de Control Scanner inválida o no disponible.');
+    expect(mockAttachmentsInserted).toHaveLength(0);
+    expect(mockInvoicesInserted).toHaveLength(0);
+    expect(mockStorageUploadCalls).toHaveLength(0);
+  });
+
+  it('rechaza una ruta persistida que no coincide exactamente con tenant/session/file', async () => {
+    mockScanSessions.push({
+      id: 'session-bad-path',
+      empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
+      status: 'completed',
+      context_type: 'invoice',
+      storage_bucket: 'invoice-files',
+      storage_path: 'empresa-victim/scans/session-bad-path/factura.pdf',
+      file_name: 'factura.pdf',
+      file_size_bytes: 123456,
+    });
+
+    const formData = new FormData();
+    formData.set('provider_id', 'provider-abc-123');
+    formData.set('invoice_number', '001-001-0004570');
+    formData.set('invoice_date', '2026-09-20');
+    formData.set('currency', 'PYG');
+    formData.set('total', '150000');
+    formData.set('scanner_session_id', 'session-bad-path');
+
+    const result = await createInvoice(formData);
+
+    expect(result.error).toBe('Sesión de Control Scanner inválida o no disponible.');
+    expect(mockAttachmentsInserted).toHaveLength(0);
+    expect(mockInvoicesInserted).toHaveLength(0);
+    expect(mockStorageUploadCalls).toHaveLength(0);
+  });
+
   it('previene replay del mismo scan_session en múltiples facturas (anti-replay)', async () => {
     mockScanSessions.push({
       id: 'session-replay-test',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
@@ -440,6 +504,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-concurrent-race',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',
@@ -481,6 +546,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockScanSessions.push({
       id: 'session-rollback-test',
       empresa_id: 'empresa-tenant-111',
+      created_by: 'user-operator-123',
       status: 'completed',
       context_type: 'invoice',
       storage_bucket: 'invoice-files',

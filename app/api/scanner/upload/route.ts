@@ -5,6 +5,7 @@ import { completeScanSession, getScanSessionByCredential } from '@/lib/scanner/s
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sanitizeFileName } from '@/lib/storage';
 import { clearMobileCredentialCookie, getMobileCredentialFromRequest } from '@/lib/scanner/cookies';
+import { SCANNER_STORAGE_BUCKET } from '@/lib/scanner/session-access';
 
 const MAX_SCAN_BYTES = 20 * 1024 * 1024; // 20MB
 
@@ -93,6 +94,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (session.storage_bucket !== SCANNER_STORAGE_BUCKET) {
+      return NextResponse.json({ error: 'La sesión no tiene un destino de almacenamiento válido.' }, { status: 409 });
+    }
+
     file = await materializeDocument(file, uploadPrincipal("scanner", credential));
 
     // 2. Validar contenido real del archivo (magic bytes %PDF-)
@@ -109,7 +114,7 @@ export async function POST(req: NextRequest) {
     // 3. Derivar path de almacenamiento de forma estrictamente server-side (tenant safe)
     const dateStr = new Date().toISOString().split('T')[0];
     const safeName = sanitizeFileName(file.name || `escaneo-${dateStr}.pdf`);
-    const storageBucket = session.storage_bucket || 'invoice-files';
+    const storageBucket = SCANNER_STORAGE_BUCKET;
     // Path estructurado por tenant: {empresa_id}/scans/{session_id}/{filename}
     const storagePath = `${session.empresa_id}/scans/${session.id}/${safeName}`;
 

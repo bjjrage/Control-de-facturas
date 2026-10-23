@@ -20,6 +20,11 @@ import {
 import type { AgentToolContext } from "../context";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+const adminClientState = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => adminClientState.current,
+}));
+
 describe("BATCH 3: Approval Execution, Concurrency & Security Gateways", () => {
   const actorAdmin: AgentToolContext = {
     empresaId: "empresa-1",
@@ -149,8 +154,70 @@ describe("BATCH 3: Approval Execution, Concurrency & Security Gateways", () => {
           maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
         };
       }),
-      rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      rpc: vi.fn(async (functionName: string, args: Record<string, unknown>) => {
+        if (functionName === "create_agent_approval") {
+          const created = {
+            id: `ap-${Date.now()}-${Math.random()}`,
+            task_id: args.p_task_id,
+            run_id: args.p_run_id,
+            empresa_id: args.p_empresa_id,
+            tool_name: args.p_tool_name,
+            payload_json: args.p_payload_json,
+            payload_hash: args.p_payload_hash,
+            risk_level: args.p_risk_level,
+            requested_by: args.p_actor_id,
+            status: "REQUESTED",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          mockApprovalStore.set(created.id, created);
+          return { data: created, error: null };
+        }
+        if (functionName === "decide_agent_approval") {
+          const approvalId = typeof args.p_approval_id === "string" ? args.p_approval_id : null;
+          if (!approvalId) return { data: null, error: { message: "approval id is required" } };
+          const row = mockApprovalStore.get(approvalId);
+          if (!row || row.empresa_id !== args.p_empresa_id || row.status !== "REQUESTED") {
+            return { data: null, error: { message: "approval is missing or no longer pending" } };
+          }
+          const decided = { ...row, status: args.p_decision, decided_by: args.p_actor_id, decided_at: new Date().toISOString() };
+          mockApprovalStore.set(row.id, decided);
+          return { data: decided, error: null };
+        }
+        if (functionName === "expire_agent_approval") {
+          const approvalId = typeof args.p_approval_id === "string" ? args.p_approval_id : null;
+          if (!approvalId) return { data: null, error: { message: "approval id is required" } };
+          const row = mockApprovalStore.get(approvalId);
+          if (!row || row.empresa_id !== args.p_empresa_id || row.status !== "REQUESTED") {
+            return { data: null, error: { message: "approval is missing or no longer pending" } };
+          }
+          const expired = { ...row, status: "EXPIRED", decided_by: null, decided_at: new Date().toISOString() };
+          mockApprovalStore.set(row.id, expired);
+          return { data: expired, error: null };
+        }
+        if (functionName === "transition_agent_approval") {
+          const approvalId = typeof args.p_approval_id === "string" ? args.p_approval_id : null;
+          if (!approvalId) return { data: null, error: { message: "approval id is required" } };
+          const row = mockApprovalStore.get(approvalId);
+          const transitions: Record<string, [string, string]> = {
+            claim: ["APPROVED", "EXECUTING"],
+            executed: ["EXECUTING", "EXECUTED"],
+            failed: ["EXECUTING", "FAILED"],
+          };
+          const transitionName = typeof args.p_transition === "string" ? args.p_transition : null;
+          const transition = transitionName ? transitions[transitionName] : undefined;
+          if (!row || row.empresa_id !== args.p_empresa_id || !transition || row.status !== transition[0]) {
+            return { data: null, error: { message: "approval transition lost its compare-and-set" } };
+          }
+          const updated = { ...row, status: transition[1] };
+          mockApprovalStore.set(row.id, updated);
+          return { data: updated, error: null };
+        }
+        return { data: null, error: null };
+      }),
     } as unknown as SupabaseClient;
+
+    adminClientState.current = db;
 
     return db;
   }

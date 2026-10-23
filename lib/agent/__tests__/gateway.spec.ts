@@ -4,6 +4,11 @@ import { toolRegistry } from "../registry";
 import { gatewayExecute, gatewayExecuteSafe } from "../gateway";
 import type { AgentToolContext } from "../context";
 
+const adminClientState = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => adminClientState.current,
+}));
+
 // Helper para crear un db mock minimal (solo lo que usa gateway)
 function createGatewayDbMock(opts?: {
   existingStepHit?: unknown | null;
@@ -45,8 +50,29 @@ function createGatewayDbMock(opts?: {
       single: vi.fn().mockResolvedValue({ data: null, error: null }),
     } as unknown as ReturnType<typeof vi.fn>;
   });
-  const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
-  return { from: fromMock, rpc: rpcMock } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  const rpcMock = vi.fn(async (functionName: string, args: Record<string, unknown>) => {
+    if (functionName === "create_agent_approval") {
+      return {
+        data: opts?.approvalInsert ?? {
+          id: "ap-1",
+          task_id: args.p_task_id,
+          run_id: args.p_run_id,
+          empresa_id: args.p_empresa_id,
+          tool_name: args.p_tool_name,
+          payload_json: args.p_payload_json,
+          payload_hash: args.p_payload_hash,
+          risk_level: args.p_risk_level,
+          status: "REQUESTED",
+          requested_by: args.p_actor_id,
+        },
+        error: null,
+      };
+    }
+    return { data: null, error: null };
+  });
+  const db = { from: fromMock, rpc: rpcMock } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  adminClientState.current = db;
+  return db;
 }
 
 const actorBase: AgentToolContext = {
@@ -122,7 +148,7 @@ describe("gateway", () => {
       approvalInsert: { id: "ap-xyz", payload_hash: "abc" },
       stepInsert: { id: "step-wa" },
     });
-    // Registrar mock para agent_approvals insert path
+    // Registrar mock para los pasos de agente; approval creation is service RPC-backed.
     const fromSpy = vi.spyOn(db as unknown as { from: ReturnType<typeof vi.fn> }, "from");
     // Necesitamos taskId/runId para crear approval
     await expect(

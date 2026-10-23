@@ -207,7 +207,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
         active: true, empresa_active: true, is_super_admin: false,
         id: 'user-A1',
         empresa_id: 'empresa-A',
-        role: 'user',
+        role: 'comercial',
       };
 
       const req = new NextRequest(`http://localhost:3000/api/scanner/status/${sessionA.session.id}`);
@@ -226,7 +226,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
       const sessionA = await createScanSession('empresa-A', 'user-A1');
       const claim = await claimScanSession(sessionA.token);
       await completeScanSession(claim.mobileClaimToken!, {
-        storagePath: 'empresa-A/scans/s1/factura.pdf',
+        storagePath: `empresa-A/scans/${sessionA.session.id}/factura.pdf`,
         fileName: 'factura.pdf',
         fileSizeBytes: 2048,
         pageCount: 1,
@@ -236,7 +236,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
         active: true, empresa_active: true, is_super_admin: false,
         id: 'user-A1',
         empresa_id: 'empresa-A',
-        role: 'user',
+        role: 'comercial',
       };
 
       const req = new NextRequest(`http://localhost:3000/api/scanner/status/${sessionA.session.id}`);
@@ -248,7 +248,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
       const body = await res.json();
       expect(body.status).toBe('completed');
       expect(body.signed_url).toContain('https://storage.example.com/signed/');
-      expect(body.storage_path).toBe('empresa-A/scans/s1/factura.pdf');
+      expect(body.storage_path).toBe(`empresa-A/scans/${sessionA.session.id}/factura.pdf`);
     });
   });
 

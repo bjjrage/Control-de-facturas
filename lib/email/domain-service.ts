@@ -31,6 +31,16 @@ type ContactCandidate = {
   email: string | null;
 };
 
+async function cancelEmailApprovalForDraft(actor: AgentToolContext, draftId: string): Promise<void> {
+  if (!actor.userId) throw new Error("Cancelar aprobación de correo requiere un usuario autenticado");
+  const { error } = await createAdminClient().rpc("cancel_email_approval_for_draft", {
+    p_draft_id: draftId,
+    p_empresa_id: actor.empresaId,
+    p_actor_id: actor.userId,
+  });
+  if (error) throw new Error(`No se pudo cancelar la aprobación de correo: ${error.message}`);
+}
+
 type AttachmentRow = {
   id: string;
   empresa_id: string;
@@ -650,7 +660,7 @@ export async function prepareEmailDraft(
       .eq("empresa_id", actor.empresaId)
       .eq("created_by", actor.userId);
     if (error) throw new Error(`No se pudo actualizar el borrador: ${error.message}`);
-    await db.rpc("cancel_email_approval_for_draft", { p_draft_id: existing.row.id, p_empresa_id: actor.empresaId });
+    await cancelEmailApprovalForDraft(actor, existing.row.id);
     draftId = existing.row.id;
     idempotencyKey = existing.row.idempotency_key;
     if (attachmentQueries.length) {
@@ -960,10 +970,7 @@ export async function sendEmailDraft(params: {
       .eq("empresa_id", params.actor.empresaId)
       .eq("status", "SENDING");
     if (requiresReapproval) {
-      await params.db.rpc("cancel_email_approval_for_draft", {
-        p_draft_id: row.id,
-        p_empresa_id: params.actor.empresaId,
-      });
+      await cancelEmailApprovalForDraft(params.actor, row.id);
     }
     await recordEmailEvent(params.db, params.actor, {
       eventType: "email.send.failed",
@@ -1035,10 +1042,7 @@ async function sendEmailDraftAtomic(params: {
         .eq("id", row.id)
         .eq("empresa_id", params.actor.empresaId)
         .eq("status", "WAITING_APPROVAL");
-      await params.db.rpc("cancel_email_approval_for_draft", {
-        p_draft_id: row.id,
-        p_empresa_id: params.actor.empresaId,
-      });
+      await cancelEmailApprovalForDraft(params.actor, row.id);
     }
     throw error;
   }

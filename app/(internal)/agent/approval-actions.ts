@@ -37,6 +37,7 @@ export async function decideApprovalAction(params: {
     empresaId: profile.empresa_id,
     decidedBy: profile.id,
     decision: params.decision,
+    allowedRoles: approvalTool.requiredRoles ?? ["comercial", "administracion", "admin"],
   });
 
   if (approval.tool_name === "send_email") {
@@ -163,6 +164,7 @@ export async function sendPreparedEmailAction(params: {
         empresaId: profile.empresa_id,
         decidedBy: profile.id,
         decision: "APPROVED",
+        allowedRoles: ["comercial", "admin"],
       });
       await recordEmailEvent(supabase, actor, {
         eventType: "email.send.approved",
@@ -243,7 +245,12 @@ export async function cancelEmailDraftAction(params: { draftId: string }) {
     .eq("created_by", profile.id)
     .in("status", ["READY", "WAITING_APPROVAL"]);
   if (error) return { error: error.message };
-  await supabase.rpc("cancel_email_approval_for_draft", { p_draft_id: params.draftId, p_empresa_id: profile.empresa_id });
+  const { error: approvalError } = await createAdminClient().rpc("cancel_email_approval_for_draft", {
+    p_draft_id: params.draftId,
+    p_empresa_id: profile.empresa_id,
+    p_actor_id: profile.id,
+  });
+  if (approvalError) return { error: approvalError.message };
   await recordEmailEvent(supabase, actor, {
     eventType: "email.draft.updated",
     draftId: params.draftId,
@@ -288,50 +295,27 @@ export async function executeApprovalAction(params: {
 export async function processApprovalDecidedEvent(params: {
   approvalId: string;
   decision: "APPROVED" | "REJECTED" | "CANCELLED";
-  decidedBy: string;
-  empresaId: string;
 }) {
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
-  // Obtener la aprobación para obtener task_id
-  const { data: approval } = await supabase
-    .from("agent_approvals")
-    .select("task_id, run_id, tool_name, payload_json")
-    .eq("id", params.approvalId)
-    .eq("empresa_id", params.empresaId)
-    .single();
-
-  if (!approval) {
+  const approval = await getApproval(supabase, params.approvalId);
+  if (!approval || approval.empresa_id !== profile.empresa_id) {
     return { success: false, error: "Approval no encontrado" };
   }
-
-  // Emitir evento APPROVAL_DECIDED
-  await emitAgentEvent({
-    db: supabase,
-    empresaId: params.empresaId,
-    eventType: "APPROVAL_DECIDED",
-    sourceType: "user",
-    sourceId: params.decidedBy,
-    correlationKey: `APPROVAL:${params.approvalId}`,
-    dedupKey: `APPROVAL_DECIDED:${params.approvalId}:${params.decision}`,
-    payloadJson: {
-      approval_id: params.approvalId,
-      decision: params.decision,
-      decided_by: params.decidedBy,
-      tool_name: approval.tool_name,
-      decided_at: new Date().toISOString(),
-    },
-  });
+  const expectedStatus = params.decision;
+  if (approval.status !== expectedStatus || approval.decided_by !== profile.id) {
+    return { success: false, error: "La decisión no coincide con una aprobación realizada por el usuario actual" };
+  }
 
   // Si fue aprobado, ejecutar el tool aprobado
   if (params.decision === "APPROVED") {
-    const actor = {
-      empresaId: params.empresaId,
-      userId: params.decidedBy,
-      role: "comercial" as const,
-      actorType: "user" as const,
-      source: "web" as const,
-    };
+    const actor = actorFromProfile(profile);
+    const approvalTool = getTool(approval.tool_name);
+    if (!approvalTool) return { success: false, error: "La herramienta de esta aprobación ya no está disponible" };
+    if (approvalTool.requiredRoles?.length && !approvalTool.requiredRoles.includes(profile.role)) {
+      return { success: false, error: "El rol actual no puede ejecutar esta herramienta" };
+    }
 
     try {
       const result = await executeApprovedTool({
@@ -352,16 +336,15 @@ export async function processApprovalDecidedEvent(params: {
   const { data: decidedEvent } = await supabase
     .from("agent_events")
     .select("id")
-    .eq("empresa_id", params.empresaId)
+    .eq("empresa_id", profile.empresa_id)
     .eq("dedup_key", `APPROVAL_DECIDED:${params.approvalId}:${params.decision}`)
     .maybeSingle();
   if (decidedEvent) {
-    const admin = createAdminClient();
     await processAgentEvent({
-      db: admin,
+      db: createAdminClient(),
       eventId: (decidedEvent as { id: string }).id,
-      empresaId: params.empresaId,
-      processorId: params.decidedBy,
+      empresaId: profile.empresa_id,
+      processorId: profile.id,
     });
   }
 

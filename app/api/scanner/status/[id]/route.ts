@@ -2,6 +2,7 @@
 import { getCurrentProfile } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSessionExpired } from '@/lib/scanner/tokens';
+import { canReadScannerContext, isScannerObjectReferenceValid, SCANNER_STORAGE_BUCKET } from '@/lib/scanner/session-access';
 
 export async function GET(
   req: NextRequest,
@@ -26,13 +27,18 @@ export async function GET(
     const admin = createAdminClient();
     const { data: session, error } = await admin
       .from('scan_sessions')
-      .select('id, empresa_id, status, context_type, context_id, target_field, file_name, file_size_bytes, page_count, storage_path, storage_bucket, expires_at, completed_at')
+      .select('id, empresa_id, created_by, status, context_type, context_id, target_field, file_name, file_size_bytes, page_count, storage_path, storage_bucket, expires_at, completed_at')
       .eq('id', id)
       .eq('empresa_id', profile.empresa_id) // Tenant isolation fail-closed
+      .eq('created_by', profile.id)
       .maybeSingle();
 
     // Si no existe o pertenece a otra empresa -> 404 fail-closed
     if (error || !session) {
+      return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 });
+    }
+
+    if (session.created_by !== profile.id || !canReadScannerContext(profile.role, session.context_type)) {
       return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 });
     }
 
@@ -43,9 +49,12 @@ export async function GET(
 
     // 3. Generar URL firmada temporal (300s) ÚNICAMENTE si la sesión está completada
     let signedUrl: string | null = null;
-    if (currentStatus === 'completed' && session.storage_path) {
+    if (currentStatus === 'completed') {
+      if (!isScannerObjectReferenceValid(session)) {
+        return NextResponse.json({ error: 'Referencia de almacenamiento de sesión no válida.' }, { status: 409 });
+      }
       const { data: signedData } = await admin.storage
-        .from(session.storage_bucket || 'invoice-files')
+        .from(SCANNER_STORAGE_BUCKET)
         .createSignedUrl(session.storage_path, 300);
       signedUrl = signedData?.signedUrl ?? null;
     }

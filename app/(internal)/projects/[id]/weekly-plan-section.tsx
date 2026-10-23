@@ -4,6 +4,8 @@ import { Select } from "@/components/ui/input";
 
 
 import { WeeklyPlanResources } from "./weekly-plan-resources";
+import costeoStyles from "./costeo-checklist.module.css";
+import blockStyles from "./weekly-plan-blocks.module.css";
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import {
   Calendar,
@@ -1140,7 +1142,7 @@ export function WeeklyPlanSection({ project }: Props) {
           <InfoTooltip className="ml-1" label="Metas por bloque" content="Elegí el bloque y la meta semanal; el sistema la distribuye entre partidas, materiales, stock, compras y caja." />
         </div>
 
-        <div data-testid="bloques-list" className="mt-3 space-y-3">
+        <div data-testid="bloques-list" className={blockStyles.list}>
           {blocks.map((block) => {
             const prog = blockWeightedProgress(block, executedQuantities);
             const open = selectedBlockKey === block.key;
@@ -1153,15 +1155,16 @@ export function WeeklyPlanSection({ project }: Props) {
               <div
                 key={block.key}
                 data-testid={`bloque-${block.code || "suelto"}`}
-                className="w-full max-w-full min-w-0 glass-soft p-3"
+                className={blockStyles.block}
+                data-state={prog.currentPct >= 100 ? "done" : "warn"}
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1 basis-full sm:basis-0">
                     <div className="flex flex-wrap items-center gap-2">
                       {block.code && (
-                        <span className="font-mono text-[11px] text-[var(--muted)]">{block.code}</span>
+                        <span className={costeoStyles.stepNumber}>{block.code}</span>
                       )}
-                      <span className="min-w-0 break-words text-xs font-semibold text-[var(--foreground)]">
+                      <span className={`${costeoStyles.title} min-w-0 break-words text-[var(--foreground)]`}>
                         {block.description}
                       </span>
                       {block.isVirtual && (
