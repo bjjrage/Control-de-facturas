@@ -1,4 +1,25 @@
-# Batch 04 — manifiesto vigente
+# Batch — manual y práctica interactiva de obra (vigente)
+
+- Rama: `batch/obra-manual-interactivo-842ac721`.
+- Base y HEAD inicial: `842ac7218a031d4c09212464fd683d8455b323d5` (origin/main verificado).
+- Objetivo autorizado: contrastar y corregir manual/flujo de obra e implementar una academia de práctica dentro de la app, tomando NEXORA como referencia funcional de solo lectura.
+- Worktree limpio reutilizado; se conserva el resto de checkouts y ramas.
+- Archivos permitidos: este manifest; `components/layout/sidebar.tsx`; `app/(internal)/instructivo/page.tsx`; `components/instructivo/interactive-guide.tsx`; `components/instructivo/interactive-guide.module.css`; `lib/instructivo/content.ts`; `lib/instructivo/progress.ts`; `lib/instructivo/progress.test.ts`; `tests/e2e/instructivo.spec.ts`; `instructivos y roadmap/manual-de-obra.html`; `instructivos y roadmap/flujo-de-obra.html`; `instructivos y roadmap/contraste-codigo-842ac721.html`.
+- Verificación prevista: TypeScript/build, lint de archivos nuevos, pruebas de progreso y catálogo, navegador con todos los ejercicios, persistencia local, búsqueda/filtros, teclado y móvil, sin llamadas de escritura a negocio.
+- Migraciones: ninguna. Cambios a APIs de negocio, permisos, configuración de producción, otros proyectos y código NEXORA: ninguno.
+- Commits/ramas históricos a integrar: ninguno.
+- Publicación/merge/deploy de esta nueva funcionalidad: pendiente de autorización específica; autodeploy productivo ya está activo.
+- Resultado: PASS local, cerrado el 23/10/2026. Build Next 16.4.2, TypeScript `--noEmit`, lint del alcance y 6 pruebas unitarias: PASS. Navegador: 5/5 PASS contra el build local conectado exclusivamente a QA, incluyendo 34 prácticas y 102 pasos, persistencia, filtros/recorrido, teclado/móvil, HTML, bloqueo de storage y acceso anónimo.
+- Se agregan al alcance exacto `components/layout/topbar.tsx` (activar Ayuda existente) y `scripts/update-obra-docs.ts` (correcciones reproducibles y reporte de contraste).
+- `AGENTS.md`: cambio de nivel de encabezado generado por Next.js 16.4.2 al iniciar el servidor; se conserva según las instrucciones del repositorio.
+- Entrega documental: los dos HTML corregidos y `contraste-codigo-842ac721.html` también se entregan en la carpeta Desktop solicitada; los originales se preservan fuera del repo en la evidencia de esta tarea.
+- Auditoría de red: ninguna escritura de negocio en los ejercicios. Las lecturas de precarga del shell se identifican por ID exacto del manifest del build, nombre y archivo fuente; cualquier otro POST/PUT/PATCH/DELETE falla el test.
+- Revisión Codex del diff: PASS; ruta autenticada, formularios sin acciones de negocio, almacenamiento validado por cuenta/empresa, sin secretos ni dependencias nuevas.
+- Auditoría del candidato: 15 archivos esperados; archivos inesperados, commits históricos y migraciones: ninguno. Un commit local coherente; publicación pendiente.
+
+---
+
+# Batch 04 — manifiesto histórico
 
 - Rama: `batch/04-prebid-workspace`.
 - Base: `be1bd17cf82de5bb64f45e0f28a9a6bd1a18efb3`.

@@ -122,9 +122,10 @@
 
   <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#1e355b;background:#0d1829">
     <p style="margin:0 0 8px"><b>📱 Digitalización física transversal: Control Scanner</b></p>
-    <p style="margin:0">Cualquier documento físico originado en obra (remitos de corralón, facturas de compras urgentes, comprobantes de pesaje, tickets o actas de recepción) se digitaliza en el momento usando la cámara del celular sin apps nativas. Conectás la PC con el teléfono escaneando un <b>código QR o ingresando un PIN</b>, corregís perspectiva con detección de bordes, aplicás filtro de contraste y el PDF multipágina entra directo al ERP adjunto a la transacción. <a href="modulo-control-scanner.html" style="color:var(--blue)">Abrir explicación completa de Control Scanner →</a></p>
+    <p style="margin:0">En el formulario de factura, <b>Escanear desde celular</b> conecta PC y móvil con QR/PIN temporal. Capturás y revisás las páginas, y enviás hasta <b>20 MiB</b> por subida directa. La sesión de factura requiere Administración o Admin, pertenece a su creador y valida contexto/archivo. Al completarse se revisa el adjunto en la PC: escanear no registra automáticamente la factura. No se afirma una integración automática con cualquier otro documento del ERP. <a href="modulo-control-scanner.html" style="color:var(--blue)">Abrir explicación completa de Control Scanner →</a></p>
   </div>
 
+  <div class="foot"><p><b>Revisado el 22/10/2026.</b> La planificación semanal se prepara antes de comprar y se revisa durante la ejecución. Los checks de este documento guardan lo que leíste; no acreditan operaciones realizadas. <a href="contraste-codigo-842ac721.html">Ver contraste con el código</a>. Para ejercicios: menú <b>Instructivo</b> de la app.</p></div>
   <div class="progress-bar">
     <div class="ptrack"><div class="pfill" id="pfill"></div></div>
     <span class="pcount" id="pcount">0 de 0 revisados</span>
@@ -138,7 +139,7 @@
 
   <div class="foot">
     <p style="margin:0 0 8px"><b>¿Y el detalle fino de cada pantalla?</b></p>
-    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra (Plan Semanal: <a href="manual-de-obra.html#avance-fisico" style="color:var(--blue)">§24 Avance físico + Plan Semanal</a>; Digitalización con celular: <a href="manual-de-obra.html#control-scanner" style="color:var(--blue)">§28 Control Scanner</a>) y el bloque de conocimiento <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Plan Semanal de Obra</a>. Para el agente que opera transversalmente sobre este flujo, <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">abrí el módulo Frictionless Agent · Rodrigo</a>, y para digitalización de comprobantes físicos <a href="modulo-control-scanner.html" style="color:var(--blue)">abrí Control Scanner</a>.</p>
+    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra (Plan semanal: <a href="manual-de-obra.html#plan-semanal" style="color:var(--blue)">Preparar → Plan semanal</a>; Digitalización con celular: <a href="manual-de-obra.html#control-scanner" style="color:var(--blue)">§28 Control Scanner</a>) y el bloque de conocimiento <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Plan Semanal de Obra</a>. Para el agente que opera transversalmente sobre este flujo, <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">abrí el módulo Frictionless Agent · Rodrigo</a>, y para digitalización de comprobantes físicos <a href="modulo-control-scanner.html" style="color:var(--blue)">abrí Control Scanner</a>.</p>
   </div>
 </div>
 
@@ -193,6 +194,16 @@
                'En Cronograma se dibuja el Gantt. Los ítems sin fecha no aparecen.',
                'Podés arrastrar una barra para mover sus fechas — se guarda solo.',
                'Selector <b>Día / Semana / Mes</b> para el zoom.'] },
+        { id:'costeo', t:'Completar Costeo y recetas APU', screen:'Preparar → Costeo', what:'Revisás partidas, recetas, mano de obra, precios y costos pendientes. El precio contractual de venta no es costo de material.', how:['Revisá el checklist y resolvé faltantes.','Vinculá materiales y coeficientes en la APU.','Si cotizás costos, adoptá precios revisados: ese circuito no emite OC.'] },
+        { id:'plansemanal', t:'Armar el Plan Semanal de Obra', screen:'Preparar → Plan semanal',
+          what:'El residente define un <b>objetivo físico de producción</b> (ej.: 0,4 km de ruta). La <b>receta constructiva</b> —importada del Excel que la constructora ya usa— traduce ese objetivo a partidas físicas; el <b>BOM/APU</b> canónico (<code>budget_item_materials</code>) traduce cada partida a materiales; y el <b>MRP de obra</b> cruza la necesidad contra stock de obra, stock central disponible y OC inbound para mostrar el faltante real, la reserva y la caja.',
+          how:['Elegís el período, <b>importás/elegís una receta</b> (match exacto contra el presupuesto, fail-closed: código ambiguo bloquea y se corrige con mapeo manual) y ponés el <b>objetivo físico</b>: cantidad, % del tramo o "llegar a".',
+               'La receta produce <b>partidas físicas</b> (0,4 km → 600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión) y el BOM calcula la <b>necesidad bruta</b> de materiales.',
+               '<b>Cobertura en orden:</b> stock de obra → <b>central DISPONIBLE</b> (físico − reservas ACTIVE de otros planes) → <b>inbound a tiempo</b> (OC con fecha de entrega ≤ fin del plan; tarde o sin fecha solo informa) → <b>faltante a comprar × costo real</b> = <b>caja adicional</b> (ej.: 200 t × Gs. 3.000 = <b>Gs. 600.000</b>).',
+               '<b>CALCULAR PLAN es preview (no reserva); COMPROMETER recalcula en el servidor y reserva el stock central atómicamente</b> (plan + ítems + reservas en una transacción). Al cerrar el plan, las reservas se liberan.',
+               'Opcionalmente activás <b>Clima ON</b>: advisory; nunca recorta materiales ni compra.',
+               '<a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a>'],
+          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra ni consume stock de otras obras automáticamente: la cobertura central es el disponible neto de reservas, y transferir material entre obras es un proceso operativo aparte. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
         { id:'subc', t:'Cargar contratos de subcontratistas', screen:'tab Subcontratistas',
           what:'Cada rubro que tercerizás es un contrato con un subcontratista.',
           how:['Botón <b>"Agregar contrato"</b>.',
@@ -212,13 +223,13 @@
                 'El proveedor entra y carga su oferta: precio, plazo de entrega, validez, PDF opcional.',
                 'Comparás las ofertas y elegís una <b>marcando el motivo</b> (menor precio, mejor plazo, proveedor habitual).'],
           tip:{k:'ok', t:'Disponible con Rodrigo: pedile “cotizame estos materiales” o “compará las respuestas de esta RFQ” por texto o voz — prepara y compara con las mismas reglas.'} },
-        { id:'oc', t:'Se genera la Orden de Compra — asignala a la obra', screen:'Órdenes de compra',
-          what:'El compromiso formal de compra. Nace sola de la cotización elegida.',
-          how:['Al seleccionar la oferta, la OC se genera automáticamente con su código (<code>OC-2026-0012</code>).',
+        { id:'oc', t:'Autorizar y emitir la Orden de Compra para la obra', screen:'Órdenes de compra',
+          what:'El compromiso formal de compra. Requiere revisión, adjudicación, autorización y confirmación de emisión; una cotización de costos no emite OC.',
+          how:['Seleccionás proveedor, justificás, autorizás y revisás la vista previa. La OC se crea al confirmar <b>Emitir OC</b>, no al seleccionar la oferta.',
                'Abrís la OC y le <b>asignás el proyecto</b> — así aparece en las compras de esa obra.',
                'La OC lleva su <b>saldo</b>: cuánto se facturó y cuánto queda.'],
           tip:{k:'warn', t:'Si no le asignás el proyecto, la compra no aparece en el tab "Compras" de la obra ni suma a "comprado vs presupuesto".'} },
-        { id:'recep', t:'Llega el camión → recepción de la OC', screen:'Stock → Recepcionar OC',
+        { id:'recep', t:'Llega el camión → recepción de la OC', screen:'Comprar → Recepciones',
           what:'Registrás que la mercadería llegó físicamente. Es requisito para que la factura pase a apta para pago.',
           how:['Desde la OC (o desde Stock), botón <b>"Recepcionar OC"</b>.',
                'Marcás <b>qué llegó</b> y <b>cuánto</b> de cada línea (puede llegar en varias entregas).',
@@ -228,8 +239,8 @@
         { id:'facprov', t:'Llega la factura del proveedor', screen:'Facturas',
           what:'Una IA lee las facturas que subís (foto o PDF) e intenta identificar todo.',
           how:['Carga masiva: subís todas las facturas del día juntas.',
-               'La IA lee cada una: proveedor por RUC, número, fecha, montos, timbrado.',
-               '<b>Auto-conciliación 2-de-3</b>: si coinciden proveedor + monto + código OC, se vincula sola.',
+               'La lectura IA se revisa: proveedor/RUC, número, fecha, total y vinculación a una OC del mismo proveedor.',
+               'Revisá identidad del emisor, total y OC del mismo proveedor; la vinculación y la aptitud dependen de las validaciones del servidor.',
                'Si algo no cierra, va a la cola de <b>revisión manual</b> con los datos pre-cargados.'],
           tip:{k:'warn', t:'El matching nunca cruza proveedores: una factura de "Cartones SA" jamás se ofrece vincular con una OC de otro proveedor.'} },
         { id:'pagoprov', t:'Orden de Pago → pagar', screen:'Pagos',
@@ -241,31 +252,22 @@
       ]
     },
     {
-      n:3, cls:'p3', title:'Planificar y ejecutar en obra', cad:'cad-loop', cadTxt:'Plan semanal · ejecución diaria',
+      n:3, cls:'p3', title:'Ejecutar en obra y revisar el plan', cad:'cad-loop', cadTxt:'Plan semanal · ejecución diaria',
       sub:'Primero definís qué querés ejecutar; después el frente registra lo que realmente pasó.',
       steps:[
-        { id:'plansemanal', t:'Armar el Plan Semanal de Obra', screen:'tab Avance físico',
-          what:'El residente define un <b>objetivo físico de producción</b> (ej.: 0,4 km de ruta). La <b>receta constructiva</b> —importada del Excel que la constructora ya usa— traduce ese objetivo a partidas físicas; el <b>BOM/APU</b> canónico (<code>budget_item_materials</code>) traduce cada partida a materiales; y el <b>MRP de obra</b> cruza la necesidad contra stock de obra, stock central disponible y OC inbound para mostrar el faltante real, la reserva y la caja.',
-          how:['Elegís el período, <b>importás/elegís una receta</b> (match exacto contra el presupuesto, fail-closed: código ambiguo bloquea y se corrige con mapeo manual) y ponés el <b>objetivo físico</b>: cantidad, % del tramo o "llegar a".',
-               'La receta produce <b>partidas físicas</b> (0,4 km → 600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión) y el BOM calcula la <b>necesidad bruta</b> de materiales.',
-               '<b>Cobertura en orden:</b> stock de obra → <b>central DISPONIBLE</b> (físico − reservas ACTIVE de otros planes) → <b>inbound a tiempo</b> (OC con fecha de entrega ≤ fin del plan; tarde o sin fecha solo informa) → <b>faltante a comprar × costo real</b> = <b>caja adicional</b> (ej.: 200 t × Gs. 3.000 = <b>Gs. 600.000</b>).',
-               '<b>CALCULAR PLAN es preview (no reserva); COMPROMETER recalcula en el servidor y reserva el stock central atómicamente</b> (plan + ítems + reservas en una transacción). Al cerrar el plan, las reservas se liberan.',
-               'Opcionalmente activás <b>Clima ON</b>: advisory; nunca recorta materiales ni compra.',
-               '<a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a>'],
-          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra ni consume stock de otras obras automáticamente: la cobertura central es el disponible neto de reservas, y transferir material entre obras es un proceso operativo aparte. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
-        { id:'avance', t:'El capataz carga el avance del día con foto', screen:'tab Ejecución',
+        { id:'avance', t:'El capataz carga el avance del día con foto', screen:'Avance de obra → Registro de avance',
           what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta. Este dato alimenta el avance real y, cuando hay suficiente historial, sirve como referencia de capacidad para comparar contra el Plan Semanal.',
           how:['En la tab Ejecución, botón <b>"QR para el capataz"</b> → <b>"Descargar QR"</b> (PNG).',
                'Se lo mandás por WhatsApp o lo imprimís y lo pegás en el obrador.',
                'El capataz lo escanea <b>una vez</b>, entra al parte de avance y lo <b>agrega a la pantalla de inicio</b>.',
                'Carga: ítem del presupuesto, cantidad ejecutada, fecha, y hasta 5 fotos con <b>"Abrir cámara"</b>.'],
           tip:{k:'ok', t:'Captura verificada: la cámara se abre DENTRO de la app (no la galería) y sella cada foto con GPS + fecha/hora. No se puede mandar una foto vieja, de otra obra o editada.'} },
-        { id:'salida', t:'El material sale del pañol al frente', screen:'Stock → Salida',
+        { id:'salida', t:'El material sale del pañol al frente', screen:'Avance de obra → Inventario / Depósito de obra',
           what:'Registrás el consumo. Es lo que alimenta el reporte de consumo vs presupuesto.',
-          how:['En Stock, movimiento <b>SALIDA</b>: elegís producto, cantidad, depósito de origen.',
+          how:['En <b>Stock e Inventario</b>, registrás el consumo: producto, cantidad, depósito de origen e imputación correcta. Una transferencia entre depósitos no equivale a consumo.',
                '<b>Imputás a la obra</b> y, opcionalmente, al <b>rubro del presupuesto</b>.',
                'El stock baja y la salida queda registrada contra esa obra.'],
-          tip:{k:'ok', t:'En el proyecto, tab "Stock / Materiales" ves comprado / consumido / disponible por producto para esa obra.'} },
+          tip:{k:'ok', t:'En la obra, Avance de obra → Inventario / Depósito de obra muestra el contexto físico; Materiales es el catálogo.'} },
         { id:'personal', t:'Parte diario de personal', screen:'tab Personal',
           what:'Partes de mano de obra: quién trabajó, cuántas horas, a qué costo.',
           how:['En la tab Personal, cargás cada parte: fecha, trabajador, horas, costo por hora.',

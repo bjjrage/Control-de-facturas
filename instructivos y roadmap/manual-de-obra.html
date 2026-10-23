@@ -294,12 +294,12 @@
   <a href="#subcontratistas" class="cat-link" data-tier="cat"><span class="toc-num">19</span>Subcontratistas</a>
   <a href="#portal" class="cat-link" data-tier="cat"><span class="toc-num">20</span>Portal del subcontratista</a>
   <a href="#cert-sub" class="cat-link" data-tier="cat"><span class="toc-num">21</span>Aprobar certificados sub.</a>
-  <a href="#stock" class="cat-link" data-tier="cat"><span class="toc-num">22</span>Stock e Inventario</a>
+  <a href="#stock" data-tier="pro"><span class="toc-num">22</span>Stock e Inventario</a>
   <a href="#cert-comitente" class="cat-link" data-tier="cat"><span class="toc-num">23</span>Certificados al comitente</a>
-  <a href="#avance-fisico" class="cat-link" data-tier="cat"><span class="toc-num">24</span>Avance + Plan Semanal</a>
-  <a href="#climate-workdays" class="cat-link" data-tier="cat"><span class="toc-num">25</span>Días climáticos</a>
+  <a href="#avance-fisico" data-tier="all"><span class="toc-num">24</span>Avance + Plan Semanal</a>
+  <a href="#climate-workdays" data-tier="pro"><span class="toc-num">25</span>Días climáticos</a>
 
-  <div class="toc-group-label">Para probar</div>
+  <div class="toc-group-label">Accesos actuales</div><a href="#costeo" data-tier="pro">Completar el costeo y las APU</a><a href="#plan-semanal" data-tier="pro">Planificar la semana y sus materiales</a><a href="#bim" data-tier="cat">Vincular el modelo BIM</a><a href="#recepciones" data-tier="pro">Recibir materiales con evidencia</a><a href="#panol" data-tier="pro">Consultar el depósito de obra</a><a href="#tesoreria" data-tier="all">Leer tesorería y flujo de caja</a><div class="toc-group-label">Para probar</div>
   <a href="#mocks" data-tier="all"><span class="toc-num">26</span>Datos de prueba</a>
 
   <div class="toc-group-label">Asistente</div>
@@ -315,18 +315,19 @@
   <p class="page-sub">
     Todo lo que tiene el sistema para gestionar obras: presupuesto, cronograma, avance con fotos, stock, certificados al comitente, avance físico y Plan Semanal de Obra con materiales, compras, caja y clima opcional. Paso a paso, sin dar nada por sabido.
   </p>
+  <div class="callout"><span class="ic">✓</span><span><b>Revisado el 22/10/2026.</b> Navegación, accesos y efectos ajustados al código actual. Las pantallas de ejemplo son educativas. <a href="contraste-codigo-842ac721.html">Ver contraste y evidencia por módulo</a>. En la app, abrí <b>Instructivo</b> para practicar con pasos guiados.</span></div>
   <div class="tier-legend">
     <span class="tier-chip basico"><span class="tier-dot"></span>Básico — lo que ya tenías</span>
     <span class="tier-chip pro"><span class="tier-dot"></span>Pro — suma Proyectos</span>
-    <span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar — suma Personal, Stock y Certificados</span>
+    <span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar — suma BIM, Personal, Subcontratistas y Certificados</span>
   </div>
 
   <!-- 00 ACTIVAR -->
   <section class="feature" id="activar" data-tier="all">
     <div class="feat-head"><span class="feat-num">00</span><span class="feat-title">Activar el plan</span></div>
-    <div class="feat-where">Dónde: nav derecho → sección <code>Planes</code> (solo admin)</div>
+    <div class="feat-where">Dónde: Administración · Operativo · Licitaciones · Acceso: Todos · Comercial / Administración / Admin</div>
     <div class="feat-body">
-      <p>Cada plan <b>suma</b> funciones sobre el anterior — nunca te saca lo que ya usabas. Compras y Ventas siguen en el sidebar izquierdo sin importar el plan. Este manual documenta los tres niveles completos.</p>
+      <p>Cada plan <b>suma</b> funciones sobre el anterior — nunca te saca lo que ya usabas. Los accesos visibles dependen del espacio (Administración, Operativo o Licitaciones), del rol, del plan y de los módulos habilitados para la empresa. Este manual documenta los tres niveles completos.</p>
       <ol class="steps">
         <li>En el nav de la derecha, sección <b>"Planes"</b>.</li>
         <li>Un click en <b>Básico</b>, <b>Pro</b> o <b>Caterpillar</b> — el cambio es instantáneo.</li>
@@ -341,7 +342,7 @@
           </div>
         </div>
       </div>
-      <p>Con Pro o Caterpillar activo aparece <b>"Proyectos"</b> en el sidebar izquierdo. Con Caterpillar aparece además <b>"Stock"</b>.</p>
+      <p>Con Pro o Caterpillar, Administración y Admin acceden al espacio <b>Operativo</b> y a las obras. <b>Materiales</b> es el catálogo y <b>Stock e Inventario</b> muestra el circuito físico; están disponibles desde Pro con Compras habilitado y el rol correspondiente. Caterpillar suma BIM, Personal, Subcontratistas y Certificados.</p>
     </div>
   </section>
 
@@ -350,7 +351,7 @@
   <!-- 01 RFQS -->
   <section class="feature basico" id="rfqs" data-tier="basico">
     <div class="feat-head"><span class="feat-num">01</span><span class="feat-title">Cotizaciones (RFQ)</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Cotizaciones</code></div>
+    <div class="feat-where">Dónde: Obra → Comprar → Cotizaciones · Acceso: Básico / obra Pro · Comercial / Administración / Admin</div>
     <div class="feat-body">
       <p>Le pedís precio a varios proveedores para el mismo producto, sin llamarlos uno por uno.</p>
       <ol class="steps">
@@ -358,20 +359,20 @@
         <li>Invitás proveedores del catálogo — cada uno recibe un <b>link propio, sin login</b>.</li>
         <li>El proveedor entra, ve el pedido y carga su oferta (precio, plazo de entrega, validez, adjunto PDF opcional).</li>
         <li>Comparás las ofertas y elegís una — marcando el motivo (menor precio, mejor plazo, proveedor habitual, etc.).</li>
-        <li>Al seleccionar, se genera la <b>Orden de Compra</b> sola.</li>
-      </ol>
+        <li>Revisás las ofertas, guardás la adjudicación, la autorizás y revisás las órdenes. La OC se crea únicamente al confirmar <b>Emitir OC</b> o <b>Confirmar y emitir órdenes de compra</b>. Seleccionar un proveedor no alcanza.</li>
+      </ol><p><b>Dos intenciones:</b> una RFQ de compra puede terminar en OC con autorización explícita; una consulta de descubrimiento de costos termina en adoptar precios, sin adjudicación ni OC.</p>
     </div>
   </section>
 
   <!-- 02 ORDENES DE COMPRA -->
   <section class="feature basico" id="ordenes-compra" data-tier="basico">
     <div class="feat-head"><span class="feat-num">02</span><span class="feat-title">Órdenes de compra</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Órdenes de compra</code></div>
+    <div class="feat-where">Dónde: Obra → Comprar → OC · Acceso: Básico / obra Pro · Comercial / Administración / Admin</div>
     <div class="feat-body">
       <p>El compromiso formal de compra — nace de una cotización seleccionada, o la cargás manual.</p>
       <ol class="steps">
         <li>Cada OC tiene un <b>código único</b> (ej. <code class="mono">OC-2026-0012</code>) y un <b>saldo</b> — cuánto se facturó y cuánto queda.</li>
-        <li>Estado avanza solo: Autorizado → Facturado → Conciliado → Apto para pago → Pagado.</li>
+        <li>La lectura de la OC distingue <b>Autorizada → Factura parcial → Factura total → Pagada</b>. Recepción y estado de las facturas se controlan por separado; la conciliación y aptitud para pago no prueban por sí solas recepción ni pago.</li>
         <li>Si activaste Stock, al recibir mercadería podés <b>recepcionar la OC</b> desde el módulo de Stock y el inventario se actualiza solo.</li>
       </ol>
     </div>
@@ -380,13 +381,13 @@
   <!-- 03 FACTURAS DE COMPRA -->
   <section class="feature basico" id="basico-facturas" data-tier="basico">
     <div class="feat-head"><span class="feat-num">03</span><span class="feat-title">Facturas de compra</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Facturas</code></div>
+    <div class="feat-where">Dónde: Administración → Comprar → Facturas / Obra → Comprar → Facturas · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <p>Una IA lee las facturas que subís — foto o PDF — e intenta identificar todo.</p>
       <ol class="steps">
         <li>Carga masiva: subís todas las facturas del día juntas.</li>
         <li>La IA lee cada una: proveedor (por RUC), número, fecha, montos, timbrado.</li>
-        <li><b>Auto-conciliación 2-de-3:</b> si coinciden proveedor + monto + código OC, se vincula sola.</li>
+        <li><b>Lectura y conciliación:</b> revisá identidad del emisor, número, fecha, total y la OC del mismo proveedor. La vinculación y el estado dependen de las validaciones y del acumulado facturado; una lectura de IA no declara la factura apta para pago.</li>
         <li>Si algo no cierra, queda en cola de <b>revisión manual</b> con los datos ya pre-cargados.</li>
         <li>Duplicados detectados automáticamente.</li>
       </ol>
@@ -400,7 +401,7 @@
   <!-- 04 PAGOS -->
   <section class="feature basico" id="basico-pagos" data-tier="basico">
     <div class="feat-head"><span class="feat-num">04</span><span class="feat-title">Órdenes de Pago</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Pagos</code></div>
+    <div class="feat-where">Dónde: Administración → Comprar → Pagos / Obra → Comprar → Pagos · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <p>Agrupás facturas aptas para pago del mismo proveedor en una Orden de Pago, la ejecutás cuando pagás, y queda el respaldo formal.</p>
       <ol class="steps">
@@ -415,7 +416,7 @@
   <!-- 05 PROVEEDORES -->
   <section class="feature basico" id="proveedores" data-tier="basico">
     <div class="feat-head"><span class="feat-num">05</span><span class="feat-title">Proveedores</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Proveedores</code></div>
+    <div class="feat-where">Dónde: Obra → Comprar → Proveedores / Administración → Comprar → Proveedores · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>El catálogo de proveedores: nombre, RUC, contacto. De acá se sacan para cotizar y para el auto-match de facturas por RUC.</p>
     </div>
@@ -426,14 +427,14 @@
   <!-- 06 CLIENTES -->
   <section class="feature basico" id="clientes" data-tier="basico">
     <div class="feat-head"><span class="feat-num">06</span><span class="feat-title">Clientes</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Clientes</code></div>
+    <div class="feat-where">Dónde: Administración → Vender → Clientes · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body"><p>Catálogo de clientes: nombre, RUC, contacto, condiciones de pago. Base para todos los documentos de venta.</p></div>
   </section>
 
   <!-- 07 PROFORMAS -->
   <section class="feature basico" id="proformas" data-tier="basico">
     <div class="feat-head"><span class="feat-num">07</span><span class="feat-title">Proformas</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Proformas</code> · detalle → <code>/ventas/[id]</code> (panel “Aceptación electrónica”) · portal cliente → <code>/cotizacion/[token]</code></div>
+    <div class="feat-where">Dónde: Administración → Vender → Proformas → Aceptación electrónica · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <p>Presupuesto formal para el cliente antes de facturar. Generás PDF con el diseño de tu empresa. Y si querés, la proforma puede <b>aceptarse electrónicamente</b>: el cliente aprueba desde un link seguro y el sistema genera sola la Orden de Trabajo interna.</p>
       <div class="callout"><span class="ic">🔗</span><span><b>Mini workflow:</b> <code>BORRADOR</code> → <code>PENDING_ACCEPTANCE</code> → <code>ACCEPTED</code> → <code>OT creada</code>. El cliente acepta la <b>cotización</b>; la OT es <b>interna</b> y nunca la ve ni la aprueba el cliente.</span></div>
@@ -455,7 +456,7 @@
   <!-- 08 REMISIONES -->
   <section class="feature basico" id="remisiones" data-tier="basico">
     <div class="feat-head"><span class="feat-num">08</span><span class="feat-title">Remisiones</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Remisiones</code></div>
+    <div class="feat-where">Dónde: Administración → Vender → Remisiones · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <p>Nota de entrega — documenta que algo salió de tu depósito.</p>
       <div class="callout warn"><span class="ic">⚠</span><span><b>Una remisión no genera cuenta por cobrar.</b> Si el cliente tiene que pagar, el documento correcto es la Factura de Venta.</span></div>
@@ -465,7 +466,7 @@
   <!-- 09 FACTURAS VENTA -->
   <section class="feature basico" id="facturas-venta" data-tier="basico">
     <div class="feat-head"><span class="feat-num">09</span><span class="feat-title">Facturas de Venta</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Facturas de Venta</code></div>
+    <div class="feat-where">Dónde: Administración → Vender → Facturas / NC · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <p>Genera cuenta por cobrar. Queda con saldo pendiente hasta que se registre un cobro contra ella.</p>
 
@@ -491,7 +492,7 @@
   <!-- 10 COBROS -->
   <section class="feature basico" id="cobros" data-tier="basico">
     <div class="feat-head"><span class="feat-num">10</span><span class="feat-title">Cobros</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Cobros</code></div>
+    <div class="feat-where">Dónde: Administración → Vender → Cobros · Acceso: Básico · Administración / Admin</div>
     <div class="feat-body">
       <ol class="steps">
         <li>Lista de facturas con saldo — separadas en <b>vencidas</b> y <b>por vencer</b>.</li>
@@ -506,7 +507,7 @@
   <!-- 11 CREAR PROYECTO -->
   <section class="feature pro" id="crear-proyecto" data-tier="pro">
     <div class="feat-head"><span class="feat-num">11</span><span class="feat-title">Crear un proyecto</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Proyectos</code> → <code>Nuevo proyecto</code></div>
+    <div class="feat-where">Dónde: Operativo → Nuevo proyecto · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>Un proyecto es una obra. Todo lo demás (presupuesto, avance, subcontratistas, certificados) cuelga de un proyecto.</p>
       <ol class="steps">
@@ -516,14 +517,14 @@
         <li>Al crear, entrás directo al detalle del proyecto.</li>
       </ol>
       <div class="callout"><span class="ic">💡</span><span>El presupuesto que ves en el dashboard es el mayor entre el estimado inicial y la suma real de ítems — nunca muestra 0 mientras armás el cómputo.</span></div>
-      <div class="callout"><span class="ic">🗂️</span><span>Adentro del proyecto, las tabs están <b>agrupadas por fase</b> del flujo de obra: <b>Preparar</b> (Presupuesto, Cronograma) · <b>Comprar</b> (Proveedores, Cotizaciones, OC, Facturas, Pagos) · <b>Ejecutar</b> (Ejecución, Stock/Materiales, Personal, Subcontratistas) · <b>Certificar y controlar</b> (Certificados, Avance físico, Informes).</span></div>
+      <div class="callout"><span class="ic">🗂️</span><span>Adentro del proyecto, las tabs están <b>agrupadas por fase</b> del flujo de obra: <b>Preparar</b> (Presupuesto, Costeo, Cronograma / Gantt, Plan semanal, BIM / IFC) · <b>Comprar</b> (Proveedores, Cotizaciones, OC, Recepciones, Facturas, Pagos) · <b>Avance de obra</b> (Registro de avance, Inventario, Depósito de obra, Personal, Subcontratistas) · <b>Certificar</b> (Certificados, Avance físico, Informes). Las funciones visibles dependen del plan y rol.</span></div>
     </div>
   </section>
 
   <!-- 12 PRESUPUESTO -->
   <section class="feature pro" id="presupuesto" data-tier="pro">
     <div class="feat-head"><span class="feat-num">12</span><span class="feat-title">Presupuesto</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Presupuesto</code></div>
+    <div class="feat-where">Dónde: Obra → Preparar → Presupuesto · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>El cómputo métrico de la obra. Tres formas de cargarlo.</p>
 
@@ -533,7 +534,7 @@
       <ol class="steps">
         <li>Botón <b>"Importar Excel"</b> → subís el <code class="mono">.xlsx</code> o <code class="mono">.csv</code>.</li>
         <li><b>Mapeás las columnas</b>: cuál es Código, Descripción, Unidad, Cantidad y Precio — auto-detectado por encabezado, corregible a mano.</li>
-        <li>Previsualizás: filas con problemas se marcan en rojo y se saltean solas.</li>
+        <li>Revisás la previsualización, los errores y las filas válidas; corregí el mapeo y los datos antes de confirmar. No asumas que una fila ignorada quedó importada.</li>
         <li>Si tus códigos son jerárquicos (<code class="mono">1</code>, <code class="mono">1.1</code>, <code class="mono">1.2</code>), la jerarquía se arma sola.</li>
       </ol>
 
@@ -567,7 +568,7 @@
   <!-- 13 PLANILLA EMBEBIDA -->
   <section class="feature pro" id="planilla-embebida" data-tier="pro">
     <div class="feat-head"><span class="feat-num">13</span><span class="feat-title">Planilla embebida</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: tab <code>Presupuesto</code> → botón <code>"Generar plantilla de trabajo"</code></div>
+    <div class="feat-where">Dónde: Obra → Presupuesto → Generar plantilla de trabajo · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>Una grilla tipo Excel <b>adentro del ERP</b> para editar el presupuesto: fórmulas de verdad, copiar/pegar rangos, agregar y eliminar filas, deshacer/rehacer. Reemplaza el ciclo de exportar a Excel → editar afuera → volver a importar por una edición directa, con autosave y confirmación explícita.</p>
 
@@ -614,7 +615,7 @@
   <!-- 14 CRONOGRAMA -->
   <section class="feature pro" id="cronograma" data-tier="pro">
     <div class="feat-head"><span class="feat-num">14</span><span class="feat-title">Cronograma</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Cronograma</code></div>
+    <div class="feat-where">Dónde: Obra → Preparar → Cronograma / Gantt · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>Un Gantt armado solo a partir de las fechas que cargaste en cada ítem del presupuesto.</p>
       <div class="lab" id="lab-progreso">
@@ -636,7 +637,7 @@
   <!-- 15 EJECUCION -->
   <section class="feature pro" id="ejecucion" data-tier="pro">
     <div class="feat-head"><span class="feat-num">15</span><span class="feat-title">Ejecución</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Ejecución</code></div>
+    <div class="feat-where">Dónde: Obra → Avance de obra → Registro de avance · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>El capataz o residente carga lo que se hizo en obra, día a día. No necesita cuenta.</p>
 
@@ -654,7 +655,7 @@
         <li>Guardás. Las fotos quedan como miniaturas; en el visor se ve "✓ Cámara verificada", la hora y un link "Ver ubicación".</li>
       </ol>
 
-      <div class="callout ok"><span class="ic">🔒</span><span>La captura verificada evita el problema de WhatsApp: no se puede mandar una foto vieja de la galería, ni de otra obra (el GPS la delata), ni editada. Si el celular no tiene cámara disponible, hay un fallback a subir archivo — pero queda marcado como "archivo", no verificado.</span></div>
+      <div class="callout ok"><span class="ic">🔒</span><span>La interfaz distingue captura de cámara y archivo adjunto; conserva ubicación y fecha cuando están disponibles. Es respaldo para la revisión humana: una marca de cámara o GPS no certifica por sí sola que la foto sea actual, auténtica o de la obra correcta. Revisá la evidencia y sus datos faltantes.</span></div>
       <div class="callout"><span class="ic">📷</span><span>Las fotos se comprimen antes de subir (máx. 1600px). Si una foto falla, el registro de avance se guarda igual.</span></div>
     </div>
   </section>
@@ -662,17 +663,17 @@
   <!-- 16 COMPRAS PROYECTO -->
   <section class="feature pro" id="proyecto-compras" data-tier="pro">
     <div class="feat-head"><span class="feat-num">16</span><span class="feat-title">Compras del proyecto</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Compras</code></div>
+    <div class="feat-where">Dónde: detalle del proyecto → <code>Comprar → OC</code></div>
     <div class="feat-body">
       <p>Lista las Órdenes de Compra asignadas a este proyecto — presupuestado vs comprado real.</p>
-      <ol class="steps"><li>Solo lectura: la vinculación se hace desde el módulo de OC, asignando el proyecto a la orden.</li></ol>
+      <ol class="steps"><li>La tabla reúne las OC asignadas a la obra y permite abrir su detalle. La asignación de proyecto se controla en el circuito de compra; las recepciones tienen su sección propia en Comprar → Recepciones.</li></ol>
     </div>
   </section>
 
   <!-- 17 INFORMES -->
   <section class="feature pro" id="informes" data-tier="pro">
     <div class="feat-head"><span class="feat-num">17</span><span class="feat-title">Informes</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Informes</code></div>
+    <div class="feat-where">Dónde: Obra → Certificar → Informes · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p>El resumen ejecutivo del proyecto: tres gráficas y dos exportes.</p>
       <ol class="steps">
@@ -697,7 +698,7 @@
   <!-- 18 PERSONAL -->
   <section class="feature cat" id="personal" data-tier="cat">
     <div class="feat-head"><span class="feat-num">18</span><span class="feat-title">Personal</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Personal</code></div>
+    <div class="feat-where">Dónde: Obra → Avance de obra → Personal · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
       <p>Partes diarios de mano de obra: quién trabajó, cuántas horas, a qué costo.</p>
       <table class="mock-table" style="max-width:66ch;">
@@ -712,7 +713,7 @@
   <!-- 19 SUBCONTRATISTAS -->
   <section class="feature cat" id="subcontratistas" data-tier="cat">
     <div class="feat-head"><span class="feat-num">19</span><span class="feat-title">Subcontratistas</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Subcontratistas</code></div>
+    <div class="feat-where">Dónde: Obra → Avance de obra → Subcontratistas · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
       <p>Cada rubro que tercerizás es un <b>contrato</b> con un subcontratista.</p>
       <ol class="steps">
@@ -731,7 +732,7 @@
   <!-- 20 PORTAL -->
   <section class="feature cat" id="portal" data-tier="cat">
     <div class="feat-head"><span class="feat-num">20</span><span class="feat-title">Portal del subcontratista</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: <code>Subcontratistas</code> → contrato → <code>Ver certificados</code> → <code>Copiar link</code></div>
+    <div class="feat-where">Dónde: Subcontratistas → contrato → Ver certificados · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
       <p>El subcontratista no necesita cuenta — recibe un link y carga sus certificados de avance cuando quiera.</p>
       <ol class="steps">
@@ -746,7 +747,7 @@
   <!-- 21 CERTIFICADOS SUB -->
   <section class="feature cat" id="cert-sub" data-tier="cat">
     <div class="feat-head"><span class="feat-num">21</span><span class="feat-title">Aprobar certificados sub.</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: <code>Subcontratistas</code> → contrato → <code>Ver certificados</code></div>
+    <div class="feat-where">Dónde: Subcontratistas → contrato → Ver certificados → Revisar · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
       <p>Cuando el subcontratista carga un certificado desde el portal, aparece acá para revisión con análisis de IA como apoyo.</p>
       <ol class="steps">
@@ -769,26 +770,10 @@
   <hr class="sep">
 
   <!-- 22 STOCK -->
-  <section class="feature cat" id="stock" data-tier="cat">
-    <div class="feat-head"><span class="feat-num">22</span><span class="feat-title">Stock e Inventario</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Stock</code> (aparece solo en plan Caterpillar)</div>
-    <div class="feat-body">
-      <p>Control completo del inventario de materiales: categorías, entradas, salidas y valorización automática por Costo Promedio Ponderado (CPP). Cada salida puede imputarse a una obra — eso es lo que alimenta el reporte de consumo del presupuesto.</p>
-
-      <p><b>Configuración inicial:</b></p>
-      <ol class="steps">
-        <li>Creás las <b>categorías</b> (Áridos, Hierros, Maderas, Pinturas…) desde Stock → Categorías.</li>
-        <li>Cargás los <b>productos</b> dentro de cada categoría: nombre, unidad (kg, m², unidad, bolsa…), stock mínimo de alerta.</li>
-      </ol>
-
-      <p><b>Movimientos:</b></p>
-      <ol class="steps">
-        <li><b>ENTRADA</b> — al recibir mercadería: vinculás a una OC existente (botón "Recepcionar OC") o cargás libre. El sistema actualiza el stock y recalcula el CPP automáticamente.</li>
-        <li><b>SALIDA</b> — cuando el material sale al frente de obra: elegís los productos, las cantidades y podés <b>imputar a un proyecto</b>. Esa imputación es la que aparece en el reporte de consumo del presupuesto.</li>
-        <li><b>AJUSTE</b> — para corregir diferencias de inventario (conteo físico).</li>
-      </ol>
-
-      <div class="lab" id="lab-cpp">
+  <section class="feature pro" id="stock" data-tier="pro">
+    <div class="feat-head"><span class="feat-num">22</span><span class="feat-title">Stock e Inventario</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
+    <div class="feat-where">Dónde: Administración → Comprar → Stock e Inventario / Obra → Avance de obra → Inventario · Acceso: Pro · Administración / Admin</div>
+    <div class="feat-body"><p><b>Materiales</b> es el catálogo; <b>Stock e Inventario</b> controla existencias y movimientos por ubicación. En la obra, <b>Inventario</b> y <b>Depósito de obra</b> muestran su contexto físico.</p><ol class="steps"><li>Revisá producto y depósito de origen/destino antes de registrar una operación.</li><li>Para una compra que llegó, usá <b>Comprar → Recepciones</b>, con cantidades efectivamente recibidas y evidencia.</li><li>Una <b>transferencia</b> mueve entre depósitos; un <b>consumo</b> imputa material utilizado. No son intercambiables.</li><li>Consultá saldo y trazabilidad. Las validaciones de stock y permisos se aplican en el servidor.</li></ol><p>El proyecto puede tener un depósito canónico vinculado. El stock físico del central y el disponible neto de reservas del Plan semanal son lecturas distintas; el stock de otra obra no cubre automáticamente tu meta.</p><p>El siguiente widget explica el concepto de CPP con valores ficticios; no registra movimientos ni reemplaza el saldo del inventario real.</p><div class="lab" id="lab-cpp">
         <div class="lab-tag">Probalo</div>
         <div class="lab-title">Cómo funciona el Costo Promedio Ponderado (CPP)</div>
         <div class="lab-sub">Tenés bolsas de cemento en stock. Llega una nueva compra a distinto precio — mirá cómo cambia el costo promedio.</div>
@@ -797,31 +782,13 @@
         <div class="lab-row"><span class="lab-label">Precio de compra</span><input type="range" class="lab-slider" id="cpp-price" min="22000" max="38000" step="1000" value="32000"><span class="lab-val" id="cpp-price-val">Gs 32.000</span></div>
         <div class="lab-result" id="cpp-result">CPP resultante: Gs 29.778 por bolsa</div>
       </div>
-
-      <p><b>Tabla de stock:</b> muestra todos los productos con su stock actual, costo promedio y valor total del inventario. Alertas visuales cuando el stock cae por debajo del mínimo configurado. Botón <b>"Exportar CSV"</b> para bajar el inventario completo.</p>
-
-      <p style="margin-top:16px;font-weight:600;">Depósitos y stock por obra</p>
-      <p>Un solo stock madre físico, pero tres formas de organizarlo — y son combinables:</p>
-      <table class="mock-table" style="max-width:66ch;">
-        <tr><th>Modelo</th><th>Cómo se usa</th></tr>
-        <tr><td>Stock global</td><td>Un depósito central, sin etiqueta de proyecto.</td></tr>
-        <tr><td>Por obra (contable)</td><td>Un depósito, movimientos etiquetados con el proyecto. Comprado − consumido = disponible por obra.</td></tr>
-        <tr><td>Por depósito físico</td><td>Varios depósitos (Central, pañol de cada obra, camión). Movimiento <b>TRANSFERENCIA</b> para mover entre ellos sin tocar el total global.</td></tr>
-      </table>
-      <ol class="steps">
-        <li>Tanto <b>ENTRADA</b> como <b>SALIDA</b> se pueden imputar a un proyecto — al comprar directo para una obra, o al consumir en ella.</li>
-        <li>En el proyecto, tab <b>"Stock / Materiales"</b>: tabla de comprado / consumido / disponible por producto para esa obra. El disponible en rojo si es negativo (se consumió material tomado de otra obra).</li>
-        <li>Si la obra tiene su pañol vinculado, aparece un aviso arriba con link al stock global.</li>
-      </ol>
-
-      <div class="callout"><span class="ic">🔗</span><span>Cuando receptás una OC desde Stock, el estado de esa OC en el módulo de Compras se actualiza automáticamente a "Recibido".</span></div>
     </div>
   </section>
 
   <!-- 23 CERTIFICADOS AL COMITENTE -->
   <section class="feature cat" id="cert-comitente" data-tier="cat">
     <div class="feat-head"><span class="feat-num">23</span><span class="feat-title">Certificados al comitente</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Certificados</code></div>
+    <div class="feat-where">Dónde: Obra → Certificar → Certificados · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
       <p>El documento mensual con el que la constructora le cobra al comitente (obra pública paraguaya). Congela el avance de ese período con columnas Anterior / Presente / Acumulado por rubro, calcula deducciones (anticipo, retención, penalidades) y genera el PDF listo para firmar.</p>
 
@@ -841,7 +808,7 @@
       <p style="margin-top:4px"><b>Crear un certificado:</b></p>
       <ol class="steps">
         <li>Botón <b>"+ Nuevo certificado"</b> — aparece numerado automáticamente (N° 1, N° 2, …).</li>
-        <li>Nace en estado <span class="badge-s accent">BORRADOR</span> con todos los rubros del presupuesto pre-cargados, con la columna "Anterior" ya calculada desde los certificados aprobados anteriores.</li>
+        <li>Nace en BORRADOR con rubros con cantidad y precio. Anterior toma cantidades de certificados congelados (ELABORADO o superior), y Presente toma registros de ejecución del período; ambos se revisan mientras es borrador. Para crear el siguiente, el último certificado debe estar APROBADO o FACTURADO.</li>
         <li>Cargás el avance del período en la columna <b>"Presente"</b>.</li>
       </ol>
 
@@ -890,11 +857,11 @@
   </section>
 
   <!-- 24 AVANCE FISICO -->
-  <section class="feature cat" id="avance-fisico" data-tier="cat">
-    <div class="feat-head"><span class="feat-num">24</span><span class="feat-title">Avance físico + Plan Semanal de Obra</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Avance físico</code></div>
+  <section class="feature" id="avance-fisico" data-tier="all">
+    <div class="feat-head"><span class="feat-num">24</span><span class="feat-title">Plan semanal y avance físico: accesos separados</span><span class="tier-chip pro"><span class="tier-dot"></span>Plan semanal: Pro · Avance físico: Caterpillar</span></div>
+    <div class="feat-where">Dónde: Obra → Certificar → Avance físico · Acceso: Caterpillar · Administración / Admin</div>
     <div class="feat-body">
-      <p>En esta tab conviven tres herramientas distintas: <b>Plan Semanal de Obra V3</b> (objetivo físico → receta → MRP de materiales → caja), <b>Curva S de avance</b> y <b>Registro de días no trabajados / Libro de obra</b>. El plan expresa lo que la obra quiere <b>producir</b>; el sistema calcula qué partidas, materiales, reservas y compras exige esa producción.</p>
+      <p><b>Preparar → Plan semanal</b> está disponible desde Pro y traduce el objetivo físico a receta, MRP de materiales y caja. <b>Certificar → Avance físico</b> requiere Caterpillar y reúne la curva acumulada y el Libro de obra. Este capítulo explica ambos circuitos, conservando sus accesos separados. El plan expresa lo que la obra quiere producir; el registro de avance documenta lo ejecutado y el certificado sigue su aprobación propia.</p>
       <div class="callout"><span class="ic">🧭</span><span>Explicación visual completa del módulo: <a href="modulo-plan-semanal-obra.html" style="color:var(--accent);font-weight:600">abrir Plan Semanal de Obra V3 + MRP</a>. Regla central: ya no se planifica con “+% de bloque por partida” — el concepto canónico es <b>OBJETIVO FÍSICO DE PRODUCCIÓN → RECETA CONSTRUCTIVA → PARTIDAS → BOM/APU → STOCK DE OBRA → CENTRAL DISPONIBLE → INBOUND A TIEMPO → FALTANTE → CAJA</b>.</span></div>
 
       <p><b>Receta constructiva vs BOM/APU — dos cosas distintas:</b></p>
@@ -906,11 +873,11 @@
 
       <p style="margin-top:16px;font-weight:600;">Plan Semanal de Obra — procedimiento completo</p>
       <ol class="steps">
-        <li><b>Entrá al proyecto</b> y abrí la tab <code>Avance físico</code> → sección <b>Plan Semanal de Obra</b>.</li>
+        <li>Entrá al proyecto y abrí <b>Preparar → Plan semanal</b>. Es una pestaña propia; <b>Certificar → Avance físico</b> conserva la curva certificada y el Libro de obra.</li>
         <li><b>Definí el período:</b> fecha de inicio y fin del plan (una semana típica).</li>
         <li><b>Importá o elegí una receta</b> en el bloque de planificación: botón <b>"+ Importar receta"</b> abre el Excel de la constructora (columnas <code>PARTIDA_CODIGO / CANTIDAD / UNIDAD</code>). El match con el presupuesto es <b>exacto</b>: código inexistente, ambiguo o con cantidad inválida <b>bloquea la importación</b> — se corrige con el mapeo manual fila por fila (lo corregido a mano prevalece). No hay fuzzy silencioso. Si ya hay recetas guardadas del proyecto, elegís una del selector <b>"Elegir receta…"</b>.</li>
-        <li><b>Elegís el objetivo físico de producción</b> y el modo: <b>Cantidad</b> (0,4 km), <b>% del tramo contractual</b> (+10 pp de la receta) o <b>"Llegar a"</b> (llégame al 35% del tramo). La receta se traduce al instante a <b>partidas físicas</b> — ejemplo certificado: 0,4 km → <b>600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión</b>.</li>
-        <li>También podés agregar partidas sueltas sin receta, por frente/sector, en cantidad física o <b>+puntos porcentuales del contrato</b> (ejemplo certificado: 500 m² + 10 pp = 50 m²). La meta siempre se limita al <b>saldo contractual pendiente</b> (chip "limitado").</li>
+        <li><b>Elegís el objetivo físico de producción</b> y el modo: <b>Cantidad</b> (0,4 km), <b>% del tramo contractual</b> (+10 pp de la receta) o <b>"Llegar a"</b> (llégame al 35% del tramo). La receta se traduce al instante a <b>partidas físicas</b> — ejemplo numérico: 0,4 km → <b>600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión</b>.</li>
+        <li>También podés agregar partidas sueltas sin receta, por frente/sector, en cantidad física o <b>+puntos porcentuales del contrato</b> (ejemplo numérico: 500 m² + 10 pp = 50 m²). La meta siempre se limita al <b>saldo contractual pendiente</b> (chip "limitado").</li>
         <li><b>Presioná CALCULAR PLAN:</b> corre el cálculo completo de abastecimiento (MRP) con los datos actuales. Es el paso que habilita lecturas y botones de compromiso.</li>
         <li><b>Revisá materiales (partida → materiales):</b> demanda bruta = <code>meta × consumo × (1 + merma)</code> del BOM/APU (<code>budget_item_materials</code>). Si una partida requiere materiales y no los tiene configurados, aparece <b>"MATERIALES NO CONFIGURADOS"</b> — nunca un 0 silencioso.</li>
         <li><b>Revisá stock de obra:</b> lo que ya está físicamente en el depósito del proyecto. Es la primera cobertura.</li>
@@ -941,7 +908,7 @@
         <tr><td><b>Caja adicional requerida</b></td><td><b>Faltante neto × costo válido</b> (<code>productos.costo_promedio</code>; sin costo → "Costo no disponible", nunca Gs. 0).</td></tr>
       </table>
 
-      <p><b>Cómo interpretar la caja — caso clásico certificado (sin central configurada: cobertura = stock + inbound):</b></p>
+      <p><b>Cómo interpretar la caja — ejemplo numérico clásico (sin central configurada: cobertura = stock + inbound):</b></p>
       <table class="mock-table" style="max-width:76ch;">
         <tr><th>Dato (LADRILLO)</th><th>Valor</th></tr>
         <tr><td>Necesidad bruta (120 m² × 52,5)</td><td class="num">6.300</td></tr>
@@ -990,7 +957,7 @@
       <p>Diferente a la Curva S de Informes (que compara presupuesto vs compras). Esta compara:</p>
       <ul style="margin:0 0 12px;padding-left:18px;color:var(--text);font-size:13.5px;line-height:1.8;">
         <li><span style="color:var(--muted)">Planificado acumulado</span> — sale del cronograma (el plan vigente, por versión de adenda)</li>
-        <li><span style="color:var(--cat)">Ejecutado acumulado</span> — sale de los certificados en estado ELABORADO o superior (solo los congelados, no los borradores)</li>
+        <li><span style="color:var(--cat)">Ejecutado acumulado</span> — sale de los certificados congelados en estado <b>ELABORADO, VERIFICADO, APROBADO o FACTURADO</b> (solo los congelados, no los borradores)</li>
       </ul>
       <p>Si la curva real está por debajo de la planificada, hay atraso. Si está por encima, hay adelanto. La brecha en % × monto contractual da el valor de la desviación.</p>
 
@@ -1011,9 +978,9 @@
   <hr class="sep">
 
   <!-- 25 CLIMATE WORKDAYS -->
-  <section class="feature cat" id="climate-workdays" data-tier="cat">
-    <div class="feat-head"><span class="feat-num">25</span><span class="feat-title">Días climáticos / Climate Workdays</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
-    <div class="feat-where">Dónde: detalle del proyecto → tab <code>Cronograma</code> → cronología climática</div>
+  <section class="feature pro" id="climate-workdays" data-tier="pro">
+    <div class="feat-head"><span class="feat-num">25</span><span class="feat-title">Días climáticos / Climate Workdays</span><span class="tier-chip pro"><span class="tier-dot"></span>Pro</span></div>
+    <div class="feat-where">Dónde: Obra → Preparar → Cronograma / Gantt → Días climáticos · Acceso: Pro · Administración / Admin</div>
     <div class="feat-body">
       <p><b>Climate Workdays</b> automatiza el registro de jornadas afectadas por lluvia sin reemplazar el criterio del residente. Cruza meteorología externa, el umbral contractual de la obra y la evidencia local para dejar un historial auditable que también alimenta el forecast.</p>
 
@@ -1089,9 +1056,9 @@
   <!-- 26 MOCKS -->
   <section class="feature" id="mocks" data-tier="all">
     <div class="feat-head"><span class="feat-num">26</span><span class="feat-title">Datos de prueba</span></div>
-    <div class="feat-where">Carpeta: <code>mocks/</code> en el repo</div>
+    <div class="feat-where">Dónde: Instructivo interactivo · Acceso: Todos · Comercial / Administración / Admin</div>
     <div class="feat-body">
-      <p>Para probar sin escribir todo a mano:</p>
+      <p>Para aprender sin modificar la empresa, usá el <b>Instructivo interactivo</b> de la app. Los archivos de esta carpeta son fixtures para una <b>base de QA o empresa de prueba</b>; importar estos archivos en una pantalla real sí guarda datos:</p>
       <div class="mock-files">
         <div class="mock-file"><span class="ic">📊</span><code>presupuesto-obra-ejemplo.xlsx</code><span class="desc">31 ítems reales de obra chica — para "Importar Excel"</span></div>
         <div class="mock-file"><span class="ic">📊</span><code>facturas-3/</code><span class="desc">Facturas mock para probar carga y auto-matching</span></div>
@@ -1109,7 +1076,7 @@
         <li>En Stock, creá una categoría y un producto. Registrá una ENTRADA (vinculá a una OC). Luego una SALIDA imputada al proyecto OBR-TEST.</li>
         <li>Volvé al presupuesto del proyecto — debería aparecer el reporte de consumo de materiales.</li>
         <li>En la tab Certificados, creá un certificado N°1, pegá avance y elaboralo. Descargá el PDF.</li>
-        <li>En Avance físico, armá un <b>Plan Semanal</b> con al menos dos rubros/frentes. Verificá materiales, stock, OC en tránsito, faltante y caja adicional; después activá <b>Considerar clima</b> y comprobá que el objetivo base no cambie.</li>
+        <li>En <b>Preparar → Plan semanal</b>, armá un plan con al menos dos rubros/frentes. Verificá materiales, stock, OC en tránsito, faltante y caja adicional; después activá <b>Considerar clima</b> y comprobá que el objetivo base no cambie.</li>
         <li>En Cronograma / Días climáticos, verificá una jornada propuesta por lluvia, adjuntá evidencia del pluviómetro y marcá un día posterior como <b>Efecto de lluvia</b>.</li>
         <li>Verificá también la Curva S — debe mostrar el primer punto real.</li>
       </ol>
@@ -1121,7 +1088,7 @@
   <!-- 27 RODRIGO -->
   <section class="feature" id="rodrigo" data-tier="all">
     <div class="feat-head"><span class="feat-num">27</span><span class="feat-title">Rodrigo — Frictionless Agent</span></div>
-    <div class="feat-where">Dónde: mascota abajo a la derecha, en todas las pantallas internas</div>
+    <div class="feat-where">Dónde: Mascota Rodrigo → panel / Actividad · Acceso: Todos · Comercial / Administración / Admin</div>
     <div class="feat-body">
       <p><b>Rodrigo</b> es el asistente del ERP: le escribís o le hablás y ejecuta por vos — consultar stock, cotizar materiales, comparar ofertas, leer planillas y documentos. <b>Siempre responde por escrito.</b> No habla: no tiene voz ni audio de salida.</p>
       <ol class="steps">
@@ -1129,7 +1096,7 @@
         <li><b>Escribir:</b> tipeá abajo del panel y mandá con Enter. El transcript queda visible con la respuesta.</li>
         <li><b>Micrófono:</b> botón <b>"Activar micrófono"</b> → hablás → el navegador transcribe y Rodrigo responde escrito. Si tu navegador no lo soporta, te lo dice y seguís por texto.</li>
         <li><b>Estados:</b> el color y el mensaje te dicen en qué anda — <i>Listo</i>, <i>Pensando</i>, <i>Trabajando</i>, <i>Te escucho</i>, <i>Necesita tu decisión</i> (badge !), <i>Completada</i>, <i>Requiere revisión</i>.</li>
-        <li><b>Aprobaciones:</b> cuando algo compromete datos (una orden de compra, un envío), Rodrigo lo prepara y te pide <b>Aprobar/Rechazar</b> en el mismo panel. Sin tu OK no se ejecuta.</li>
+        <li><b>Aprobaciones:</b> para las herramientas definidas como sujetas a aprobación, Rodrigo prepara la acción y pide <b>Aprobar/Rechazar</b> a un usuario con autoridad vigente en el mismo panel. Sin tu OK no se ejecuta.</li>
         <li><b>Minimizar NO cancela:</b> podés cerrar el panel a mitad de una cotización — la tarea sigue en segundo plano y al reabrir ves el estado real.</li>
         <li><b>Actividad:</b> el link <b>"Actividad"</b> abre el centro con todas las tareas del agente y su historial.</li>
       </ol>
@@ -1150,7 +1117,7 @@
   <!-- 28 CONTROL SCANNER -->
   <section class="feature" id="control-scanner" data-tier="all">
     <div class="feat-head"><span class="feat-num">28</span><span class="feat-title">Digitalizar documentos con Control Scanner</span></div>
-    <div class="feat-where">Dónde: Diálogo de Facturas / Compras → Botón <code>Escanear desde celular</code> (o acceso directo /scanner)</div>
+    <div class="feat-where">Dónde: Facturas → Escanear desde celular / scanner móvil · Acceso: Todos · Comercial / Administración / Admin</div>
     <div class="feat-body">
       <p><b>Control Scanner</b> es el companion web móvil de digitalización documental del ERP. Permite usar la cámara de cualquier teléfono (Android o iOS) sin instalar apps nativas de tiendas, transformar facturas físicas, remitos de obra y tickets arrugados en documentos PDF 1.4 normalizados, y transferirlos en tiempo real a la sesión de carga del operador en la computadora.</p>
       <ol class="steps">
@@ -1163,12 +1130,18 @@
         <li><b>Filtros de imagen:</b> Seleccioná el filtro óptimo para legibilidad: <b>Color</b>, <b>Escala de Grises</b> o <b>Blanco y Negro (B&amp;N)</b> de alto contraste para sellos y texto impreso tenue.</li>
         <li><b>Generar PDF client-side:</b> Presioná <b>"Finalizar y enviar"</b>. El motor local del navegador compila directamente un archivo <b>PDF 1.4 estándar</b> optimizado, sin enviar imágenes intermedias pesadas ni requerir servidores externos de renderizado.</li>
         <li><b>Subida cifrada a Storage:</b> El archivo se almacena en el bucket <code>invoice-files</code> bajo la ruta aislada del tenant (<code>{empresa_id}/scans/{session_id}/...</code>) y se genera una URL temporal firmada.</li>
-        <li><b>Adjunto automático en Desktop:</b> La pantalla del operador en la PC recibe el evento Realtime, actualiza el estado a <code>completed</code>, descarga el PDF y lo deja adjuntado y previsualizado en el formulario listo para guardar.</li>
+        <li><b>Adjunto automático en Desktop:</b> La PC consulta el estado de la sesión y, al completarse correctamente, obtiene el adjunto validado para revisarlo en el formulario. Revisá legibilidad y extracción antes de guardar: completar el scanner no crea por sí solo una factura.</li>
       </ol>
-      <div class="callout ok"><span class="ic">✓</span><span><b>Seguridad y Aislamiento:</b> La sesión está protegida por RLS multi-tenant vinculada a la empresa del usuario operador, token unívoco de un solo uso para el claim móvil y rate-limiting en intentos de PIN.</span></div>
+      <div class="callout ok"><span class="ic">✓</span><span><b>Seguridad y Aislamiento:</b> La sesión se restringe por empresa, creador, rol y contexto. Para facturas se requiere Administración o Admin; Comercial no puede crear una sesión de factura. El servidor valida la referencia exacta del archivo y la sesión completada antes de adjuntarlo. QR/PIN son temporales y se limitan los intentos. La subida directa a Storage soporta <b>20 MiB (20.971.520 bytes)</b>; digitalizar no confirma la lectura ni guarda la factura.</span></div>
       <div class="callout"><span class="ic">↗</span><span>Documento técnico e interactivo completo del módulo: <a href="modulo-control-scanner.html" style="color:var(--accent);font-weight:600">abrir Control Scanner · Digitalización Móvil V3</a>.</span></div>
     </div>
   </section>
+<section class="feature pro" id="costeo" data-tier="pro"><div class="feat-head"><span class="feat-title">Completar el costeo y las APU</span></div><div class="feat-where">Dónde: Obra → Preparar → Costeo · Pro</div><div class="feat-body"><p>Distinguí precio de venta, receta de materiales y costo disponible.</p><p><b>Antes:</b> Presupuesto con cantidades; materiales y mano de obra configurados.</p><ol class="steps"><li><b>Revisar pendientes.</b> Seguí el checklist: partidas, recetas APU, mano de obra, materiales y costo final. Una partida sin receta o sin precio requiere revisión; no se interpreta como costo cero.</li><li><b>Relacionar material y partida.</b> La APU define cuánto material necesita una unidad ejecutada. Por cada m³ del ejercicio se requieren 300 kg de cemento antes de merma.</li><li><b>Interpretar el resultado.</b> Revisá costos completos y pendientes antes de confiar en el margen. El total de venta y el costo son números diferentes. Cotizar costos tampoco emite una OC.</li></ol></div></section>
+<section class="feature pro" id="plan-semanal" data-tier="pro"><div class="feat-head"><span class="feat-title">Planificar la semana y sus materiales</span></div><div class="feat-where">Dónde: Obra → Preparar → Plan semanal · Pro</div><div class="feat-body"><p>Traducí una meta a materiales, faltantes y caja; después decidí comprometer.</p><p><b>Antes:</b> Presupuesto, receta/BOM y stock configurados según la actividad.</p><ol class="steps"><li><b>Definir la intención.</b> Elegí período y meta física; podés usar receta o partidas por bloque/frente. La intención es ejecutar 120 m². Clima OFF permite calcular sin pronóstico.</li><li><b>Calcular el faltante.</b> Ejemplo: demanda 6.300, stock de obra 1.800, central disponible 0 e inbound a tiempo 2.500. Faltan 2.000 unidades. A 2.400 PYG, la caja adicional es 4.800.000 PYG. El preview no reserva stock.</li><li><b>Elegir cómo guardar.</b> Borrador y comprometido tienen efectos distintos en la app real. El servidor real recalcula y compara antes de reservar central de forma atómica. Si cambió el abastecimiento, pide recalcular.</li></ol><p>La ubicación canónica es Preparar → Plan semanal, separada de Avance físico.</p><p>El clima evalúa factibilidad; no recorta la meta ni la compra base.</p></div></section>
+<section class="feature cat" id="bim" data-tier="cat"><div class="feat-head"><span class="feat-title">Vincular el modelo BIM</span></div><div class="feat-where">Dónde: Obra → Preparar → BIM / IFC · Caterpillar</div><div class="feat-body"><p>Revisá el modelo y la asociación con partidas antes de adoptar cantidades.</p><p><b>Antes:</b> Plan Caterpillar, archivo IFC y presupuesto de la obra.</p><ol class="steps"><li><b>Preparar el modelo.</b> Seleccioná un IFC de ejemplo para ubicar su uso en el proyecto. Esta representación no carga ni procesa un archivo real.</li><li><b>Revisar la asociación.</b> El elemento debe relacionarse con la partida y unidad correctas. La vinculación del ejercicio apunta a 1.1 · Hormigón.</li><li><b>Adoptar con revisión.</b> Compará la medición con el presupuesto antes de aplicarla. Ver un elemento o una sugerencia no modifica por sí solo el cómputo.</li></ol></div></section>
+<section class="feature pro" id="recepciones" data-tier="pro"><div class="feat-head"><span class="feat-title">Recibir materiales con evidencia</span></div><div class="feat-where">Dónde: Obra → Comprar → Recepciones · Pro</div><div class="feat-body"><p>Registrá cantidades recibidas y respaldo en el depósito correcto.</p><p><b>Antes:</b> OC o recepción disponible y depósito de destino identificado.</p><ol class="steps"><li><b>Elegir destino.</b> Elegí la OC y el depósito donde llegó el material. Destino del ejercicio: Pañol OBR-DEMO.</li><li><b>Medir lo recibido.</b> La recepción puede ser parcial: cargá la cantidad que llegó, no toda la OC por defecto. Se registran 40 bolsas recibidas.</li><li><b>Completar el respaldo.</b> Revisá remito y evidencias, y resolvé los pendientes que informe la recepción. La recepción real controla su evidencia y estado antes de considerarse completa.</li></ol></div></section>
+<section class="feature pro" id="panol" data-tier="pro"><div class="feat-head"><span class="feat-title">Consultar el depósito de obra</span></div><div class="feat-where">Dónde: Obra → Avance de obra → Depósito de obra · Pro</div><div class="feat-body"><p>Ubicá el depósito físico asociado al proyecto y su abastecimiento.</p><p><b>Antes:</b> Proyecto con pañol vinculado.</p><ol class="steps"><li><b>Ubicar el pañol.</b> Consultá qué depósito pertenece a esta obra. Se utiliza Pañol OBR-DEMO.</li><li><b>Revisar disponibilidad.</b> El stock de otra obra no está disponible automáticamente para esta. Una necesidad puede cubrirse desde central disponible mediante el circuito correspondiente.</li><li><b>Preparar la transferencia.</b> Si el material cambia de depósito, usá una transferencia y revisá ambos extremos. El traslado conserva la trazabilidad; no se inventa una recepción ni un consumo.</li></ol></div></section>
+<section class="feature all" id="tesoreria" data-tier="all"><div class="feat-head"><span class="feat-title">Leer tesorería y flujo de caja</span></div><div class="feat-where">Dónde: Administración → Finanzas → Tesorería / Flujo de caja · Básico</div><div class="feat-body"><p>Separá saldos, proyecciones y caja adicional del plan semanal.</p><p><b>Antes:</b> Administración o Admin; cuentas y documentos correctamente registrados.</p><ol class="steps"><li><b>Elegir la lectura.</b> Identificá saldo disponible y obligaciones próximas. Un compromiso futuro no equivale a un egreso ya ejecutado.</li><li><b>Relacionar la planificación.</b> El plan semanal muestra caja adicional por el faltante de material. 4.800.000 PYG de caja adicional del plan no es el valor total de la obra.</li><li><b>Tomar la decisión.</b> Contrastá fechas de cobro y pago antes de comprometer una compra. La proyección acompaña la decisión; no ejecuta por sí sola pagos ni cobros.</li></ol></div></section>
 </main>
 
 <script>

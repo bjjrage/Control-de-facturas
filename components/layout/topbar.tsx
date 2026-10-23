@@ -121,13 +121,15 @@ export function Topbar({
         >
           <Bell size={16} />
         </button>
-        <button
-          disabled
-          className="h-9 w-9 rounded-full flex items-center justify-center text-[var(--muted)] hover:bg-[var(--hover)] disabled:hover:bg-transparent disabled:opacity-60"
-          title="Ayuda (próximamente)"
+        <Link
+          href="/instructivo"
+          prefetch={false}
+          className="h-9 w-9 rounded-full flex items-center justify-center text-[var(--muted)] hover:bg-[var(--hover)]"
+          title="Abrir instructivo interactivo"
+          aria-label="Abrir instructivo interactivo"
         >
           <HelpCircle size={16} />
-        </button>
+        </Link>
       </div>
       {projectInfo ? (
         <div

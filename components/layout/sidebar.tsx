@@ -46,6 +46,7 @@ import {
   Tags,
   CircleDollarSign,
   Calculator,
+  BookOpen,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
@@ -961,6 +962,11 @@ export function Sidebar({
         )}
       </nav>
 
+      <div className="border-t border-white/[0.08] px-1.5 py-2">
+        <Link href="/instructivo" prefetch={false} aria-current={pathname === "/instructivo" ? "page" : undefined} title="Instructivo interactivo" className={cn("nav-primary-base nav-primary flex items-center gap-2.5 rounded-xl py-2 text-[12px]", collapsed ? "justify-center" : "px-2.5", pathname === "/instructivo" ? "text-[var(--foreground)] bg-white/[0.06]" : "text-[var(--muted)] hover:text-[var(--foreground)]")}>
+          <BookOpen size={16} className="shrink-0" />{!collapsed && <span>Instructivo</span>}
+        </Link>
+      </div>
       <SidebarUserMenu collapsed={collapsed} fullName={fullName} initial={initial} role={role} />
 
     </aside>
