@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { UserDialog } from "./user-dialog";
+import { UserRowActions } from "./user-row-actions";
 import { RoleSelect } from "./role-select";
-import { createUser, updateUserRole, toggleUserActive } from "./actions";
+import { createUser, updateUserRole } from "./actions";
 import { BackButton } from "@/components/ui/back-button";
 
 export default async function UsersPage() {
@@ -15,6 +16,7 @@ export default async function UsersPage() {
   const { data: users } = await supabase
     .from("profiles")
     .select("*")
+    .eq("empresa_id", me.empresa_id)
     .order("created_at")
     .returns<Profile[]>();
 
@@ -43,30 +45,14 @@ export default async function UsersPage() {
                 <td className="font-medium">{u.full_name}</td>
                 <td>{u.email}</td>
                 <td className="w-36">
-                  <RoleSelect id={u.id} role={u.role} action={updateUserRole} />
+                  <RoleSelect id={u.id} role={u.role} action={updateUserRole} disabled={u.id === me.id || u.is_super_admin} />
                 </td>
                 <td>{formatDate(u.created_at)}</td>
                 <td>
                   <Badge tone={u.active ? "ok" : "neutral"}>{u.active ? "Activo" : "Inactivo"}</Badge>
                 </td>
                 <td>
-                  <div className="flex justify-end">
-                    <form
-                      action={async () => {
-                        "use server";
-                        await toggleUserActive(u.id, !u.active);
-                      }}
-                    >
-                      <Button
-                        variant="ghost"
-                        className="h-6 px-2 text-[12px]"
-                        type="submit"
-                        disabled={u.id === me.id}
-                      >
-                        {u.active ? "Desactivar" : "Activar"}
-                      </Button>
-                    </form>
-                  </div>
+                  <UserRowActions id={u.id} email={u.email} active={u.active} disabled={u.id === me.id || u.is_super_admin} />
                 </td>
               </tr>
             ))}

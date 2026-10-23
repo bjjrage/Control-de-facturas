@@ -7,20 +7,22 @@ import { formatDate } from "@/lib/format";
 import { EmpresaDialog } from "./empresa-dialog";
 import { EmpresaAdminDialog } from "./empresa-admin-dialog";
 import { EmpresaActiveToggle } from "./empresa-active-toggle";
+import type { EmpresaAccess } from "@/lib/empresas/access";
+import { EmpresaAccessForm } from "./empresa-access-form";
 import { UserRowActions } from "./user-row-actions";
 
-type EmpresaRow = { id: string; nombre: string; slug: string | null; active: boolean; created_at: string };
-type ProfileRow = { id: string; empresa_id: string; full_name: string; email: string; role: string; active: boolean };
+type EmpresaRow = EmpresaAccess & { id: string; nombre: string; slug: string | null; active: boolean; created_at: string };
+type ProfileRow = { id: string; empresa_id: string; full_name: string; email: string; role: string; active: boolean; is_super_admin: boolean };
 
 export default async function EmpresasPage() {
   const me = await requireSuperAdmin();
   const admin = createAdminClient();
 
   const [{ data: empresas }, { data: profiles }] = await Promise.all([
-    admin.from("empresas").select("id, nombre, slug, active, created_at").order("created_at").returns<EmpresaRow[]>(),
+    admin.from("empresas").select("id, nombre, slug, active, created_at, plan, modulo_compras, modulo_ventas").order("created_at").returns<EmpresaRow[]>(),
     admin
       .from("profiles")
-      .select("id, empresa_id, full_name, email, role, active")
+      .select("id, empresa_id, full_name, email, role, active, is_super_admin")
       .order("full_name")
       .returns<ProfileRow[]>(),
   ]);
@@ -75,6 +77,8 @@ export default async function EmpresasPage() {
                 </div>
               </div>
 
+              <EmpresaAccessForm key={`${e.id}:${e.plan}:${e.modulo_compras}:${e.modulo_ventas}`} empresaId={e.id} access={{ plan: e.plan, modulo_compras: e.modulo_compras, modulo_ventas: e.modulo_ventas }} />
+
               {users.length > 0 ? (
                 <div className="mt-3 border-t border-[var(--border)] pt-2">
                   <table>
@@ -93,6 +97,7 @@ export default async function EmpresasPage() {
                               email={u.email}
                               active={u.active}
                               isSelf={u.id === me.id}
+                              isProtected={u.is_super_admin}
                             />
                           </td>
                         </tr>

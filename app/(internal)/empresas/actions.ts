@@ -1,5 +1,8 @@
 "use server";
 
+import { z } from "zod";
+import { manageUser } from "@/lib/users/management";
+import { accessFromForm } from "@/lib/empresas/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSuperAdmin } from "@/lib/auth";
 import { UserRole } from "@/lib/types";
@@ -25,8 +28,10 @@ export async function createEmpresa(formData: FormData) {
 
   const slug = slugify(String(formData.get("slug") ?? "").trim() || nombre) || null;
 
+  const access = accessFromForm(formData);
+  if (!access.success) return { error: "Plan o módulos inválidos." };
   const admin = createAdminClient();
-  const { error } = await admin.from("empresas").insert({ nombre, slug });
+  const { error } = await admin.from("empresas").insert({ nombre, slug, ...access.data });
   if (error) {
     return { error: error.code === "23505" ? "Ya existe una empresa con ese identificador." : error.message };
   }
@@ -69,6 +74,7 @@ export async function createEmpresaAdmin(formData: FormData) {
     full_name: fullName,
     role,
     active: true,
+    is_super_admin: false,
     empresa_id: empresaId,
   });
   if (profileError) {
@@ -98,6 +104,9 @@ export async function resetUserPassword(userId: string, password: string) {
   await requireSuperAdmin();
   if (password.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
   const admin = createAdminClient();
+  const { data: target, error: targetError } = await admin.from("profiles").select("is_super_admin").eq("id", userId).maybeSingle();
+  if (targetError || !target) return { error: "Usuario no encontrado." };
+  if (target.is_super_admin) return { error: "Este perfil superadmin está protegido." };
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
   if (error) return { error: error.message };
   return { error: null };
@@ -105,50 +114,26 @@ export async function resetUserPassword(userId: string, password: string) {
 
 export async function toggleUserActive(userId: string, active: boolean) {
   const me = await requireSuperAdmin();
-  if (userId === me.id) return { error: "No podés desactivarte a vos mismo." };
-  const admin = createAdminClient();
-  const { error } = await admin.from("profiles").update({ active }).eq("id", userId);
-  if (error) return { error: error.message };
+  const result = await manageUser(createAdminClient(), me, userId, { kind: "active", active }, "global");
   revalidatePath("/empresas");
-  return { error: null };
+  return result;
 }
 
 export async function deleteUser(userId: string) {
   const me = await requireSuperAdmin();
-  if (userId === me.id) return { error: "No podés eliminarte a vos mismo." };
-
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("empresa_id, role, is_super_admin")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!profile) return { error: "Usuario no encontrado." };
-
-  if (profile.role === "admin") {
-    const { count } = await admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("empresa_id", profile.empresa_id)
-      .eq("role", "admin")
-      .eq("active", true)
-      .neq("id", userId);
-    if (!count) {
-      return { error: "Es el único admin activo de su empresa — asigná otro admin antes de eliminarlo." };
-    }
-  }
-
-  const { error: profileError } = await admin.from("profiles").delete().eq("id", userId);
-  if (profileError) {
-    return {
-      error:
-        profileError.code === "23503"
-          ? "Este usuario ya registró operaciones en el sistema — no se puede borrar, pero podés desactivarlo."
-          : profileError.message,
-    };
-  }
-  await admin.auth.admin.deleteUser(userId);
-
+  const result = await manageUser(createAdminClient(), me, userId, { kind: "delete" }, "global");
   revalidatePath("/empresas");
+  return result;
+}
+
+export async function updateEmpresaAccess(empresaId: string, formData: FormData) {
+  await requireSuperAdmin();
+  const access = accessFromForm(formData);
+  if (!z.uuid().safeParse(empresaId).success || !access.success) return { error: "Empresa, plan o módulos inválidos." };
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("empresas").update(access.data).eq("id", empresaId).select("id");
+  if (error) return { error: "No se pudo actualizar el plan y los módulos." };
+  if (!data?.length) return { error: "Empresa no encontrada." };
+  revalidatePath("/", "layout");
   return { error: null };
 }

@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { manageUser } from "@/lib/users/management";
 import { requireProfile } from "@/lib/auth";
 import { UserRole } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -37,6 +37,7 @@ export async function createUser(formData: FormData) {
     full_name: fullName,
     role,
     active: true,
+    is_super_admin: false,
     empresa_id: creator.empresa_id,
   });
 
@@ -50,15 +51,22 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUserRole(id: string, role: UserRole) {
-  await requireProfile(["admin"]);
-  const supabase = await createClient();
-  await supabase.from("profiles").update({ role }).eq("id", id);
+  const me = await requireProfile(["admin"]);
+  const result = await manageUser(createAdminClient(), me, id, { kind: "role", role });
   revalidatePath("/users");
+  return result;
 }
 
 export async function toggleUserActive(id: string, active: boolean) {
-  await requireProfile(["admin"]);
-  const supabase = await createClient();
-  await supabase.from("profiles").update({ active }).eq("id", id);
+  const me = await requireProfile(["admin"]);
+  const result = await manageUser(createAdminClient(), me, id, { kind: "active", active });
   revalidatePath("/users");
+  return result;
+}
+
+export async function deleteUser(id: string) {
+  const me = await requireProfile(["admin"]);
+  const result = await manageUser(createAdminClient(), me, id, { kind: "delete" });
+  revalidatePath("/users");
+  return result;
 }

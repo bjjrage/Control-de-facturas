@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { empresaPlanSchema } from "@/lib/empresas/access";
+import { requireProfile, requireSuperAdmin } from "@/lib/auth";
 import { SalesDocType } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
 import { generateTemplateFromImage } from "@/lib/template-gen";
@@ -41,7 +42,8 @@ export async function updateEmpresaFields(formData: FormData) {
 }
 
 export async function updateEmpresaPlan(plan: EmpresaPlan): Promise<{ error: string | null }> {
-  const profile = await requireProfile(["admin"]);
+  const profile = await requireSuperAdmin();
+  if (!empresaPlanSchema.safeParse(plan).success) return { error: "Plan inválido." };
   const supabase = await createClient();
 
   const { error } = await supabase

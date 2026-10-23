@@ -52,6 +52,7 @@ export function AdminConfigSection({
   const pathname = usePathname();
   const router = useRouter();
   const [currentPlan, setCurrentPlan] = useState(plan);
+  const [planError, setPlanError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const adminItems = ADMIN_ITEMS.filter((item) => {
@@ -62,18 +63,20 @@ export function AdminConfigSection({
     return true;
   });
   const superAdminItems = isSuperAdmin
-    ? SUPER_ADMIN_ITEMS.filter((item) => !focus || focus === "empresas")
+    ? SUPER_ADMIN_ITEMS.filter(() => !focus || focus === "empresas")
     : [];
-  const canSeePlans = role === "admin" && (!focus || focus === "plans");
+  const canSeePlans = isSuperAdmin && (!focus || focus === "plans");
 
   if (!canSeePlans && adminItems.length === 0 && superAdminItems.length === 0) return null;
 
   function handlePlanClick(next: EmpresaPlan) {
     if (next === currentPlan || pending) return;
+    setPlanError(null);
     setCurrentPlan(next);
     startTransition(async () => {
       const result = await updateEmpresaPlan(next);
       if (result.error) {
+        setPlanError(result.error);
         setCurrentPlan(plan);
         return;
       }
@@ -149,6 +152,7 @@ export function AdminConfigSection({
             </div>
           )
         : null}
+      {planError ? <p role="alert" className="px-3 text-[12px] text-[var(--error)]">{planError}</p> : null}
       {adminItems.length > 0 ? renderSection("Configuración", adminItems.map(renderLink)) : null}
       {superAdminItems.length > 0 ? renderSection("Super admin", superAdminItems.map(renderLink)) : null}
     </>

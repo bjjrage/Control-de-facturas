@@ -11,11 +11,13 @@ export function UserRowActions({
   email,
   active,
   isSelf,
+  isProtected = false,
 }: {
   userId: string;
   email: string;
   active: boolean;
   isSelf: boolean;
+  isProtected?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -23,6 +25,7 @@ export function UserRowActions({
   const [pw, setPw] = useState("");
   const [pwMsg, setPwMsg] = useState<string | null>(null);
 
+  if (isProtected) return <span className="text-[11px] text-[var(--muted)]">Superadmin protegido</span>;
   if (isSelf) return <span className="text-[11px] text-[var(--muted)]">vos</span>;
 
   return (
@@ -44,7 +47,7 @@ export function UserRowActions({
             ) : null}
             <div>
               <Label htmlFor="new_pw">Contraseña</Label>
-              <Input id="new_pw" type="text" value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} />
+              <Input id="new_pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} />
               <p className="text-[11px] text-[var(--muted)] mt-1">
                 Se la pasás vos a la persona. Puede cambiarla después.
               </p>

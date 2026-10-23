@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { EmpresaAccessFields } from "./empresa-access-fields";
 import { createEmpresa } from "./actions";
 
 export function EmpresaDialog({ trigger }: { trigger: React.ReactNode }) {
@@ -42,6 +43,7 @@ export function EmpresaDialog({ trigger }: { trigger: React.ReactNode }) {
             <Label htmlFor="slug">Identificador (opcional)</Label>
             <Input id="slug" name="slug" placeholder="se genera del nombre si lo dejás vacío" />
           </div>
+          <EmpresaAccessFields prefix="nueva-empresa" disabled={pending} />
           <p className="text-[11px] text-[var(--muted)]">
             Después de crearla, agregale su primer usuario admin desde la lista.
           </p>
