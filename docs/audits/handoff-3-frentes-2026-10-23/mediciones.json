@@ -1,0 +1,158 @@
+{
+  "before": {
+    "phase": "before",
+    "at": "2026-10-23T04:17:42.238Z",
+    "backend": "QA kyiihlkncatojvlasoag",
+    "runtime": "local next start (production build)",
+    "rows": [
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 799,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 1690,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 818,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 774,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 765,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 798,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 787,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 718,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 678,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 1510
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 1128
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 991
+      }
+    ],
+    "stayedOnProjects": true
+  },
+  "after": {
+    "phase": "pipeline",
+    "at": "2026-10-23T10:52:51.434Z",
+    "backend": "QA kyiihlkncatojvlasoag",
+    "runtime": "local next start (production build)",
+    "rows": [
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 693,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 987,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "full-page",
+        "ms": 844,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 689,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 733,
+        "status": 200
+      },
+      {
+        "route": "/stock",
+        "kind": "full-page",
+        "ms": 660,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 682,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 634,
+        "status": 200
+      },
+      {
+        "route": "/inventario",
+        "kind": "full-page",
+        "ms": 617,
+        "status": 200
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 383
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 271
+      },
+      {
+        "route": "/projects",
+        "kind": "warm-click",
+        "ms": 219
+      }
+    ],
+    "stayedOnProjects": true
+  }
+}

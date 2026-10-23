@@ -169,3 +169,14 @@ No se borró ningún worktree. Los commits exclusivos se cuentan contra el basel
 - Todo rescate debe aparecer primero en `RESCUE-ALLOWLIST.md`, con commit, archivo o hunk exacto y batch destino.
 - No borrar ramas, worktrees ni stashes hasta que no quede ningún `PENDING REVIEW`.
 - Después de absorber una pieza, reemplazar su estado por `ABSORBED BY <SHA>`; si queda superada, usar `SUPERSEDED BY <SHA/path>`; si se descarta, registrar el motivo.
+
+
+## Registro puntual - handoff 2026-10-23
+
+Trabajo en checkout existente C:/e2e-main, rama main, por instruccion expresa del usuario.
+- 143785a: prueba documental publicada con excepcion puntual autorizada. Proteccion restaurada e identica al snapshot anterior.
+- ff70694c: navegacion/precarga/claims, local.
+- b2edeee3: usuarios/planes y migracion aplicada solo en QA, local.
+- 125d9050: Select comun en instructivo, local.
+No se mueve ningun tag ni se incorpora ninguna rama historica. Se preservan los 227 archivos previos del E2E.
+La autorizacion de push usada estaba limitada a 143785a; publicacion del candidato y promocion siguen pendientes.

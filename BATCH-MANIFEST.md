@@ -1,4 +1,18 @@
-# Batch — manual y práctica interactiva de obra (vigente)
+# Handoff de tres frentes — candidato en main
+
+- Fecha: 2026-10-23. Base c027ec23. Checkout existente C:\e2e-main, por instrucción expresa del usuario: trabajar en main sin ramas ni worktrees nuevos.
+- El alcance se registró antes del código en docs/audits/handoff-3-frentes-2026-10-23/PLAN-Y-RESULTADO.md. Lista exacta de archivos: ALCANCE.json en esa carpeta.
+- C: autoAssignCustomDomains=false únicamente en control-de-facturas. Prueba documental 143785a publicada con excepción puntual expresamente autorizada; protección completa restaurada e idéntica al estado previo. El dominio bay conserva c027ec23 y el nuevo build está READY.
+- B: claims verificados con perfil activo fresco; precarga de Proyectos, Materiales e Inventario con permisos; consultas independientes en paralelo; esqueletos y protección frente a respuestas tardías.
+- A: usuarios por empresa con guardas de autoexclusión, superadmin, operaciones vinculadas y último administrador; plan/módulos solo para superadmin. Migración aditiva 20261023041952_tenant_user_management_guards.sql aplicada y probada exclusivamente en QA.
+- Regresión encontrada en la suite: dos selectores nativos del instructivo de c027ec23; se ajustan al Select común y se conserva la auditoría de red por IDs exactos de loaders de lectura.
+- Validación: build/TypeScript, lint, suite completa y navegador QA. Detalles y mediciones en el informe del alcance.
+- Se preservan por SHA-256 los 227 archivos previos del E2E. No se integran commits históricos ni se modifican otros proyectos, ramas o worktrees. Configuración permanente de hooks y protección remota: preservada.
+- Publicación de implementación, migración en producción, promoción e invitación de la hermana: pendientes; la autorización de push utilizada estaba limitada a 143785a.
+
+---
+
+# Batch — manual y práctica interactiva de obra (histórico)
 
 - Rama: `batch/obra-manual-interactivo-842ac721`.
 - Base y HEAD inicial: `842ac7218a031d4c09212464fd683d8455b323d5` (origin/main verificado).
