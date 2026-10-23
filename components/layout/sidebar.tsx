@@ -61,7 +61,7 @@ import { cn } from "@/lib/cn";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
-import { SHELL_PATHS } from "./app-shell-client";
+import { SHELL_PATHS, prefetchShellSection, cancelShellPrefetch } from "@/lib/navigation/sections";
 import { workspaceForPath } from "./workspace";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
@@ -568,6 +568,7 @@ export function Sidebar({
       : null;
 
     function handleClick(e: React.MouseEvent) {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       setOpenSection(null);
       if (isShellPath) {
         e.preventDefault();
@@ -579,6 +580,12 @@ export function Sidebar({
       <Link
         key={item.href}
         href={item.href}
+        prefetch={isShellPath ? false : undefined}
+        onMouseEnter={() => prefetchShellSection(item.href)}
+        onFocus={() => prefetchShellSection(item.href)}
+        onTouchStart={() => prefetchShellSection(item.href)}
+        onMouseLeave={() => cancelShellPrefetch(item.href)}
+        onBlur={() => cancelShellPrefetch(item.href)}
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
         data-nav-level={level}

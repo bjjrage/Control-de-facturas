@@ -1,3 +1,17 @@
+# Navegación sin precarga masiva — main 9b1f0017
+
+- Fecha: 2026-10-23. Trabajo autorizado en el checkout principal de main, sin crear ramas ni worktrees.
+- Objetivo: compartir lecturas pendientes, precargar por intención y dar prioridad a la navegación; conservar revalidación tras mutaciones y aislamiento por sesión/permisos.
+- Alcance: este manifest; `components/layout/app-shell-client.tsx`; `components/layout/sidebar.tsx`; `components/layout/topbar.tsx`; `app/(internal)/layout.tsx`; `lib/navigation/sections.ts`; `lib/navigation/section-requests.ts`; `lib/navigation/section-requests.spec.ts`; `scripts/qa/shell-navigation-browser.cjs`.
+- Pruebas previstas: deduplicación, reintentos, invalidación de respuestas anteriores a una mutación; navegador aislado con loaders simulados para navegación rápida, historial, precarga, modificadores y refresco; TypeScript y lint del alcance.
+- `AGENTS.md`: se conserva el ajuste automático de nivel de encabezado generado por `next dev`, según las instrucciones del propio archivo; sin cambios a sus reglas.
+- Sin migraciones, cambios a permisos del servidor, dependencias nuevas ni otros proyectos. Publicación autorizada expresamente: commit y push de este arreglo desde main, excepción puntual y restauración inmediata de la protección, seguida de promoción en control-de-facturas-bay.vercel.app.
+- Resultado: TypeScript y lint PASS; 48 pruebas dirigidas PASS; 11 escenarios de navegador aislado PASS. Next real en QA `kyiihlkncatojvlasoag`: 6 escenarios PASS, una lectura por transición/historial y una lectura fresca por `router.refresh`, cero errores JS y escrituras de negocio. Servidor local detenido al terminar.
+- Límite de la comprobación real: el runtime ya instalado es Next 16.3.8; el lockfile declara 16.4.2. No se cambió la versión de Next ni se midió una mejora porcentual en producción. Se restauraron únicamente dependencias ausentes con sus versiones exactas del lockfile desde el respaldo verificado.
+- Evidencia local fuera del repo: `navigation-browser-results.json`, `navigation-qa/` y `navigation-release/` en `C:\Users\User\.codex\visualizations\2026\10\19\01a15661-d283-71a1-8bb1-f00bf370a953`. Base verificada: HEAD y origin/main en 9b1f0017; revisión final del alcance PASS, 10 archivos esperados y ningún cambio ajeno. SHA de publicación y restauración de protección se registran en la evidencia de release.
+
+---
+
 # Handoff de tres frentes — candidato en main
 
 - Fecha: 2026-10-23. Base c027ec23. Checkout existente C:\e2e-main, por instrucción expresa del usuario: trabajar en main sin ramas ni worktrees nuevos.

@@ -1,7 +1,9 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { isSectionPath, type SectionKey } from "@/lib/navigation/sections";
+import { SectionRequests } from "@/lib/navigation/section-requests";
 import { getDashboardData } from "@/app/(internal)/dashboard/section-action";
 import { getInvoicesData } from "@/app/(internal)/invoices/section-action";
 import { getOrdersData } from "@/app/(internal)/orders/section-action";
@@ -27,31 +29,6 @@ import { RfqsSection } from "@/app/(internal)/rfqs/rfqs-section";
 import { ClientesSection } from "@/app/(internal)/clientes/clientes-section";
 import { CobrosSection } from "@/app/(internal)/cobros/cobros-section";
 import { SalesListSection } from "@/app/(internal)/ventas/_components/sales-list-section";
-
-// Paths that AppShell manages client-side (keep-alive + instant navigation).
-// Must match the nav items in sidebar.tsx that dispatch niupack:navigate.
-export const SHELL_PATHS = [
-  "/dashboard",
-  "/invoices",
-  "/orders",
-  "/pagos",
-  "/providers",
-  "/rfqs",
-  "/clientes",
-  "/proformas",
-  "/remisiones",
-  "/facturas-venta",
-  "/cobros",
-  "/projects",
-  "/stock",
-  "/inventario",
-] as const;
-
-type SectionKey = (typeof SHELL_PATHS)[number];
-
-function isSectionPath(path: string): path is SectionKey {
-  return (SHELL_PATHS as readonly string[]).includes(path);
-}
 
 type SectionLoader = () => Promise<ReactNode>;
 
@@ -107,166 +84,156 @@ const LOADERS: Record<SectionKey, SectionLoader> = {
 
 export function AppShellClient({ children, warmPaths }: { children: ReactNode; warmPaths: readonly string[] }) {
   const pathname = usePathname();
-  const initialServerPath = useRef(pathname);
   const [mode, setMode] = useState<"server" | "loading" | "client">("server");
   const [activePath, setActivePath] = useState<SectionKey | null>(null);
   const [sections, setSections] = useState<Map<SectionKey, ReactNode>>(new Map());
-
-  // Ref so event handlers always see the latest sections without stale closures.
+  const [requests] = useState(() => new SectionRequests<SectionKey, ReactNode>((path) => LOADERS[path]()));
+  // Prefetch stores nodes without mounting screens or running their effects.
+  const snapshotsRef = useRef<Map<SectionKey, ReactNode>>(new Map());
   const sectionsRef = useRef<Map<SectionKey, ReactNode>>(new Map());
+  const serverRenderRef = useRef({ pathname, children });
+  const clientNavigationRef = useRef<string | null>(null);
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefetchTargetRef = useRef<string | null>(null);
 
-  // niupack:navigate — fired by sidebar buttons for shell-managed sections.
-  useEffect(() => {
-    const handler = async (e: Event) => {
-      const path = (e as CustomEvent<string>).detail as SectionKey;
-      if (!isSectionPath(path)) return;
-      window.history.pushState({}, "", path);
+  const stopPrefetch = useCallback(() => {
+    if (prefetchTimerRef.current !== null) clearTimeout(prefetchTimerRef.current);
+    prefetchTimerRef.current = null;
+    prefetchTargetRef.current = null;
+  }, []);
 
-      // Stale-while-revalidate: si ya tenemos la sección, se muestra al
-      // instante (sin skeleton) y igual se re-fetcha por detrás; cuando llega
-      // la data fresca se reemplaza el nodo. Así la navegación se siente
-      // inmediata sin quedar mostrando datos viejos — p. ej. una factura que
-      // se marcó apta para pago desde otra pantalla.
-      const cached = sectionsRef.current.has(path);
-      setActivePath(path);
-      setMode(cached ? "client" : "loading");
-      try {
-        const node = await LOADERS[path]();
+  const readSnapshot = useCallback(async (path: SectionKey) => {
+    const node = await requests.read(path);
+    if (node !== undefined) snapshotsRef.current.set(path, node);
+    return node;
+  }, [requests]);
+
+  const openSection = useCallback(async (path: SectionKey, serverReady = false) => {
+    stopPrefetch();
+    const cached = snapshotsRef.current.has(path);
+    if (cached) {
+      sectionsRef.current.set(path, snapshotsRef.current.get(path));
+      setSections(new Map(sectionsRef.current));
+    }
+    setActivePath(path);
+    setMode(cached ? "client" : serverReady ? "server" : "loading");
+    try {
+      // Navigation, intent prefetch and route synchronization share this read.
+      const node = await readSnapshot(path);
+      if (node === undefined) return; // Invalidated by a newer server render.
+      if (window.location.pathname === path || sectionsRef.current.has(path)) {
         sectionsRef.current.set(path, node);
         setSections(new Map(sectionsRef.current));
-        if (window.location.pathname === path) {
-          setActivePath(path);
-          setMode("client");
-        }
-      } catch {
-        // Si ya había algo en pantalla lo dejamos; si no, que Next.js
-        // renderice la página normalmente.
-        if (!cached && window.location.pathname === path) {
-          setMode("server");
-          window.location.href = path;
-        }
       }
-    };
-    window.addEventListener("niupack:navigate", handler);
-    return () => window.removeEventListener("niupack:navigate", handler);
-  }, []); // stable: only refs + state setters used inside
-
-  // popstate — browser back/forward through our pushState history entries.
-  useEffect(() => {
-    const handler = async () => {
-      const path = window.location.pathname;
-      if (isSectionPath(path)) {
-        // Mismo stale-while-revalidate que en niupack:navigate.
-        const cached = sectionsRef.current.has(path);
+      // A late response may warm its route, but cannot take over another page.
+      if (window.location.pathname === path) {
         setActivePath(path);
-        setMode(cached ? "client" : "loading");
-        try {
-          const node = await LOADERS[path]();
-          sectionsRef.current.set(path, node);
-          setSections(new Map(sectionsRef.current));
-          if (window.location.pathname === path) {
-            setActivePath(path);
-            setMode("client");
-          }
-        } catch {
-          if (!cached) setMode("server");
-        }
+        setMode("client");
+      }
+    } catch {
+      if (!cached && window.location.pathname === path) {
+        setMode("server");
+        if (!serverReady) window.location.assign(path);
+      }
+    }
+  }, [readSnapshot, stopPrefetch]);
+
+  // Both history events and Link clicks enter through the same foreground path.
+  useEffect(() => {
+    const navigate = (e: Event) => {
+      const path: unknown = (e as CustomEvent<unknown>).detail;
+      if (typeof path !== "string" || !isSectionPath(path)) return;
+      clientNavigationRef.current = path;
+      if (window.location.pathname !== path) window.history.pushState({}, "", path);
+      void openSection(path);
+    };
+    const popstate = () => {
+      const path = window.location.pathname;
+      clientNavigationRef.current = path;
+      stopPrefetch();
+      if (isSectionPath(path)) {
+        void openSection(path);
       } else {
-        // Not a shell path — reveal the server-rendered workspace immediately.
         setActivePath(null);
         setMode("server");
       }
     };
-    window.addEventListener("popstate", handler);
-    return () => window.removeEventListener("popstate", handler);
-  }, []); // stable: only refs + state setters
+    window.addEventListener("niupack:navigate", navigate);
+    window.addEventListener("popstate", popstate);
+    return () => {
+      window.removeEventListener("niupack:navigate", navigate);
+      window.removeEventListener("popstate", popstate);
+    };
+  }, [openSection, stopPrefetch]);
 
-  // Detect real Next.js navigations: <Link> clicks (e.g. "← Volver a
-  // Órdenes"), router.push, or redirect() from a server action (e.g. after
-  // deleting something and returning to the list). usePathname() updates
-  // for real Next.js navigations. The URL remains the source of truth even
-  // if the browser/Next runtime also observes history.pushState.
-  //
-  // If the destination is a shell path, load its live client section instead
-  // of falling back to the plain server-rendered page — that copy is a
-  // separate, older implementation kept only for direct/first-load access,
-  // and can be stale right after a mutation (e.g. a delete redirecting back
-  // to the list wouldn't reflect the removed row). Always re-fetch rather
-  // than reuse a cached copy, since a real navigation here usually means
-  // something just changed server-side.
   useEffect(() => {
-    // La URL es siempre la fuente de verdad. Si salimos del shell rápido
-    // (p. ej. Administración -> Operativo/Licitaciones), mostramos de inmediato
-    // el contenido server de la nueva ruta. Nunca dejamos un panel keep-alive
-    // viejo tapando el workspace nuevo.
+    const previous = serverRenderRef.current;
+    serverRenderRef.current = { pathname, children };
+    const serverChanged = previous.children !== children;
+    // Initial SSR already has the data; don't request that page again on mount.
+    if (previous.pathname === pathname && !serverChanged) return;
+
+    stopPrefetch();
+    if (serverChanged) {
+      // revalidatePath/router.refresh can follow a save/delete. Neither cached
+      // data nor a request that began before that response may override it.
+      requests.invalidate();
+      snapshotsRef.current.clear();
+    }
     if (!isSectionPath(pathname)) {
-      // Switching shell mode is an intentional synchronization with the route.
+      // Synchronize the keep-alive view when Next leaves the shell.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePath(null);
       setMode("server");
       return;
     }
+    // Native history can notify usePathname before our popstate listener runs.
+    // Let all listeners finish before deciding this needs a separate read.
+    if (!serverChanged) {
+      const timer = setTimeout(() => {
+        if (window.location.pathname !== pathname || clientNavigationRef.current === pathname) return;
+        void openSection(pathname, true);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    clientNavigationRef.current = null;
+    void openSection(pathname, true);
+  }, [pathname, children, openSection, requests, stopPrefetch]);
 
-    const path = pathname;
-    // Keep an already warmed section visible while its fresh read runs.
-    setMode((current) => {
-      if (sectionsRef.current.has(path)) return "client";
-      return current === "server" && initialServerPath.current === path ? "server" : "loading";
-    });
-    setActivePath(path);
-
-    LOADERS[path]()
-      .then((node) => {
-        // Cacheamos aunque el usuario haya navegado mientras cargaba.
-        sectionsRef.current.set(path, node);
-        setSections(new Map(sectionsRef.current));
-
-        // Pero solo activamos esta sección si la URL TODAVÍA corresponde.
-        // Esto evita que una respuesta tardía de Administración tape Obras.
-        if (window.location.pathname === path) {
-          setActivePath(path);
-          setMode("client");
-        }
-      })
-      .catch(() => {
-        if (window.location.pathname === path) {
-          setActivePath(null);
-          setMode("server");
-        }
-      });
-  // A successful Server Action refreshes the RSC children without changing
-  // pathname. Reload our separate keep-alive snapshot on that response too.
-  }, [pathname, children]);
-
-  // A stable scalar avoids restarting a sweep when RSC returns an equivalent array.
   const warmKey = warmPaths.join("|");
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") return;
-    let cancelled = false;
-    const currentPath = window.location.pathname;
     const allowed = new Set(warmKey.split("|"));
-    // The route effect already loads the current section. Background responses
-    // only fill the cache; they must never activate a route or navigate.
-    const ordered = SHELL_PATHS.filter((p) => allowed.has(p) && p !== currentPath);
-    async function warmAll() {
-      for (const path of ordered) {
-        if (cancelled) return;
-        if (sectionsRef.current.has(path)) continue;
-        try {
-          const node = await LOADERS[path]();
-          if (cancelled) return;
-          if (!sectionsRef.current.has(path)) {
-            sectionsRef.current.set(path, node);
-            setSections(new Map(sectionsRef.current));
-          }
-        } catch {
-          // On-demand navigation will retry and handle authorization/errors.
-        }
-      }
-    }
-    void warmAll();
-    return () => { cancelled = true; };
-  }, [warmKey]);
+    const prefetch = (e: Event) => {
+      const path: unknown = (e as CustomEvent<unknown>).detail;
+      if (typeof path !== "string") return;
+      if (!isSectionPath(path)) return;
+      stopPrefetch();
+      if (!allowed.has(path) || path === window.location.pathname || snapshotsRef.current.has(path)) return;
+      const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+      if (connection?.saveData || document.visibilityState === "hidden") return;
+      prefetchTargetRef.current = path;
+      prefetchTimerRef.current = setTimeout(() => {
+        prefetchTimerRef.current = null;
+        prefetchTargetRef.current = null;
+        // Actions serialize in Next. Never enqueue background reads behind a
+        // foreground read (or another prefetch), and never sweep all modules.
+        if (requests.busy || window.location.pathname === path) return;
+        void readSnapshot(path).catch(() => { /* Navigation can retry. */ });
+      }, 180);
+    };
+    const cancel = (e: Event) => {
+      if ((e as CustomEvent<unknown>).detail === prefetchTargetRef.current) stopPrefetch();
+    };
+    window.addEventListener("niupack:prefetch", prefetch);
+    window.addEventListener("niupack:cancel-prefetch", cancel);
+    return () => {
+      stopPrefetch();
+      window.removeEventListener("niupack:prefetch", prefetch);
+      window.removeEventListener("niupack:cancel-prefetch", cancel);
+    };
+  }, [warmKey, readSnapshot, requests, stopPrefetch]);
+
+  useEffect(() => () => { requests.invalidate(); }, [requests]);
 
   const showSections = mode === "client";
 

@@ -9,7 +9,7 @@ import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
-import { SHELL_PATHS } from "./app-shell-client";
+import { SHELL_PATHS, prefetchShellSection, cancelShellPrefetch } from "@/lib/navigation/sections";
 import { ThemeSwitcher } from "./theme-switcher";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
@@ -51,6 +51,12 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
           <Link
             key={item.key}
             href={WORKSPACE_HOME[item.key]}
+            prefetch={(SHELL_PATHS as readonly string[]).includes(WORKSPACE_HOME[item.key]) ? false : undefined}
+            onMouseEnter={() => prefetchShellSection(WORKSPACE_HOME[item.key])}
+            onFocus={() => prefetchShellSection(WORKSPACE_HOME[item.key])}
+            onTouchStart={() => prefetchShellSection(WORKSPACE_HOME[item.key])}
+            onMouseLeave={() => cancelShellPrefetch(WORKSPACE_HOME[item.key])}
+            onBlur={() => cancelShellPrefetch(WORKSPACE_HOME[item.key])}
             onClick={(event) => {
               const path = WORKSPACE_HOME[item.key];
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

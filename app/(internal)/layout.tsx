@@ -45,7 +45,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           showLicitaciones={showLicitaciones}
         />
         <main className="erp-main relative flex-1 min-w-0 p-5 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_70%_0%,rgba(72,119,214,.08),transparent_28%)]">
-          <div className="relative z-[1]"><AppShellClient warmPaths={warmPaths}>{children}</AppShellClient></div>
+          <div className="relative z-[1]"><AppShellClient key={`${profile.id}:${profile.empresa_id}:${profile.role}:${profile.is_super_admin}:${profile.plan}:${profile.modulo_compras}:${profile.modulo_ventas}`} warmPaths={warmPaths}>{children}</AppShellClient></div>
         </main>
       </div>
       <AdminRailPanel role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
