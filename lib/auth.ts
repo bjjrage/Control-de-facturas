@@ -15,22 +15,23 @@ export type CurrentProfile = Profile & {
 
 /**
  * Deduped per request: the layout and the page both call requireProfile(), and
- * without cache() that's two auth.getUser() round-trips + two profile queries on
+ * without cache() that would verify the token and read the profile twice on
  * every single navigation.
  */
 export const getCurrentProfile = cache(async function getCurrentProfile(): Promise<CurrentProfile | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // getClaims verifies the JWT signature/expiry (JWKS; Auth fallback for HS256).
+  // Authorization still comes from a fresh database profile, never JWT metadata.
+  const { data: verified, error } = await supabase.auth.getClaims();
+  const userId = verified?.claims?.sub;
+  if (error || typeof userId !== "string" || !userId) return null;
 
   // `empresas(*)` en vez de columnas explícitas: si la migración 0020 todavía
   // no corrió, modulo_* llega undefined y caemos al default, sin romper el login.
   const { data } = await supabase
     .from("profiles")
     .select("*, empresas(*)")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
   if (!data) return null;
 

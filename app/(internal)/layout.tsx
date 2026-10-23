@@ -21,6 +21,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const purchasing = profile.modulo_compras && ["comercial", "administracion", "admin"].includes(profile.role);
   const warmPaths = [
     "/dashboard",
+    ...(showOperativo ? ["/projects"] : []),
+    ...(showOperativo && (profile.modulo_compras || profile.is_super_admin) ? ["/stock", "/inventario"] : []),
     ...(administrative ? ["/invoices", "/pagos"] : []),
     ...(profile.role === "admin" ? ["/providers"] : []),
     ...(purchasing ? ["/orders", "/rfqs"] : []),

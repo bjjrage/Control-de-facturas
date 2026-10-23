@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 const mocks=vi.hoisted(()=>({ user: {id:"authorized-local"} as {id:string}|null, profile: null as Record<string,unknown>|null, climate:vi.fn().mockResolvedValue({processed:0}), tender:vi.fn().mockResolvedValue({processed:0}), admin:vi.fn().mockReturnValue({}), scan:vi.fn() }));
 vi.mock("react",()=>({cache:(fn:unknown)=>fn}));
 vi.mock("next/navigation",()=>({redirect:(path:string)=>{throw new Error(`redirect:${path}`)},notFound:()=>{throw new Error("not-found")}}));
-vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:mocks.user}})},from:()=>({select:()=>({eq:()=>({single:async()=>({data:mocks.profile})})})})})}));
+vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getClaims:async()=>({data:mocks.user?{claims:{sub:mocks.user.id}}:null,error:null})},from:()=>({select:()=>({eq:()=>({single:async()=>({data:mocks.profile})})})})})}));
 vi.mock("@supabase/ssr",()=>({createServerClient:()=>({auth:{getUser:async()=>({data:{user:null}})}})}));
 vi.mock("@/lib/supabase/admin",()=>({createAdminClient:mocks.admin}));
 vi.mock("@/lib/procurement/climate-evaluation-runner",()=>({runClimateEvaluationBatch:mocks.climate}));

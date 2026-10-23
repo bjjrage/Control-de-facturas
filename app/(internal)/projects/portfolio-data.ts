@@ -53,37 +53,47 @@ function asProjectListRows(projects: Project[], rows: PortfolioRow[]): ProjectLi
 export async function getProjectsPortfolioData(profile?: CurrentProfile): Promise<ProjectsPortfolioData> {
   const p = profile ?? (await requirePlan("pro", ["administracion", "admin"]));
   const supabase = await createClient();
-  const complete=async(query:any,order="id")=>({data:await readAll<any>((from,to)=>query.order(order).range(from,to))});
-  const { data: projectData } = await complete(supabase
+  const complete = async <T,>(query: {
+    order: (column: string) => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null; count?: number | null }> };
+  }, order = "id") => ({ data: await readAll<T>((from, to) => query.order(order).range(from, to)) });
+  const isCaterpillar = p.plan === "caterpillar" || p.is_super_admin;
+  async function projectsWithDetails() {
+    const { data: projectData } = await complete(supabase
     .from("projects")
     .select("*",{count:"exact"})
     .eq("empresa_id", p.empresa_id)
     .order("created_at", { ascending: false })
     .returns<Project[]>());
+    const projects = projectData ?? [];
+    const projectIds = projects.map((project) => project.id);
+    const emptyRows = Promise.resolve({ data: [] as unknown[] });
 
-  const projects = projectData ?? [];
-  const projectIds = projects.map((project) => project.id);
-  const isCaterpillar = p.plan === "caterpillar" || p.is_super_admin;
-  const emptyRows = Promise.resolve({ data: [] as unknown[] });
+    const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: certificates }, pendingResult] = await Promise.all([
+      projectIds.length > 0
+        ? complete(supabase.from("budget_items").select("id, project_id, quantity, subtotal",{count:"exact"}).in("project_id", projectIds))
+        : emptyRows,
+      projectIds.length > 0
+        ? complete(supabase.from("authorized_orders").select("id, project_id, total_price, currency",{count:"exact"}).eq("empresa_id",p.empresa_id).in("project_id", projectIds).eq("currency", "PYG"))
+        : emptyRows,
+      projectIds.length > 0
+        ? complete(supabase.from("execution_entries").select("id, project_id, budget_item_id, quantity_executed",{count:"exact"}).in("project_id", projectIds))
+        : emptyRows,
+      projectIds.length > 0
+        ? complete(supabase.from("project_certificates").select("id, project_id, numero, monto_acumulado",{count:"exact"}).in("project_id", projectIds))
+        : emptyRows,
+      isCaterpillar && projectIds.length > 0
+        ? supabase.from("subcontractor_certificates").select("id", { count: "exact", head: true }).in("project_id", projectIds).eq("status", "PENDIENTE")
+        : Promise.resolve({ data: null, count: 0 }),
+    ]);
 
-  const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: certificates }, { data: products }, stockResult, pendingResult] = await Promise.all([
-    projectIds.length > 0
-      ? complete(supabase.from("budget_items").select("id, project_id, quantity, subtotal",{count:"exact"}).in("project_id", projectIds))
-      : emptyRows,
-    projectIds.length > 0
-      ? complete(supabase.from("authorized_orders").select("id, project_id, total_price, currency",{count:"exact"}).eq("empresa_id",p.empresa_id).in("project_id", projectIds).eq("currency", "PYG"))
-      : emptyRows,
-    projectIds.length > 0
-      ? complete(supabase.from("execution_entries").select("id, project_id, budget_item_id, quantity_executed",{count:"exact"}).in("project_id", projectIds))
-      : emptyRows,
-    projectIds.length > 0
-      ? complete(supabase.from("project_certificates").select("id, project_id, numero, monto_acumulado",{count:"exact"}).in("project_id", projectIds))
-      : emptyRows,
+    return { projects, budgetItems, orders, executionEntries, certificates, pendingResult };
+  }
+  // Start project-dependent reads as soon as projects resolve, without waiting
+  // for the unrelated material/stock requests to finish.
+  const [{ projects, budgetItems, orders, executionEntries, certificates, pendingResult }, { data: products }, stockResult] = await Promise.all([
+    projectsWithDetails(),
     complete(supabase.from("productos").select("id, stock_minimo",{count:"exact"}).eq("empresa_id", p.empresa_id).eq("activo", true)),
     complete(supabase.from("inventory_stock_global_quantity").select("producto_id, quantity",{count:"exact"}).eq("empresa_id", p.empresa_id),"producto_id"),
-    isCaterpillar && projectIds.length > 0
-      ? supabase.from("subcontractor_certificates").select("id", { count: "exact", head: true }).in("project_id", projectIds).eq("status", "PENDIENTE")
-      : Promise.resolve({ data: null, count: 0 }),
   ]);
 
   if("error" in pendingResult && pendingResult.error) throw new Error("Certificate source unavailable");

@@ -1,0 +1,33 @@
+import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { parse } from "dotenv";
+const env = parse(readFileSync(".env.local"));
+if (env.NEXT_PUBLIC_SUPABASE_URL !== "https://kyiihlkncatojvlasoag.supabase.co") throw Error("QA only");
+const admin = JSON.parse(readFileSync(".qa/users.json", "utf8")).admin_a;
+
+test("warmed projects, materials and inventory preserve route, history and non-shell content", async ({ page }) => {
+  test.setTimeout(90000);
+  await page.goto("/login"); await page.getByLabel("Email", { exact: true }).fill(admin.email);
+  await page.getByLabel("Contraseña", { exact: true }).fill(env.E2E_PASSWORD);
+  await page.getByRole("button", { name: "Ingresar", exact: true }).click(); await page.waitForURL("**/dashboard");
+  await page.locator("h1").filter({ hasText: "Stock e Inventario" }).waitFor({ state: "attached", timeout: 45000 });
+  await page.locator('.workspace-switcher a[href="/projects"]').click(); await page.waitForURL("**/projects");
+  await expect(page.locator("h1:visible")).toHaveText("Operativo · Obras");
+  await page.locator('.workspace-switcher a[href="/dashboard"]').click(); await page.waitForURL("**/dashboard");
+  await expect(page.locator('.workspace-switcher a[href="/dashboard"]')).toHaveClass(/workspace-admin-active/);
+  await page.getByRole("button", { name: "Comprar", exact: true }).click();
+  await page.locator('a[data-nav-level][href="/stock"]:visible').click(); await page.waitForURL("**/stock");
+  await expect(page.locator("h1:visible")).toHaveText("Materiales");
+  await page.goBack(); await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.locator('.workspace-switcher a[href="/dashboard"]')).toHaveClass(/workspace-admin-active/);
+  await page.goForward(); await expect(page).toHaveURL(/\/stock$/);
+  await expect(page.locator("h1:visible")).toHaveText("Materiales");
+  await page.getByRole("button", { name: "Comprar", exact: true }).click();
+  await page.locator('a[data-nav-level][href="/inventario"]:visible').click(); await page.waitForURL("**/inventario");
+  await expect(page.locator("h1:visible")).toHaveText("Stock e Inventario");
+  await page.goto("/instructivo");
+  await expect(page.getByRole("heading", { name: "Aprendé haciendo.", exact: true })).toBeVisible();
+  await page.waitForTimeout(8000);
+  await expect(page).toHaveURL(/\/instructivo$/);
+  await expect(page.getByRole("heading", { name: "Aprendé haciendo.", exact: true })).toBeVisible();
+});

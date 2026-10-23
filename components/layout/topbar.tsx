@@ -9,6 +9,7 @@ import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
+import { SHELL_PATHS } from "./app-shell-client";
 import { ThemeSwitcher } from "./theme-switcher";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
@@ -50,6 +51,13 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
           <Link
             key={item.key}
             href={WORKSPACE_HOME[item.key]}
+            onClick={(event) => {
+              const path = WORKSPACE_HOME[item.key];
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              if (!(SHELL_PATHS as readonly string[]).includes(path)) return;
+              event.preventDefault();
+              window.dispatchEvent(new CustomEvent("niupack:navigate", { detail: path }));
+            }}
             className={cn(
               "flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-medium transition-all duration-150",
               isActive

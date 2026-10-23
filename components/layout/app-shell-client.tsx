@@ -11,6 +11,13 @@ import { getRfqsData } from "@/app/(internal)/rfqs/section-action";
 import { getClientesData } from "@/app/(internal)/clientes/section-action";
 import { getCobrosData } from "@/app/(internal)/cobros/section-action";
 import { getSalesListData } from "@/app/(internal)/ventas/_components/sales-list-section-action";
+import { getProjectsData } from "@/app/(internal)/projects/section-action";
+import { getStockData } from "@/app/(internal)/stock/section-action";
+import { getInventarioData } from "@/app/(internal)/inventario/section-action";
+import { ProjectsSection } from "@/app/(internal)/projects/projects-section";
+import { StockSection } from "@/app/(internal)/stock/stock-section";
+import { InventarioGlobalSection } from "@/app/(internal)/inventario/inventario-global-section";
+import { SectionSkeleton } from "./section-skeleton";
 import { DashboardSection } from "@/app/(internal)/dashboard/dashboard-section";
 import { InvoicesSection } from "@/app/(internal)/invoices/invoices-section";
 import { OrdersSection } from "@/app/(internal)/orders/orders-section";
@@ -35,6 +42,9 @@ export const SHELL_PATHS = [
   "/remisiones",
   "/facturas-venta",
   "/cobros",
+  "/projects",
+  "/stock",
+  "/inventario",
 ] as const;
 
 type SectionKey = (typeof SHELL_PATHS)[number];
@@ -46,6 +56,9 @@ function isSectionPath(path: string): path is SectionKey {
 type SectionLoader = () => Promise<ReactNode>;
 
 const LOADERS: Record<SectionKey, SectionLoader> = {
+  "/projects": async () => <ProjectsSection data={await getProjectsData()} />,
+  "/stock": async () => <StockSection {...await getStockData()} />,
+  "/inventario": async () => <InventarioGlobalSection {...await getInventarioData()} />,
   "/dashboard": async () => {
     const data = await getDashboardData();
     return <DashboardSection data={data} />;
@@ -92,45 +105,15 @@ const LOADERS: Record<SectionKey, SectionLoader> = {
   },
 };
 
-function SectionSkeleton() {
-  return (
-    <div className="max-w-5xl space-y-5 animate-pulse">
-      <div className="h-6 w-48 rounded bg-[var(--hover)]" />
-      <div className="grid grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-20 rounded-xl bg-[var(--hover)]" />
-        ))}
-      </div>
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-        <div className="h-10 border-b border-[var(--border)] bg-[var(--panel-2)]" />
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className="h-10 border-b border-[var(--border)] last:border-0 flex items-center px-4 gap-4"
-          >
-            <div className="h-3 w-16 rounded bg-[var(--hover)]" />
-            <div className="h-3 w-48 rounded bg-[var(--hover)]" />
-            <div className="h-3 w-12 rounded bg-[var(--hover)]" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function AppShellClient({ children, warmPaths }: { children: ReactNode; warmPaths: readonly string[] }) {
   const pathname = usePathname();
+  const initialServerPath = useRef(pathname);
   const [mode, setMode] = useState<"server" | "loading" | "client">("server");
   const [activePath, setActivePath] = useState<SectionKey | null>(null);
   const [sections, setSections] = useState<Map<SectionKey, ReactNode>>(new Map());
 
   // Ref so event handlers always see the latest sections without stale closures.
   const sectionsRef = useRef<Map<SectionKey, ReactNode>>(new Map());
-
-  function addSection(path: SectionKey, node: ReactNode) {
-    sectionsRef.current.set(path, node);
-    setSections(new Map(sectionsRef.current));
-  }
 
   // niupack:navigate — fired by sidebar buttons for shell-managed sections.
   useEffect(() => {
@@ -158,7 +141,7 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
       } catch {
         // Si ya había algo en pantalla lo dejamos; si no, que Next.js
         // renderice la página normalmente.
-        if (!cached) {
+        if (!cached && window.location.pathname === path) {
           setMode("server");
           window.location.href = path;
         }
@@ -225,7 +208,11 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
     }
 
     const path = pathname;
-    setMode("loading");
+    // Keep an already warmed section visible while its fresh read runs.
+    setMode((current) => {
+      if (sectionsRef.current.has(path)) return "client";
+      return current === "server" && initialServerPath.current === path ? "server" : "loading";
+    });
     setActivePath(path);
 
     LOADERS[path]()
@@ -251,47 +238,35 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
   // pathname. Reload our separate keep-alive snapshot on that response too.
   }, [pathname, children]);
 
-  // Pre-warm ALL sections in background on first mount — first-click on any
-  // section will be instant. We load the current path first, then the rest.
+  // A stable scalar avoids restarting a sweep when RSC returns an equivalent array.
+  const warmKey = warmPaths.join("|");
   useEffect(() => {
-    // In dev, eager warming competes with Next's on-demand compilation.
     if (process.env.NODE_ENV === "development") return;
-    const currentPath = window.location.pathname as SectionKey;
-
+    let cancelled = false;
+    const currentPath = window.location.pathname;
+    const allowed = new Set(warmKey.split("|"));
+    // The route effect already loads the current section. Background responses
+    // only fill the cache; they must never activate a route or navigate.
+    const ordered = SHELL_PATHS.filter((p) => allowed.has(p) && p !== currentPath);
     async function warmAll() {
-      // Current section first so it's ready soonest.
-      const ordered = [
-        ...SHELL_PATHS.filter((p) => warmPaths.includes(p) && p === currentPath),
-        ...SHELL_PATHS.filter((p) => warmPaths.includes(p) && p !== currentPath),
-      ] as SectionKey[];
-
       for (const path of ordered) {
+        if (cancelled) return;
         if (sectionsRef.current.has(path)) continue;
         try {
           const node = await LOADERS[path]();
+          if (cancelled) return;
           if (!sectionsRef.current.has(path)) {
-            addSection(path, node);
-            // La ruta actual: en cuanto su data fresca está lista, reemplaza
-            // el HTML server-rendered (que puede haber quedado desactualizado
-            // — un refresh directo se quedaba pegado en "server" para
-            // siempre, porque nada más dispara la transición a "client")
-            // por el componente vivo del shell.
-            // Guard: solo activar si el usuario no navegó a otro path mientras
-            // warmAll corría en background (evita sobrescribir una navegación
-            // explícita a una ruta fuera del shell, como /invoices/revision).
-            if (path === currentPath && window.location.pathname === currentPath) {
-              setActivePath(path);
-              setMode("client");
-            }
+            sectionsRef.current.set(path, node);
+            setSections(new Map(sectionsRef.current));
           }
         } catch {
-          // ignore — section will load on demand when clicked
+          // On-demand navigation will retry and handle authorization/errors.
         }
       }
     }
-
-    warmAll();
-  }, [warmPaths]);
+    void warmAll();
+    return () => { cancelled = true; };
+  }, [warmKey]);
 
   const showSections = mode === "client";
 
