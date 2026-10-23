@@ -5,6 +5,8 @@ Rama local: `batch/security-main-798985d`.
 
 **Fix implementado para SEC-01, SEC-02, SEC-03 y SEC-04, publicado en el [PR #41](https://github.com/bjjrage/Control-de-facturas/pull/41).** El candidato de código `d85bfb49a56b0420f1cb935043d2202dd0733e1e` se probó localmente contra el Supabase de QA; ambas migraciones se aplicaron allí y las nueve pruebas de integración seleccionadas pasaron. Ver [QA_RESULTADO.md](QA_RESULTADO.md) para alcance, evidencia y límites. Main y producción no se modificaron; no hubo merge, despliegue ni envíos de correo.
 
+Ampliación posterior autorizada: se recuperó el estilo pendiente de las tarjetas del Plan Semanal sobre 0535e5a0, reutilizando el CSS original de costeo. Nuevo build/TypeScript aprobado, 85/85 tests existentes aprobados y verificación visual autenticada en QA. El backend de seguridad y las migraciones permanecen idénticos; no se incorporó la rama antigua del scanner. Evidencia y limitaciones móviles en [UI_TARJETAS_RESULTADO.md](UI_TARJETAS_RESULTADO.md).
+
 ## Cambios
 
 | Hallazgo | Corrección |

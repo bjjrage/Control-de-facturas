@@ -11,6 +11,11 @@ Corregir SEC-01 scanner, SEC-02 versión de Next, SEC-03 Gmail y SEC-04 plantill
 
 ## Archivos previstos
 
+Ampliación autorizada el 22/10/2026: recuperar únicamente el cambio de estilo de las tarjetas de bloques del Plan Semanal que quedó local en `weekly-block-card-style`, sobre el candidato vigente del PR #41. Reutilizar `costeo-checklist.module.css` sin modificarlo; cambiar solo clases/presentación del componente y agregar `weekly-plan-blocks.module.css`. No incorporar la página de preview ni cambios de lógica, scanner, migraciones u otras ramas. Publicar el resultado verificado en este PR, sin merge ni despliegue. Verificación: build/TypeScript, suites existentes de Plan Semanal y navegador autenticado local contra QA en escritorio/móvil, temas oscuro/claro y estados hover/foco.
+
+- `app/(internal)/projects/[id]/weekly-plan-section.tsx` y `weekly-plan-blocks.module.css`: hunks visuales exactos del trabajo preservado.
+- `docs/audits/security-main-798985d/UI_TARJETAS_RESULTADO.md`: evidencia y límites del cambio visual; actualizar referencias del resultado de QA para distinguir los candidatos.
+
 - `package.json`, `package-lock.json`: Next y configuración ESLint compatible; dependencias necesarias para sanear HTML.
 - `app/api/scanner/status/[id]/route.ts`, helpers de autorización/servicio scanner, `app/(internal)/invoices/actions.ts` para validar la referencia consumida al crear factura, y `lib/tools/erp/get-scanner-session-overview.ts`/pruebas para mantener lecturas explícitas de columnas seguras.
 - `app/(internal)/agent/approval-actions.ts`, helpers de aprobación/envío Gmail y sus pruebas.
@@ -30,12 +35,15 @@ Las migraciones se verifican localmente y en el proyecto QA autorizado; no se ap
 - app/(internal)/configuracion/actions.ts
 - app/(internal)/configuracion/template-editor.tsx
 - app/(internal)/invoices/actions.ts
+- app/(internal)/projects/[id]/weekly-plan-section.tsx
+- app/(internal)/projects/[id]/weekly-plan-blocks.module.css
 - app/api/scanner/session/route.ts
 - app/api/scanner/status/[id]/route.ts
 - app/api/scanner/upload/route.ts
 - docs/audits/security-main-798985d/BATCH-MANIFEST.md
 - docs/audits/security-main-798985d/RESULTADO.md
 - docs/audits/security-main-798985d/QA_RESULTADO.md
+- docs/audits/security-main-798985d/UI_TARJETAS_RESULTADO.md
 - docs/audits/security-main-798985d/gmail-result.md
 - docs/audits/security-main-798985d/scanner-result.md
 - docs/audits/security-main-798985d/templates-result.md
@@ -64,4 +72,4 @@ Las migraciones se verifican localmente y en el proyecto QA autorizado; no se ap
 
 ## Cierre local
 
-Build y tipado aprobados; Vitest consolidado: 2.496 PASS, 16 omitidos, cero fallos pendientes. Sin hallazgos de lint nuevos frente a la base. Las dos migraciones se aplicaron únicamente a QA; nueve pruebas seleccionadas de integración aprobadas. No hay commits históricos añadidos ni integración de otras ramas. Código publicado en d85bfb4 y PR #41; la documentación posterior no cambia ese código. Resultado detallado en RESULTADO.md y QA_RESULTADO.md.
+Build y tipado aprobados; Vitest consolidado de seguridad: 2.496 PASS, 16 omitidos, cero fallos pendientes. Sin hallazgos de lint nuevos frente a la base. Las dos migraciones se aplicaron únicamente a QA; nueve pruebas seleccionadas de integración aprobadas sobre d85bfb4. La ampliación visual posterior se validó con un nuevo build/TypeScript, 85/85 tests existentes y navegador autenticado contra QA; backend y migraciones sin cambios frente a 0535e5a0. No hay commits históricos añadidos ni integración de otras ramas. El PR #41 reúne el fix y los hunks visuales recuperados; resultado detallado en RESULTADO.md, QA_RESULTADO.md y UI_TARJETAS_RESULTADO.md.

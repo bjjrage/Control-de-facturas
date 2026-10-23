@@ -6,6 +6,7 @@ Fecha de cierre: 22/10/2026, America/Asuncion.
 - Base verificada: `798985d355fb8ed96796237e6f198c172db98709`.
 - Candidato de código probado: `d85bfb49a56b0420f1cb935043d2202dd0733e1e`.
 - Rama: `batch/security-main-798985d`. El commit posterior contiene solo esta evidencia y actualizaciones de los informes.
+- Esta sección registra la validación del candidato de seguridad d85bfb4 y la publicación documental 0535e5a0. La ampliación visual autorizada después recupera dos archivos de tarjetas y tiene verificación propia en [UI_TARJETAS_RESULTADO.md](UI_TARJETAS_RESULTADO.md); no cambia backend ni migraciones. Las nueve pruebas históricas de esta sección no se presentan como repetidas sobre ese nuevo commit visual.
 - Único backend modificado: Supabase QA `kyiihlkncatojvlasoag`.
 - App: build de producción de Next 16.4.2 ejecutado localmente en `http://localhost:3039`, conectado a QA. No se desplegó una app ni un worker.
 

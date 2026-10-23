@@ -1,0 +1,13 @@
+.list {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.block {
+  composes: row from "./costeo-checklist.module.css";
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
