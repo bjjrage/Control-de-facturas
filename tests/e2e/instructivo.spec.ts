@@ -16,6 +16,9 @@ const warmLoaders=new Map([
   ["app/(internal)/rfqs/section-action.ts","getRfqsData"],
   ["app/(internal)/clientes/section-action.ts","getClientesData"],
   ["app/(internal)/cobros/section-action.ts","getCobrosData"],
+  ["app/(internal)/projects/section-action.ts","getProjectsData"],
+  ["app/(internal)/stock/section-action.ts","getStockData"],
+  ["app/(internal)/inventario/section-action.ts","getInventarioData"],
   ["app/(internal)/ventas/_components/sales-list-section-action.ts","getSalesListData"]
 ]);
 const manifestPath=resolve(".next/server/server-reference-manifest.json");
@@ -88,9 +91,11 @@ test("validación, filtros, enlaces profundos y recorrido completo",async({page}
   await page.getByLabel("Buscar una tarea",{exact:true}).fill("scanner");
   await expect(page.locator("[data-guide]")).toHaveCount(2);
   await page.getByLabel("Buscar una tarea",{exact:true}).fill("");
-  await page.getByLabel("Filtrar por rol",{exact:true}).selectOption("Comercial");
+  await page.getByLabel("Filtrar por rol",{exact:true}).click();
+  await page.getByRole("option",{name:"Comercial",exact:true}).click();
   await expect(page.locator('[data-guide="personal"]')).toHaveCount(0);
-  await page.getByLabel("Filtrar por rol",{exact:true}).selectOption("");
+  await page.getByLabel("Filtrar por rol",{exact:true}).click();
+  await page.getByRole("option",{name:"Todos los roles",exact:true}).click();
   await page.locator('[data-guide="presupuesto"]').click();
   await page.getByRole("button",{name:/Mapear cantidades y precios/}).click();
   await page.getByLabel("Cantidad",{exact:true}).fill("11");await page.getByLabel("Precio unitario PYG",{exact:true}).fill("500000");
