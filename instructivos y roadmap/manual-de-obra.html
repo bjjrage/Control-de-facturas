@@ -6,11 +6,249 @@
 <meta name="description" content="Manual completo de módulos, permisos, pasos y resultados reales.">
 <title>Manual completo · Control de Facturas</title>
 <style>
-:root{color-scheme:light;--ink:#142437;--muted:#526275;--bg:#f3f5f8;--line:#d6dfe8;--accent:#075d68;--wash:#eaf5f3;--nav:#102739}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:28px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:3px}button,input,select{font:inherit}:focus-visible{outline:3px solid #d38319;outline-offset:4px;border-radius:4px}button{cursor:pointer}button,select{border:1px solid var(--line);border-radius:8px;background:white;padding:8px 12px;color:var(--ink)}button:hover{background:var(--wash)}h1,h2,h3,h4{line-height:1.22;letter-spacing:-.025em}h1{font-size:clamp(2rem,4vw,3.3rem);margin:12px 0 20px;max-width:850px}h2{font-size:1.8rem;margin:0 0 12px}h3{font-size:1.22rem;margin:0}h4{font-size:1rem;margin:20px 0 6px}p{margin:0 0 14px}li+li{margin-top:8px}li{padding-left:3px}ul,ol{padding-left:24px}code{font:13px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}small,.muted{color:var(--muted)}[hidden]{display:none!important}.skip{position:absolute;left:12px;top:-100px;z-index:5;background:white;padding:10px}.skip:focus{top:12px}.shell{display:grid;grid-template-columns:275px minmax(0,1fr);min-height:100vh}.sidebar{background:var(--nav);color:#d5e3ec;padding:28px 22px;position:sticky;top:0;height:100vh;overflow-y:auto}.brand{color:#fff;font-weight:750;line-height:1.25;display:block;text-decoration:none;margin:0 0 8px}.sidebar p{font-size:13px;color:#b6cbd9}.sidebar summary{font-weight:650;color:white;cursor:pointer;margin:12px 0}.sidebar nav>a{display:block;color:#deedf4;border:1px solid #446070;border-radius:7px;padding:8px 10px;margin:18px 0;text-decoration:none}.nav-group{margin:18px 0}.nav-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#91c6cf;font-weight:700;margin-bottom:6px}.nav-group a{display:block;color:#d6e3ed;text-decoration:none;font-size:13px;line-height:1.45;padding:6px 8px;border-left:2px solid transparent}.nav-group a:hover,.nav-group a:focus{background:#203e53;border-color:#6cd3bf}.main{min-width:0;padding:48px clamp(22px,4vw,68px) 70px;max-width:1280px;width:100%;margin:auto}.eyebrow{font-size:12px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;color:var(--accent)}.lead{font-size:1.15rem;max-width:780px;color:#354b5e}.meta{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}.tag{border:1px solid var(--line);border-radius:5px;padding:3px 8px;font-size:12px;line-height:1.5;background:#fff}.tag.green{background:var(--wash);border-color:#b1d4c9;color:#115b50}.notice{border-left:4px solid var(--accent);background:var(--wash);padding:18px 22px;border-radius:0 10px 10px 0;margin:22px 0}.notice p:last-child{margin-bottom:0}.workspace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}.workspace{border:1px solid var(--line);border-top:3px solid var(--accent);background:white;padding:18px;border-radius:10px}.workspace h3{font-size:1.05rem;margin:0 0 8px}.workspace p{font-size:14px;margin:0}.section{margin-top:44px;scroll-margin-top:28px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px;margin:20px 0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}th,td{padding:12px;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#eef3f6;font-size:12px;text-transform:uppercase;letter-spacing:.03em}td:first-child{font-weight:600}.toolbar{display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,.6fr);gap:12px;padding:20px;background:#e7edf2;border-radius:12px;margin:28px 0 18px}.toolbar label{display:block;font-size:13px;font-weight:650}.toolbar input,.toolbar select{display:block;width:100%;margin-top:5px;padding:10px 12px;background:white;border:1px solid #9aafbe;border-radius:8px;min-width:0}.toolbar .actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.counter{font-size:13px;color:var(--muted);margin-left:auto}.group-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:16px}.group-head h2{margin:0}.group-head p{font-size:14px;color:var(--muted);margin:0}.module{background:white;border:1px solid var(--line);border-radius:10px;margin:12px 0;scroll-margin-top:25px}.module[open]{border-color:#8fbcb9}.module>summary{padding:21px 23px;cursor:pointer;position:relative;list-style:none;padding-right:52px}.module>summary::-webkit-details-marker{display:none}.module>summary:after{content:'+';position:absolute;right:22px;top:18px;font-size:24px;color:var(--accent)}.module[open]>summary:after{content:'−'}.module>summary p{margin:9px 0 0;color:var(--muted);font-size:14px}.module-body{padding:0 23px 24px;border-top:1px solid #e7edf2}.location{margin-top:20px;padding:12px 14px;background:#f1f5f8;border-radius:7px;font-size:14px}.badges{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}.result{margin-top:20px;padding:16px 18px;background:var(--wash);border-radius:8px}.result strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.result p{margin:0}.related{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.related a{font-size:13px;padding:5px 9px;border:1px solid var(--line);border-radius:5px;text-decoration:none;background:#fafcfd}.sources{margin-top:20px;font-size:13px;color:var(--muted)}.sources summary{cursor:pointer}.sources ul{padding-left:18px}.anchor-alias{scroll-margin-top:25px}.empty{padding:25px;text-align:center;background:white;border:1px dashed var(--line);border-radius:10px}.journey{padding:28px;background:white;border:1px solid var(--line);border-radius:13px;margin:25px 0;scroll-margin-top:25px}.journey .when{color:var(--muted);font-size:15px}.stages{list-style:none;padding:0;counter-reset:stage;margin:25px 0}.stage{counter-increment:stage;position:relative;margin:0!important;padding:0 0 24px 52px;border-left:2px solid #c9dfdf;margin-left:16px!important}.stage:last-child{padding-bottom:0;border-color:transparent}.stage:before{content:counter(stage);position:absolute;left:-17px;top:0;width:32px;height:32px;display:grid;place-items:center;background:var(--accent);color:#fff;border-radius:50%;font-size:13px;font-weight:700}.stage h3{font-size:1.08rem}.stage p{margin:8px 0;font-size:15px}.stage a{font-size:13px}.checkpoint{padding:16px;border:1px solid #e3cfa5;background:#fff9ef;border-radius:8px;margin-top:18px;font-size:14px}.checkpoint strong{display:block;margin-bottom:6px}.flow-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.flow-index a{display:block;padding:14px;background:white;border:1px solid var(--line);border-radius:8px;text-decoration:none;font-size:14px;font-weight:600}.directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.directory .panel{margin:0}.directory ul{font-size:14px}.directory a{overflow-wrap:anywhere}.trace{margin-top:44px;border-top:1px solid var(--line);padding-top:24px}.trace>summary{cursor:pointer;font-weight:650}.trace table{margin-top:20px}footer{margin-top:32px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px}
-@media(max-width:1050px){.shell{grid-template-columns:230px minmax(0,1fr)}.sidebar{padding:22px 14px}.main{padding:35px 25px}.workspace-grid{grid-template-columns:1fr}.workspace{padding:16px}.workspace p{font-size:15px}}
-@media(max-width:740px){.shell{display:block}.sidebar{position:static;height:auto;padding:18px 20px}.sidebar .brand{font-size:16px}.sidebar>p{margin-bottom:0}.sidebar nav{padding-top:8px}.main{padding:28px 18px 45px}.toolbar{grid-template-columns:1fr;padding:15px}.counter{margin-left:0;flex-basis:100%}.module>summary{padding:18px;padding-right:45px}.module-body{padding:0 18px 20px}.journey,.panel{padding:20px}.flow-index,.directory{grid-template-columns:1fr}h2{font-size:1.5rem}.stage{padding-left:32px}.table-wrap{max-width:100%}table{min-width:520px}code{word-break:break-word}.meta{gap:6px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-@media print{@page{size:A4;margin:15mm}body{font-size:10pt;line-height:1.5;background:white;color:black}.shell{display:block}.sidebar,.skip,.toolbar,.no-print{display:none!important}.main{padding:0;max-width:none}[hidden]{display:block!important}.module,.journey,.panel{border:1px solid #bbb;box-shadow:none;break-inside:auto;padding:12px;margin:12px 0}.module>summary{padding:0 0 10px}.module>summary:after{display:none}.module-body{padding:0;border-top:1px solid #ccc}.module:not([open])>:not(summary),details::details-content{display:block!important;content-visibility:visible!important}.sources{font-size:8pt}.sources:not([open])>:not(summary){display:block!important}.workspace-grid{grid-template-columns:repeat(3,1fr)}.workspace{padding:10px}.tag{font-size:8pt}.directory,.flow-index{display:block}.table-wrap{overflow:visible}table{min-width:0!important;font-size:8pt}th,td{padding:6px}h1{font-size:27pt}h2{font-size:18pt;break-after:avoid}h3,h4,summary{break-after:avoid}a{color:black}.section{margin-top:24px}.result,.notice,.checkpoint{background:#f6f6f6}.trace table{table-layout:fixed}.trace td,.trace th{overflow-wrap:anywhere}.stage{padding-bottom:16px}.stage:before{print-color-adjust:exact;-webkit-print-color-adjust:exact}.trace{break-before:page}}
+:root {
+  color-scheme: light;
+  --ink: #172638;
+  --muted: #43556c;
+  --bg: #eaf0f7;
+  --line: #bccbdd;
+  --accent: #1d4ed8;
+  --wash: #eff6ff;
+  --nav: #132238;
+  --area: #1d4ed8;
+  --area-dark: #1e3a8a;
+  --area-wash: #eff6ff;
+  --area-line: #93b7ed;
+  --area-nav: #93c5fd;
+}
+[data-area="empezar"] {--area:#1d4ed8;--area-dark:#1e3a8a;--area-wash:#eff6ff;--area-line:#93b7ed;--area-nav:#93c5fd}
+[data-area="comprar"] {--area:#92400e;--area-dark:#78350f;--area-wash:#fffbeb;--area-line:#dba94a;--area-nav:#fcd34d}
+[data-area="materiales"] {--area:#0e7490;--area-dark:#155e75;--area-wash:#ecfeff;--area-line:#6ab7c7;--area-nav:#67e8f9}
+[data-area="vender"] {--area:#6d28d9;--area-dark:#5b21b6;--area-wash:#f5f3ff;--area-line:#b49ae5;--area-nav:#c4b5fd}
+[data-area="finanzas"] {--area:#166534;--area-dark:#14532d;--area-wash:#f0fdf4;--area-line:#7bb58c;--area-nav:#86efac}
+[data-area="obra"] {--area:#c2410c;--area-dark:#9a3412;--area-wash:#fff7ed;--area-line:#e5a775;--area-nav:#fdba74}
+[data-area="licitar"] {--area:#4338ca;--area-dark:#3730a3;--area-wash:#eef2ff;--area-line:#a0a7e6;--area-nav:#a5b4fc}
+[data-area="asistencia"] {--area:#9d174d;--area-dark:#831843;--area-wash:#fdf2f8;--area-line:#d595b4;--area-nav:#f9a8d4}
+* {box-sizing:border-box}
+html {scroll-behavior:smooth;scroll-padding-top:28px}
+body {margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select {font:inherit}
+a {color:#1744a2;text-decoration-thickness:1px;text-underline-offset:3px;border-radius:3px}
+a,button,summary,input,select {transition:background-color .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .14s ease}
+a:hover {color:#102f7b;background:#dbeafe;text-decoration-thickness:2px}
+:focus-visible {outline:3px solid #2563eb;outline-offset:3px;box-shadow:0 0 0 6px #fff}
+button {min-height:42px;cursor:pointer;border:1px solid #94a6be;border-radius:8px;background:#fff;padding:8px 14px;color:#172638;font-weight:650;box-shadow:0 1px 2px #1726380d}
+button:hover {background:#dbeafe;color:#102f7b;border-color:#1d4ed8;box-shadow:0 3px 9px #1d4ed826;transform:translateY(-1px)}
+button:active {transform:translateY(0);background:#cbdcf6;box-shadow:inset 0 1px 3px #17263833}
+button:disabled {cursor:default;opacity:.55;transform:none;box-shadow:none}
+#print {background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+#print:hover {background:#173b9f;border-color:#173b9f;box-shadow:0 4px 12px #1d4ed840}
+#print:active {background:#102f7b}
+h1,h2,h3,h4 {line-height:1.25;letter-spacing:-.025em}
+h1 {font-size:clamp(2rem,4vw,3.3rem);margin:12px 0 20px;max-width:850px;color:#0f2037}
+h2 {font-size:1.8rem;margin:0 0 12px;color:#142944}
+h3 {font-size:1.22rem;margin:0;color:#172638}
+h4 {font-size:1rem;margin:24px 0 8px;color:#172638}
+p {margin:0 0 14px}
+li {padding-left:3px}
+li+li {margin-top:10px}
+li::marker {font-weight:750;color:var(--area)}
+ul,ol {padding-left:24px}
+code {font:13px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+small,.muted {color:var(--muted)}
+[hidden] {display:none!important}
+.skip {position:absolute;left:12px;top:-100px;z-index:5;background:white;padding:10px}
+.skip:focus {top:12px}
+.shell {display:grid;grid-template-columns:275px minmax(0,1fr);min-height:100vh}
+.sidebar {background:var(--nav);color:#e0e9f5;padding:28px 22px;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid #314561}
+.brand {color:#fff;font-weight:750;line-height:1.25;display:block;text-decoration:none;margin:0 0 8px;padding:4px}
+.brand:hover {color:#fff;background:#2b405d}
+.sidebar p {font-size:13px;color:#c2d1e4}
+.sidebar summary {font-weight:650;color:white;cursor:pointer;margin:12px 0;padding:7px;border-radius:7px}
+.sidebar summary:hover {background:#2b405d;color:#fff}
+.sidebar :focus-visible {outline-color:#fbbf24;box-shadow:none}
+.sidebar nav>a {display:block;color:#f1f5fb;border:1px solid #6f85a1;border-radius:7px;padding:9px 11px;margin:15px 0;text-decoration:none;font-size:14px}
+.sidebar nav>a:hover {background:#2b405d;border-color:#a9c6f0;color:white;transform:translateX(2px)}
+.nav-group {margin:22px 0}
+.nav-label {font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--area-nav);font-weight:750;padding:5px 8px;border-left:4px solid var(--area-nav);margin-bottom:8px}
+.nav-group a {display:block;color:#dce6f3;text-decoration:none;font-size:13px;line-height:1.45;padding:7px 8px;min-height:33px;border-left:2px solid transparent;border-radius:0 5px 5px 0}
+.nav-group a:hover,.nav-group a[aria-current="location"] {background:#2b405d;color:#fff;border-left-color:var(--area-nav);transform:translateX(2px)}
+body[data-kind="flow"] .nav-group a {border-left-color:var(--area-nav)}
+.main {min-width:0;padding:48px clamp(22px,4vw,68px) 70px;max-width:1280px;width:100%;margin:auto}
+.eyebrow {font-size:12px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#1d4ed8}
+.lead {font-size:1.15rem;max-width:780px;color:#344a65}
+.meta {display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.tag {border:1px solid #b8c6d8;border-radius:5px;padding:4px 8px;font-size:12px;line-height:1.5;background:#f8fafc;color:#31455f}
+.tag.green {background:#e8efff;border-color:#9fb7e2;color:#183a82;font-weight:650}
+.notice {position:relative;border:1px solid #a5bfeb;border-left:5px solid #1d4ed8;background:#eff6ff;padding:20px 23px;border-radius:0 10px 10px 0;margin:22px 0;color:#17365e}
+.notice p:last-child {margin-bottom:0}
+.workspace-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:24px 0}
+.workspace {border:1px solid var(--area-line);border-top:5px solid var(--area);background:var(--area-wash);padding:19px;border-radius:10px;box-shadow:0 2px 4px #17263808}
+.workspace h3 {font-size:1.05rem;margin:0 0 10px;color:var(--area-dark)}
+.workspace p {font-size:14px;margin:0;color:#30435a}
+.section {margin-top:44px;scroll-margin-top:28px}
+.panel {background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px;margin:20px 0;box-shadow:0 2px 4px #17263808}
+.table-wrap {overflow-x:auto}
+table {width:100%;border-collapse:collapse;font-size:14px;text-align:left}
+th,td {padding:13px;vertical-align:top;border-bottom:1px solid #c7d3e3}
+th {background:#213b5a;color:white;font-size:12px;text-transform:uppercase;letter-spacing:.035em}
+td:first-child {font-weight:650;color:#142944}
+tbody tr:nth-child(even) {background:#f1f5fa}
+.toolbar {display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,.6fr);gap:14px;padding:22px;background:#dce6f3;border:1px solid #a6b9d3;border-radius:12px;margin:28px 0 18px}
+.toolbar label {display:block;font-size:13px;font-weight:750;color:#243a57}
+.toolbar input,.toolbar select {display:block;width:100%;margin-top:6px;min-height:44px;padding:10px 12px;background:white;color:#172638;border:1px solid #7f95b2;border-radius:8px;min-width:0}
+.toolbar input::placeholder {color:#586b84}
+.toolbar input:hover,.toolbar select:hover {border-color:#1d4ed8;box-shadow:0 0 0 1px #1d4ed8}
+.toolbar input:focus,.toolbar select:focus {border-color:#1d4ed8;background:#fff}
+.toolbar .actions {grid-column:1/-1;display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.counter {font-size:13px;color:#314761;margin-left:auto;font-weight:650}
+.group-head {display:flex;gap:15px;align-items:center;margin:0 0 18px;padding:17px 20px;background:var(--area-wash);border:1px solid var(--area-line);border-left:5px solid var(--area);border-radius:9px}
+.area-number {display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:9px;color:white;background:var(--area);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+.group-head h2 {margin:0;color:var(--area-dark);font-size:1.6rem}
+.group-head p {font-size:14px;color:#374b64;margin:5px 0 0}
+.module {background:white;border:1px solid var(--line);border-left:5px solid var(--area);border-radius:10px;margin:14px 0;scroll-margin-top:25px;box-shadow:0 2px 4px #17263808}
+.module:hover {border-color:var(--area);box-shadow:0 5px 14px #17263816}
+.module[open] {border-color:var(--area);box-shadow:0 4px 12px #17263812}
+.module>summary {padding:20px 24px;cursor:pointer;position:relative;list-style:none;padding-right:68px;border-radius:5px}
+.module>summary::-webkit-details-marker {display:none}
+.module>summary:hover {background:var(--area-wash)}
+.module[open]>summary {background:var(--area-wash)}
+.module>summary:after {content:'+';position:absolute;right:20px;top:24px;width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--area-line);border-radius:7px;background:var(--area-wash);font-size:22px;font-weight:650;color:var(--area-dark);line-height:1}
+.module>summary:hover:after,.module[open]>summary:after {background:var(--area);border-color:var(--area);color:white}
+.module[open]>summary:after {content:'−'}
+.card-kicker {display:block;font-size:11px;line-height:1.5;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--area-dark);margin-bottom:7px}
+.card-number {font-variant-numeric:tabular-nums;display:inline-block;border-right:1px solid var(--area-line);padding-right:8px;margin-right:8px}
+.module>summary h3 {font-size:1.2rem;font-weight:750;color:#172638}
+.module>summary p {margin:9px 0 0;color:#43556c;font-size:14px;max-width:80ch}
+.module-body {padding:0 24px 26px;border-top:1px solid var(--area-line)}
+.module-body>p,.module-body li {max-width:82ch}
+.module-body ol {padding:18px 22px 18px 43px;background:#f4f7fb;border:1px solid #d1dce9;border-radius:9px;margin:10px 0 22px}
+.module-body h4 {display:flex;align-items:center;gap:8px}
+.module-body h4:before {content:'';width:5px;height:17px;flex-shrink:0;border-radius:2px;background:var(--area)}
+.location {margin-top:22px;padding:13px 15px;background:var(--area-wash);border:1px solid var(--area-line);border-radius:7px;font-size:14px;color:var(--area-dark)}
+.badges {display:flex;flex-wrap:wrap;gap:7px;margin:15px 0}
+.result {margin-top:22px;padding:17px 19px;background:#eef9f1;border:1px solid #8dbf9c;border-left:4px solid #166534;border-radius:8px;color:#173d25}
+.result strong {display:flex;align-items:center;gap:9px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;color:#14532d}
+.result strong:before {content:'✓';font-size:15px;font-weight:800}
+.result p {margin:0}
+.related {display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.related a {display:inline-flex;align-items:center;min-height:36px;font-size:13px;font-weight:600;padding:6px 10px;border:1px solid var(--area-line);border-radius:6px;text-decoration:none;background:var(--area-wash);color:var(--area-dark)}
+.related a:hover {background:var(--area);border-color:var(--area);color:white;box-shadow:0 3px 8px #17263824;transform:translateY(-1px)}
+.related a:active {transform:none;box-shadow:inset 0 1px 3px #17263855}
+.sources {margin-top:22px;font-size:13px;color:#43556c;border-top:1px dashed #a7b7cb;padding-top:13px}
+.sources summary {cursor:pointer;padding:8px;border-radius:6px;color:#344a65}
+.sources summary:hover {background:#e4ebf5;color:#142944}
+.sources ul {padding-left:18px}
+.anchor-alias {scroll-margin-top:25px}
+.empty {padding:25px;text-align:center;background:white;border:1px dashed #7f95b2;border-radius:10px;color:#344a65}
+.journey {padding:28px;background:white;border:1px solid var(--area-line);border-top:5px solid var(--area);border-radius:13px;margin:28px 0;scroll-margin-top:25px;box-shadow:0 3px 8px #1726380d}
+.journey>h2 {color:var(--area-dark)}
+.journey .when {color:#43556c;font-size:15px;border-bottom:1px solid #cbd6e5;padding-bottom:17px;margin-bottom:20px}
+.stages {list-style:none;padding:0;counter-reset:stage;margin:27px 0}
+.stage {counter-increment:stage;position:relative;margin:0!important;padding:0 0 27px 48px;border-left:2px solid var(--area-line);margin-left:17px!important}
+.stage:last-child {padding-bottom:0;border-color:transparent}
+.stage:before {content:counter(stage);position:absolute;left:-18px;top:0;width:34px;height:34px;display:grid;place-items:center;background:var(--area);color:#fff;border:3px solid white;box-shadow:0 0 0 1px var(--area-line);border-radius:50%;font-size:13px;font-weight:800}
+.stage h3 {font-size:1.08rem;color:#172638}
+.stage p {margin:8px 0 10px;font-size:15px;max-width:78ch}
+.stage a {display:inline-block;font-size:13px;font-weight:650;padding:5px 8px;border:1px solid var(--area-line);border-radius:5px;background:var(--area-wash);color:var(--area-dark);text-decoration:none}
+.stage a:hover {background:var(--area);color:white;border-color:var(--area);box-shadow:0 3px 8px #17263824}
+.checkpoint {padding:17px 18px;border:1px solid #d6ad56;border-left:4px solid #92400e;background:#fffbeb;border-radius:8px;margin-top:18px;font-size:14px;color:#65360b}
+.checkpoint strong {display:flex;align-items:center;gap:9px;margin-bottom:7px;color:#78350f}
+.checkpoint strong:before {content:'!';width:19px;height:19px;display:grid;place-items:center;flex-shrink:0;border-radius:50%;background:#92400e;color:white;font-size:12px}
+.flow-index {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.flow-index a {display:block;position:relative;padding:17px 36px 17px 17px;background:white;color:var(--area-dark);border:1px solid var(--area-line);border-left:5px solid var(--area);border-radius:8px;text-decoration:none;font-size:14px;font-weight:750;box-shadow:0 2px 4px #1726380a}
+.flow-index a:after {content:'→';position:absolute;right:14px;top:50%;transform:translateY(-50%)}
+.flow-index a:hover {background:var(--area-wash);border-color:var(--area);box-shadow:0 5px 12px #1726381c;transform:translateY(-2px)}
+.flow-index a:active {transform:none;background:var(--area-wash);box-shadow:inset 0 1px 3px #17263833}
+.directory {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.directory .panel {margin:0;border-top:4px solid var(--area)}
+.directory h3 {color:var(--area-dark);margin-bottom:8px}
+.directory ul {font-size:14px}
+.directory a {overflow-wrap:anywhere;color:var(--area-dark)}
+.directory a:hover {background:var(--area-wash);color:var(--area-dark)}
+.trace {margin-top:44px;border:1px solid #a6b8d1;border-radius:10px;background:#f3f6fb;padding:20px}
+.trace>summary {cursor:pointer;font-weight:700;padding:9px;border-radius:7px;color:#263e5e}
+.trace>summary:hover {background:#dce6f5;color:#142944}
+.trace table {margin-top:20px;background:white}
+.trace h3 {margin-top:24px}
+footer {margin-top:32px;font-size:13px;color:#43556c;border-top:1px solid #a8b9cf;padding-top:22px}
+@media(max-width:1050px) {
+  .shell {grid-template-columns:230px minmax(0,1fr)}
+  .sidebar {padding:22px 14px}
+  .main {padding:35px 25px}
+  .workspace-grid {grid-template-columns:1fr}
+  .workspace {padding:16px}
+  .workspace p {font-size:15px}
+}
+@media(max-width:740px) {
+  .shell {display:block}
+  .sidebar {position:static;height:auto;padding:18px 20px}
+  .sidebar .brand {font-size:16px}
+  .sidebar>p {margin-bottom:0}
+  .sidebar nav {padding-top:8px}
+  .sidebar nav a {min-height:40px}
+  .main {padding:28px 18px 45px}
+  .toolbar {grid-template-columns:1fr;padding:16px}
+  .counter {margin-left:0;flex-basis:100%}
+  .module>summary {padding:18px;padding-right:56px}
+  .module>summary:after {right:13px;top:19px;width:27px;height:27px}
+  .module-body {padding:0 18px 22px}
+  .module-body ol {padding-left:35px;padding-right:15px}
+  .journey,.panel {padding:20px}
+  .flow-index,.directory {grid-template-columns:1fr}
+  h2 {font-size:1.5rem}
+  .group-head {padding:14px 13px;gap:12px;align-items:flex-start}
+  .group-head h2 {font-size:1.4rem}
+  .area-number {flex-basis:33px;width:33px;height:33px;font-size:12px}
+  .stage {padding-left:31px}
+  .table-wrap {max-width:100%}
+  table {min-width:520px}
+  code {word-break:break-word}
+  .meta {gap:6px}
+  .trace {padding:14px}
+}
+@media(prefers-reduced-motion:reduce) {
+  html {scroll-behavior:auto}
+  a,button,summary,input,select {transition:none!important}
+  a:hover,button:hover {transform:none!important}
+}
+@media print {
+  @page {size:A4;margin:15mm}
+  body {font-size:10pt;line-height:1.5;background:white;color:black}
+  .shell {display:block}
+  .sidebar,.skip,.toolbar,.no-print,#empty {display:none!important}
+  .main {padding:0;max-width:none}
+  [hidden] {display:block!important}
+  .module,.journey,.panel {box-shadow:none;break-inside:auto;padding:12px;margin:12px 0}
+  .module>summary {padding:0 0 10px}
+  .module>summary:after {display:none}
+  .module-body {padding:0;border-top:1px solid #ccc}
+  .module:not([open])>:not(summary),details::details-content {display:block!important;content-visibility:visible!important}
+  .sources {font-size:8pt}
+  .sources:not([open])>:not(summary) {display:block!important}
+  .workspace-grid {grid-template-columns:repeat(3,1fr)}
+  .workspace {padding:10px;box-shadow:none}
+  .tag {font-size:8pt}
+  .directory,.flow-index {display:block}
+  .table-wrap {overflow:visible}
+  table {min-width:0!important;font-size:8pt}
+  th,td {padding:6px}
+  th {background:#e5eaf0;color:black}
+  h1 {font-size:27pt}
+  h2 {font-size:18pt;break-after:avoid}
+  h3,h4,summary {break-after:avoid}
+  a {color:black}
+  .section {margin-top:24px}
+  .group-head {padding:10px;box-shadow:none}
+  .area-number {flex-basis:30px;width:30px;height:30px;font-size:10pt}
+  .related a,.stage a {min-height:0;padding:3px 6px}
+  .result,.notice,.checkpoint {background:#f6f6f6}
+  .trace table {table-layout:fixed}
+  .trace td,.trace th {overflow-wrap:anywhere}
+  .stage {padding-bottom:16px}
+  .stage:before,.area-number {print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .trace {break-before:page}
+}
 </style>
 </head>
 <body data-kind="manual">
@@ -18,14 +256,14 @@
 <div class="shell">
 <aside class="sidebar">
 <a class="brand" href="#inicio">Control de Facturas</a>
-<p>Manual de toda la aplicación<br>Base main 7e63e97d</p>
+<p>Manual de toda la aplicación<br>Base main 9dba47ce</p>
 <details id="nav" open>
 <summary>Índice de navegación</summary>
 <nav aria-label="Índice del documento">
 <a href="flujo-de-obra.html">Ver los circuitos →</a>
 <a href="#accesos">Roles, planes y contexto</a>
 <a href="#resultados">Qué termina cada paso</a>
-<div class="nav-group">
+<div class="nav-group" data-area="empezar">
 <div class="nav-label">Empezar y administrar</div>
 <a href="#acceso">Ingresar y orientarse en la app</a>
 <a href="#dashboard">Dashboard de Administración</a>
@@ -33,7 +271,7 @@
 <a href="#usuarios">Usuarios de tu empresa</a>
 <a href="#empresas">Empresas y administración global de usuarios</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="comprar">
 <div class="nav-label">Comprar y pagar</div>
 <a href="#proveedores">Proveedores: catálogo de la empresa</a>
 <a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
@@ -44,13 +282,13 @@
 <a href="#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
 <a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="materiales">
 <div class="nav-label">Materiales e inventario</div>
 <a href="#stock">Materiales: catálogo, unidades y presentaciones</a>
 <a href="#precios">Lista de precios y vinculación de compras</a>
 <a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="vender">
 <div class="nav-label">Vender y cobrar</div>
 <a href="#clientes">Clientes y estado de cuenta</a>
 <a href="#proformas">Proformas, aceptación del cliente y OT</a>
@@ -61,12 +299,12 @@
 <a href="#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
 <a href="#cobros">Cobros, saldos y reversión</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="finanzas">
 <div class="nav-label">Finanzas</div>
 <a href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
 <a href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="obra">
 <div class="nav-label">Operativo · Obras</div>
 <a href="#proyectos">Obras: crear, importar y abrir el proyecto</a>
 <a href="#presupuesto">Presupuesto y cómputo de la obra</a>
@@ -92,7 +330,7 @@
 <a href="#informes">Informes y seguimiento de obra</a>
 <a href="#clima">Clima, Libro de Obra y plazo contractual</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="licitar">
 <div class="nav-label">Licitaciones</div>
 <a href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
 <a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
@@ -101,12 +339,11 @@
 <a href="#auction-bot">Auction Bot V0: simulador de estrategias</a>
 <a href="#auction-lab">Auction Lab: salas simuladas y participantes</a>
 </div>
-<div class="nav-group">
+<div class="nav-group" data-area="asistencia">
 <div class="nav-label">Asistencia y portales</div>
 <a href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
 <a href="#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
 <a href="#scanner">Scanner: enviar documentos desde el celular</a>
-<a href="#instructivo">Instructivo interactivo: practicar sin operar</a>
 <a href="#portales">Qué hace cada enlace externo</a>
 </div>
 <a href="#cobertura">Cobertura y rutas</a>
@@ -119,22 +356,22 @@
 <h1>Manual completo de la aplicación</h1>
 <p class="lead">Encontrá cada módulo, dónde se abre, quién lo usa, qué preparar y qué resultado produce. Incluye Administración, Operativo, Licitaciones y los portales externos.</p>
 <div class="meta">
-<span class="tag green">Contrastado con main 7e63e97d</span>
-<span class="tag">60 fichas</span>
+<span class="tag green">Base 9dba47ce · instructivo retirado</span>
+<span class="tag">59 fichas</span>
 <span class="tag">76 pantallas / rutas</span>
 <span class="tag">19 herramientas de obra</span>
-<span class="tag">23 de octubre de 2026</span>
+<span class="tag">24 de octubre de 2026</span>
 </div>
 <div class="workspace-grid">
-<div class="workspace">
+<div class="workspace" data-area="empezar">
 <h3>Administración</h3>
 <p>Compras, ventas y finanzas de la empresa: documentos, saldos y movimientos de dinero.</p>
 </div>
-<div class="workspace">
+<div class="workspace" data-area="obra">
 <h3>Operativo</h3>
 <p>Obras: preparar, abastecer, ejecutar, certificar y controlar. Se trabaja dentro de una obra elegida.</p>
 </div>
-<div class="workspace">
+<div class="workspace" data-area="licitar">
 <h3>Licitaciones</h3>
 <p>Oportunidades DNCP, documentos, competencia y oferta PREBID. Los simuladores de subasta tienen un circuito separado.</p>
 </div>
@@ -296,18 +533,27 @@
 </div>
 </div>
 <p id="empty" class="empty" hidden>No hay coincidencias. Probá otra palabra o elegí Mostrar todo.</p>
-<section class="section" data-group id="area-empezar">
+<section class="section" data-group data-area="empezar" id="area-empezar">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">01</span>
+<div>
 <h2>Empezar y administrar</h2>
 <p>Acceso, empresa, equipo y configuración.</p>
 </div>
+</div>
 <details class="module" data-card data-area="empezar" id="acceso" open>
 <summary>
+<span class="card-kicker">
+<span class="card-number">01</span>Empezar y administrar</span>
 <h3>Ingresar y orientarse en la app</h3>
 <p>La cuenta determina la empresa y el rol. El selector superior cambia de espacio; el menú izquierdo cambia con ese contexto.</p>
 </summary>
 <div class="module-body">
 <span class="anchor-alias" id="activar">
+</span>
+<span class="anchor-alias" id="mocks">
+</span>
+<span class="anchor-alias" id="instructivo">
 </span>
 <p class="location">
 <strong>Dónde:</strong> Página de acceso → selector superior de espacios</p>
@@ -334,10 +580,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#dashboard">Dashboard de Administración</a>
-<a href="#usuarios">Usuarios de tu empresa</a>
-<a href="#empresas">Empresas y administración global de usuarios</a>
-<a href="#instructivo">Instructivo interactivo: practicar sin operar</a>
+<a data-area="empezar" href="#dashboard">Dashboard de Administración</a>
+<a data-area="empezar" href="#usuarios">Usuarios de tu empresa</a>
+<a data-area="empezar" href="#empresas">Empresas y administración global de usuarios</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -371,6 +616,8 @@
 </details>
 <details class="module" data-card data-area="empezar" id="dashboard">
 <summary>
+<span class="card-kicker">
+<span class="card-number">02</span>Empezar y administrar</span>
 <h3>Dashboard de Administración</h3>
 <p>Resume la gestión y permite entrar a los documentos que requieren atención.</p>
 </summary>
@@ -395,10 +642,10 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
-<a href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
-<a href="#proyectos">Obras: crear, importar y abrir el proyecto</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="finanzas" href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
+<a data-area="obra" href="#proyectos">Obras: crear, importar y abrir el proyecto</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -417,6 +664,8 @@
 </details>
 <details class="module" data-card data-area="empezar" id="configuracion">
 <summary>
+<span class="card-kicker">
+<span class="card-number">03</span>Empezar y administrar</span>
 <h3>Datos de empresa y formatos de documentos</h3>
 <p>Centraliza los datos de la empresa y las plantillas de impresión de proformas, remisiones y facturas.</p>
 </summary>
@@ -446,11 +695,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#remisiones">Remisiones de venta</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#empresas">Empresas y administración global de usuarios</a>
+<a data-area="asistencia" href="#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="vender" href="#remisiones">Remisiones de venta</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="empezar" href="#empresas">Empresas y administración global de usuarios</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -472,6 +721,8 @@
 </details>
 <details class="module" data-card data-area="empezar" id="usuarios">
 <summary>
+<span class="card-kicker">
+<span class="card-number">04</span>Empezar y administrar</span>
 <h3>Usuarios de tu empresa</h3>
 <p>Permite dar de alta al equipo, cambiar sus roles, activar o desactivar cuentas y eliminar usuarios cuando corresponde.</p>
 </summary>
@@ -501,8 +752,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#empresas">Empresas y administración global de usuarios</a>
-<a href="#acceso">Ingresar y orientarse en la app</a>
+<a data-area="empezar" href="#empresas">Empresas y administración global de usuarios</a>
+<a data-area="empezar" href="#acceso">Ingresar y orientarse en la app</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -524,6 +775,8 @@
 </details>
 <details class="module" data-card data-area="empezar" id="empresas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">05</span>Empezar y administrar</span>
 <h3>Empresas y administración global de usuarios</h3>
 <p>El superadmin crea empresas, configura su plan y módulos y administra sus usuarios desde una vista global.</p>
 </summary>
@@ -550,8 +803,8 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#usuarios">Usuarios de tu empresa</a>
-<a href="#configuracion">Datos de empresa y formatos de documentos</a>
+<a data-area="empezar" href="#usuarios">Usuarios de tu empresa</a>
+<a data-area="empezar" href="#configuracion">Datos de empresa y formatos de documentos</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -575,13 +828,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-comprar">
+<section class="section" data-group data-area="comprar" id="area-comprar">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">02</span>
+<div>
 <h2>Comprar y pagar</h2>
 <p>Del proveedor y la necesidad hasta la factura y el pago.</p>
 </div>
+</div>
 <details class="module" data-card data-area="comprar" id="proveedores">
 <summary>
+<span class="card-kicker">
+<span class="card-number">06</span>Comprar y pagar</span>
 <h3>Proveedores: catálogo de la empresa</h3>
 <p>Mantiene los datos y rubros de quienes te venden. El catálogo es compartido por las compras de la empresa.</p>
 </summary>
@@ -608,9 +866,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#compra-directa">Compra directa sin pedir cotizaciones</a>
-<a href="#obra-proveedores">Proveedores vinculados a la obra</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="comprar" href="#compra-directa">Compra directa sin pedir cotizaciones</a>
+<a data-area="obra" href="#obra-proveedores">Proveedores vinculados a la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -632,6 +890,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="rfqs">
 <summary>
+<span class="card-kicker">
+<span class="card-number">07</span>Comprar y pagar</span>
 <h3>Cotizaciones de proveedores: pedir, comparar y adjudicar</h3>
 <p>Una solicitud reúne lo que necesitás y las respuestas de proveedores. Puede ser para comprar o para descubrir costos.</p>
 </summary>
@@ -665,10 +925,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#ordenes-compra">Órdenes de compra y seguimiento</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
-<a href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+<a data-area="comprar" href="#ordenes-compra">Órdenes de compra y seguimiento</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="obra" href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -693,6 +953,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="compra-directa">
 <summary>
+<span class="card-kicker">
+<span class="card-number">08</span>Comprar y pagar</span>
 <h3>Compra directa sin pedir cotizaciones</h3>
 <p>Prepara una orden cuando ya elegiste el proveedor y las condiciones.</p>
 </summary>
@@ -723,9 +985,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#ordenes-compra">Órdenes de compra y seguimiento</a>
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="comprar" href="#ordenes-compra">Órdenes de compra y seguimiento</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -743,6 +1005,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="ordenes-compra">
 <summary>
+<span class="card-kicker">
+<span class="card-number">09</span>Comprar y pagar</span>
 <h3>Órdenes de compra y seguimiento</h3>
 <p>Reúne lo autorizado a cada proveedor, sus líneas y la documentación asociada.</p>
 </summary>
@@ -773,11 +1037,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#compra-directa">Compra directa sin pedir cotizaciones</a>
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="comprar" href="#compra-directa">Compra directa sin pedir cotizaciones</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -799,6 +1063,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="recepciones">
 <summary>
+<span class="card-kicker">
+<span class="card-number">10</span>Comprar y pagar</span>
 <h3>Recepción de mercadería y entrada al stock</h3>
 <p>Registra lo que realmente llegó, su destino y los materiales del catálogo a los que corresponde.</p>
 </summary>
@@ -830,9 +1096,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#ordenes-compra">Órdenes de compra y seguimiento</a>
-<a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
-<a href="#obra-recepciones">Recepciones de la obra</a>
+<a data-area="comprar" href="#ordenes-compra">Órdenes de compra y seguimiento</a>
+<a data-area="materiales" href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+<a data-area="obra" href="#obra-recepciones">Recepciones de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -857,6 +1123,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="facturas-compra">
 <summary>
+<span class="card-kicker">
+<span class="card-number">11</span>Comprar y pagar</span>
 <h3>Facturas de proveedores: carga y revisión</h3>
 <p>Carga el comprobante del proveedor, conserva el original y lo relaciona con las compras para preparar su pago.</p>
 </summary>
@@ -892,11 +1160,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#scanner">Scanner: enviar documentos desde el celular</a>
-<a href="#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
-<a href="#ordenes-compra">Órdenes de compra y seguimiento</a>
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="asistencia" href="#scanner">Scanner: enviar documentos desde el celular</a>
+<a data-area="comprar" href="#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+<a data-area="comprar" href="#ordenes-compra">Órdenes de compra y seguimiento</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -921,6 +1189,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="revision-facturas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">12</span>Comprar y pagar</span>
 <h3>Carga masiva y bandeja de revisión de facturas</h3>
 <p>Gestiona archivos que se procesan como trabajos y las incidencias que requieren una decisión humana.</p>
 </summary>
@@ -948,8 +1218,8 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#scanner">Scanner: enviar documentos desde el celular</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="asistencia" href="#scanner">Scanner: enviar documentos desde el celular</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -971,6 +1241,8 @@
 </details>
 <details class="module" data-card data-area="comprar" id="pagos">
 <summary>
+<span class="card-kicker">
+<span class="card-number">13</span>Comprar y pagar</span>
 <h3>Órdenes de pago: emitir y ejecutar</h3>
 <p>Agrupa facturas aptas del mismo proveedor y registra su pago desde una cuenta de tesorería.</p>
 </summary>
@@ -1004,9 +1276,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
-<a href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="finanzas" href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+<a data-area="finanzas" href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1027,13 +1299,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-materiales">
+<section class="section" data-group data-area="materiales" id="area-materiales">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">03</span>
+<div>
 <h2>Materiales e inventario</h2>
 <p>Catálogo, precios y existencia física por ubicación.</p>
 </div>
+</div>
 <details class="module" data-card data-area="materiales" id="stock">
 <summary>
+<span class="card-kicker">
+<span class="card-number">14</span>Materiales e inventario</span>
 <h3>Materiales: catálogo, unidades y presentaciones</h3>
 <p>Define qué material existe en el catálogo, cómo se mide y cómo se relaciona con compras y recetas.</p>
 </summary>
@@ -1060,9 +1337,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#precios">Lista de precios y vinculación de compras</a>
-<a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="materiales" href="#precios">Lista de precios y vinculación de compras</a>
+<a data-area="materiales" href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1084,6 +1361,8 @@
 </details>
 <details class="module" data-card data-area="materiales" id="precios">
 <summary>
+<span class="card-kicker">
+<span class="card-number">15</span>Materiales e inventario</span>
 <h3>Lista de precios y vinculación de compras</h3>
 <p>Revisa el precio de los materiales y la relación entre descripciones compradas y el catálogo.</p>
 </summary>
@@ -1114,9 +1393,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#stock">Materiales: catálogo, unidades y presentaciones</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="materiales" href="#stock">Materiales: catálogo, unidades y presentaciones</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1135,6 +1414,8 @@
 </details>
 <details class="module" data-card data-area="materiales" id="inventario">
 <summary>
+<span class="card-kicker">
+<span class="card-number">16</span>Materiales e inventario</span>
 <h3>Stock e Inventario: ubicaciones y movimientos</h3>
 <p>Muestra existencias y costos por material y ubicación: central, obra y ubicaciones auxiliares.</p>
 </summary>
@@ -1166,10 +1447,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
-<a href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
-<a href="#panol">Depósito de obra y partes con evidencia</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="obra" href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
+<a data-area="obra" href="#panol">Depósito de obra y partes con evidencia</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1193,13 +1474,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-vender">
+<section class="section" data-group data-area="vender" id="area-vender">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">04</span>
+<div>
 <h2>Vender y cobrar</h2>
 <p>Del cliente y la proforma hasta la entrega, la factura y el cobro.</p>
 </div>
+</div>
 <details class="module" data-card data-area="vender" id="clientes">
 <summary>
+<span class="card-kicker">
+<span class="card-number">17</span>Vender y cobrar</span>
 <h3>Clientes y estado de cuenta</h3>
 <p>Mantiene la identificación comercial y permite revisar documentos y saldo por cobrar.</p>
 </summary>
@@ -1226,9 +1512,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1250,6 +1536,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="proformas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">18</span>Vender y cobrar</span>
 <h3>Proformas, aceptación del cliente y OT</h3>
 <p>Prepara la propuesta comercial y, en su circuito de aceptación, registra la decisión del cliente sobre una versión concreta.</p>
 </summary>
@@ -1283,9 +1571,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#ordenes-trabajo">Órdenes de trabajo: autorización y ejecución interna</a>
-<a href="#remisiones">Remisiones de venta</a>
-<a href="#clientes">Clientes y estado de cuenta</a>
+<a data-area="vender" href="#ordenes-trabajo">Órdenes de trabajo: autorización y ejecución interna</a>
+<a data-area="vender" href="#remisiones">Remisiones de venta</a>
+<a data-area="vender" href="#clientes">Clientes y estado de cuenta</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1310,6 +1598,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="ordenes-trabajo">
 <summary>
+<span class="card-kicker">
+<span class="card-number">19</span>Vender y cobrar</span>
 <h3>Órdenes de trabajo: autorización y ejecución interna</h3>
 <p>Transforma la propuesta aceptada en trabajo interno y conserva una fotografía de sus ítems y condiciones.</p>
 </summary>
@@ -1341,9 +1631,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#remisiones">Remisiones de venta</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="vender" href="#remisiones">Remisiones de venta</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1368,6 +1658,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="remisiones">
 <summary>
+<span class="card-kicker">
+<span class="card-number">20</span>Vender y cobrar</span>
 <h3>Remisiones de venta</h3>
 <p>Documenta una entrega y puede conservar un documento comercial de origen.</p>
 </summary>
@@ -1398,9 +1690,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1422,6 +1714,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="facturas-venta">
 <summary>
+<span class="card-kicker">
+<span class="card-number">21</span>Vender y cobrar</span>
 <h3>Facturas de venta y emisión electrónica</h3>
 <p>Registra el importe facturado al cliente y su saldo; la emisión fiscal electrónica es una acción adicional.</p>
 </summary>
@@ -1453,10 +1747,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#cobros">Cobros, saldos y reversión</a>
-<a href="#notas-credito">Notas de crédito y correcciones de ventas</a>
-<a href="#certificados">Certificados al comitente y factura de venta</a>
-<a href="#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="vender" href="#notas-credito">Notas de crédito y correcciones de ventas</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="vender" href="#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1481,6 +1775,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="notas-credito">
 <summary>
+<span class="card-kicker">
+<span class="card-number">22</span>Vender y cobrar</span>
 <h3>Notas de crédito y correcciones de ventas</h3>
 <p>Registra una corrección o crédito comercial y su relación con el saldo del cliente.</p>
 </summary>
@@ -1513,9 +1809,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#clientes">Clientes y estado de cuenta</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#clientes">Clientes y estado de cuenta</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1540,6 +1836,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="documentos-venta">
 <summary>
+<span class="card-kicker">
+<span class="card-number">23</span>Vender y cobrar</span>
 <h3>Detalle, edición e impresión de documentos de venta</h3>
 <p>Los paneles de venta comparten el editor y el detalle de documentos, con acciones distintas según el tipo y el estado.</p>
 </summary>
@@ -1570,11 +1868,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#remisiones">Remisiones de venta</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#notas-credito">Notas de crédito y correcciones de ventas</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="vender" href="#remisiones">Remisiones de venta</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#notas-credito">Notas de crédito y correcciones de ventas</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1599,6 +1897,8 @@
 </details>
 <details class="module" data-card data-area="vender" id="cobros">
 <summary>
+<span class="card-kicker">
+<span class="card-number">24</span>Vender y cobrar</span>
 <h3>Cobros, saldos y reversión</h3>
 <p>Registra el dinero recibido y su aplicación a una factura con saldo.</p>
 </summary>
@@ -1629,10 +1929,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#clientes">Clientes y estado de cuenta</a>
-<a href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
-<a href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#clientes">Clientes y estado de cuenta</a>
+<a data-area="finanzas" href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+<a data-area="finanzas" href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1656,13 +1956,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-finanzas">
+<section class="section" data-group data-area="finanzas" id="area-finanzas">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">05</span>
+<div>
 <h2>Finanzas</h2>
 <p>Dinero registrado, compromisos y proyecciones.</p>
 </div>
+</div>
 <details class="module" data-card data-area="finanzas" id="tesoreria">
 <summary>
+<span class="card-kicker">
+<span class="card-number">25</span>Finanzas</span>
 <h3>Tesorería: cuentas, movimientos y transferencias</h3>
 <p>Organiza el dinero registrado por cuenta y moneda, y sus ingresos, egresos y transferencias.</p>
 </summary>
@@ -1693,9 +1998,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
-<a href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="finanzas" href="#flujo-caja">Flujo de caja y gastos recurrentes</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1714,6 +2019,8 @@
 </details>
 <details class="module" data-card data-area="finanzas" id="flujo-caja">
 <summary>
+<span class="card-kicker">
+<span class="card-number">26</span>Finanzas</span>
 <h3>Flujo de caja y gastos recurrentes</h3>
 <p>Ordena entradas, salidas y compromisos proyectados, junto con saldos y gastos recurrentes.</p>
 </summary>
@@ -1745,10 +2052,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="finanzas" href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1769,13 +2076,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-obra">
+<section class="section" data-group data-area="obra" id="area-obra">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">06</span>
+<div>
 <h2>Operativo · Obras</h2>
 <p>Preparar, comprar para la obra, registrar avance y certificar.</p>
 </div>
+</div>
 <details class="module" data-card data-area="obra" id="proyectos">
 <summary>
+<span class="card-kicker">
+<span class="card-number">27</span>Operativo · Obras</span>
 <h3>Obras: crear, importar y abrir el proyecto</h3>
 <p>Una obra reúne presupuesto, recursos, compras, avance y documentos del mismo proyecto.</p>
 </summary>
@@ -1808,10 +2120,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1833,6 +2145,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="presupuesto">
 <summary>
+<span class="card-kicker">
+<span class="card-number">28</span>Operativo · Obras</span>
 <h3>Presupuesto y cómputo de la obra</h3>
 <p>Organiza capítulos y partidas con código, descripción, unidad, cantidad y precio de venta.</p>
 </summary>
@@ -1863,11 +2177,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#planillas">Plantilla de trabajo en grilla y confirmación</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#cronograma">Cronograma / Gantt</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#computo-avanzado">Cómputo avanzado desde Excel o PDF</a>
+<a data-area="obra" href="#planillas">Plantilla de trabajo en grilla y confirmación</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#cronograma">Cronograma / Gantt</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#computo-avanzado">Cómputo avanzado desde Excel o PDF</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1889,6 +2203,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="planillas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">29</span>Operativo · Obras</span>
 <h3>Plantilla de trabajo en grilla y confirmación</h3>
 <p>Abre una sesión de edición de filas. El adaptador registrado es el de cómputo / presupuesto.</p>
 </summary>
@@ -1921,8 +2237,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
-<a href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="asistencia" href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -1944,6 +2260,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="costeo">
 <summary>
+<span class="card-kicker">
+<span class="card-number">30</span>Operativo · Obras</span>
 <h3>Costeo, APU, jornales y plantillas</h3>
 <p>Descompone costos en materiales, mano de obra, equipos y subcontratos y los contrasta con la venta.</p>
 </summary>
@@ -1975,10 +2293,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#precios">Lista de precios y vinculación de compras</a>
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="materiales" href="#precios">Lista de precios y vinculación de compras</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2003,6 +2321,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="cronograma">
 <summary>
+<span class="card-kicker">
+<span class="card-number">31</span>Operativo · Obras</span>
 <h3>Cronograma / Gantt</h3>
 <p>Distribuye las partidas en el tiempo y permite leer fechas y secuencia de ejecución.</p>
 </summary>
@@ -2028,9 +2348,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#informes">Informes y seguimiento de obra</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#informes">Informes y seguimiento de obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2049,6 +2369,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="plan-semanal">
 <summary>
+<span class="card-kicker">
+<span class="card-number">32</span>Operativo · Obras</span>
 <h3>Plan semanal, recetas de producción y necesidades</h3>
 <p>Convierte metas de la semana en recursos, cobertura de materiales, faltantes, caja adicional y factibilidad.</p>
 </summary>
@@ -2081,12 +2403,12 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
-<a href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
-<a href="#compra-directa">Compra directa sin pedir cotizaciones</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#clima">Clima, Libro de Obra y plazo contractual</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="materiales" href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+<a data-area="obra" href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+<a data-area="comprar" href="#compra-directa">Compra directa sin pedir cotizaciones</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#clima">Clima, Libro de Obra y plazo contractual</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2111,6 +2433,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="bim">
 <summary>
+<span class="card-kicker">
+<span class="card-number">33</span>Operativo · Obras</span>
 <h3>BIM / IFC y cantidades del presupuesto</h3>
 <p>Carga modelos IFC y relaciona elementos y cantidades con las partidas.</p>
 </summary>
@@ -2141,8 +2465,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2161,6 +2485,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="computo-avanzado">
 <summary>
+<span class="card-kicker">
+<span class="card-number">34</span>Operativo · Obras</span>
 <h3>Cómputo avanzado desde Excel o PDF</h3>
 <p>Aporta cantidades de una planilla o PDF a un circuito de correspondencias con el presupuesto, sin necesitar un archivo IFC.</p>
 </summary>
@@ -2191,8 +2517,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#bim">BIM / IFC y cantidades del presupuesto</a>
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="obra" href="#bim">BIM / IFC y cantidades del presupuesto</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2213,6 +2539,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-proveedores">
 <summary>
+<span class="card-kicker">
+<span class="card-number">35</span>Operativo · Obras</span>
 <h3>Proveedores vinculados a la obra</h3>
 <p>Selecciona y consulta los proveedores relacionados con el proyecto.</p>
 </summary>
@@ -2237,9 +2565,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#proveedores">Proveedores: catálogo de la empresa</a>
-<a href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
-<a href="#obra-compras">Órdenes de compra de la obra</a>
+<a data-area="comprar" href="#proveedores">Proveedores: catálogo de la empresa</a>
+<a data-area="obra" href="#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+<a data-area="obra" href="#obra-compras">Órdenes de compra de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2258,6 +2586,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-cotizaciones">
 <summary>
+<span class="card-kicker">
+<span class="card-number">36</span>Operativo · Obras</span>
 <h3>Cotizaciones y necesidades de la obra</h3>
 <p>Aplica el circuito de cotizaciones al proyecto y conserva el origen de sus necesidades.</p>
 </summary>
@@ -2283,10 +2613,10 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#obra-compras">Órdenes de compra de la obra</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#obra-compras">Órdenes de compra de la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2305,6 +2635,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-compras">
 <summary>
+<span class="card-kicker">
+<span class="card-number">37</span>Operativo · Obras</span>
 <h3>Órdenes de compra de la obra</h3>
 <p>Muestra las compras del proyecto y permite seguir entrega y facturación.</p>
 </summary>
@@ -2332,10 +2664,10 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#ordenes-compra">Órdenes de compra y seguimiento</a>
-<a href="#compra-directa">Compra directa sin pedir cotizaciones</a>
-<a href="#obra-recepciones">Recepciones de la obra</a>
-<a href="#obra-facturas">Facturas de compra vinculadas a la obra</a>
+<a data-area="comprar" href="#ordenes-compra">Órdenes de compra y seguimiento</a>
+<a data-area="comprar" href="#compra-directa">Compra directa sin pedir cotizaciones</a>
+<a data-area="obra" href="#obra-recepciones">Recepciones de la obra</a>
+<a data-area="obra" href="#obra-facturas">Facturas de compra vinculadas a la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2354,6 +2686,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-recepciones">
 <summary>
+<span class="card-kicker">
+<span class="card-number">38</span>Operativo · Obras</span>
 <h3>Recepciones de la obra</h3>
 <p>Revisa la mercadería de las compras que llegó al destino de la obra.</p>
 </summary>
@@ -2379,9 +2713,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
-<a href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
-<a href="#panol">Depósito de obra y partes con evidencia</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="obra" href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
+<a data-area="obra" href="#panol">Depósito de obra y partes con evidencia</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2403,6 +2737,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-facturas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">39</span>Operativo · Obras</span>
 <h3>Facturas de compra vinculadas a la obra</h3>
 <p>Muestra comprobantes relacionados con las compras del proyecto.</p>
 </summary>
@@ -2432,9 +2768,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#obra-pagos">Pagos vinculados a la obra</a>
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="obra" href="#obra-pagos">Pagos vinculados a la obra</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2453,6 +2789,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-pagos">
 <summary>
+<span class="card-kicker">
+<span class="card-number">40</span>Operativo · Obras</span>
 <h3>Pagos vinculados a la obra</h3>
 <p>Relaciona las OP con facturas y compras del proyecto.</p>
 </summary>
@@ -2478,9 +2816,9 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#pagos">Órdenes de pago: emitir y ejecutar</a>
-<a href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
-<a href="#obra-facturas">Facturas de compra vinculadas a la obra</a>
+<a data-area="comprar" href="#pagos">Órdenes de pago: emitir y ejecutar</a>
+<a data-area="finanzas" href="#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+<a data-area="obra" href="#obra-facturas">Facturas de compra vinculadas a la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2499,6 +2837,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="ejecucion">
 <summary>
+<span class="card-kicker">
+<span class="card-number">41</span>Operativo · Obras</span>
 <h3>Registro de avance y parte diario del residente</h3>
 <p>Registra cantidades realmente ejecutadas, con fecha y evidencias disponibles.</p>
 </summary>
@@ -2529,10 +2869,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#cronograma">Cronograma / Gantt</a>
-<a href="#certificados">Certificados al comitente y factura de venta</a>
-<a href="#clima">Clima, Libro de Obra y plazo contractual</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#cronograma">Cronograma / Gantt</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="obra" href="#clima">Clima, Libro de Obra y plazo contractual</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2557,6 +2897,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="obra-inventario">
 <summary>
+<span class="card-kicker">
+<span class="card-number">42</span>Operativo · Obras</span>
 <h3>Inventario y consumo de materiales de la obra</h3>
 <p>Revisa existencias del proyecto y consumo relacionado con sus movimientos.</p>
 </summary>
@@ -2586,10 +2928,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
-<a href="#obra-recepciones">Recepciones de la obra</a>
-<a href="#panol">Depósito de obra y partes con evidencia</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="materiales" href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+<a data-area="obra" href="#obra-recepciones">Recepciones de la obra</a>
+<a data-area="obra" href="#panol">Depósito de obra y partes con evidencia</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2611,6 +2953,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="panol">
 <summary>
+<span class="card-kicker">
+<span class="card-number">43</span>Operativo · Obras</span>
 <h3>Depósito de obra y partes con evidencia</h3>
 <p>Recibe partes del depósito con archivos y líneas propuestas que se revisan antes de confirmar su efecto.</p>
 </summary>
@@ -2642,10 +2986,10 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
-<a href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
-<a href="#obra-recepciones">Recepciones de la obra</a>
-<a href="#scanner">Scanner: enviar documentos desde el celular</a>
+<a data-area="materiales" href="#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+<a data-area="obra" href="#obra-inventario">Inventario y consumo de materiales de la obra</a>
+<a data-area="obra" href="#obra-recepciones">Recepciones de la obra</a>
+<a data-area="asistencia" href="#scanner">Scanner: enviar documentos desde el celular</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2670,6 +3014,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="personal">
 <summary>
+<span class="card-kicker">
+<span class="card-number">44</span>Operativo · Obras</span>
 <h3>Personal, horas y pagos de mano de obra</h3>
 <p>Registra trabajo y pagos de mano de obra y permite contrastarlos con lo previsto.</p>
 </summary>
@@ -2699,9 +3045,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#informes">Informes y seguimiento de obra</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#informes">Informes y seguimiento de obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2723,6 +3069,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="subcontratistas">
 <summary>
+<span class="card-kicker">
+<span class="card-number">45</span>Operativo · Obras</span>
 <h3>Contratos y certificados de subcontratistas</h3>
 <p>Controla lo contratado a un tercero y la revisión de sus pedidos de certificación.</p>
 </summary>
@@ -2755,9 +3103,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#certificados">Certificados al comitente y factura de venta</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#obra-pagos">Pagos vinculados a la obra</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#obra-pagos">Pagos vinculados a la obra</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2779,6 +3127,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="certificados">
 <summary>
+<span class="card-kicker">
+<span class="card-number">46</span>Operativo · Obras</span>
 <h3>Certificados al comitente y factura de venta</h3>
 <p>Reconoce periódicamente el avance, pasando por elaboración, verificación, aprobación y facturación.</p>
 </summary>
@@ -2813,11 +3163,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-venta">Facturas de venta y emisión electrónica</a>
-<a href="#cobros">Cobros, saldos y reversión</a>
-<a href="#avance-fisico">Avance físico por unidades y partidas</a>
-<a href="#clima">Clima, Libro de Obra y plazo contractual</a>
-<a href="#subcontratistas">Contratos y certificados de subcontratistas</a>
+<a data-area="vender" href="#facturas-venta">Facturas de venta y emisión electrónica</a>
+<a data-area="vender" href="#cobros">Cobros, saldos y reversión</a>
+<a data-area="obra" href="#avance-fisico">Avance físico por unidades y partidas</a>
+<a data-area="obra" href="#clima">Clima, Libro de Obra y plazo contractual</a>
+<a data-area="obra" href="#subcontratistas">Contratos y certificados de subcontratistas</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2842,6 +3192,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="avance-fisico">
 <summary>
+<span class="card-kicker">
+<span class="card-number">47</span>Operativo · Obras</span>
 <h3>Avance físico por unidades y partidas</h3>
 <p>Relaciona unidades y progresos con las cantidades que se controlan y certifican.</p>
 </summary>
@@ -2871,9 +3223,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#certificados">Certificados al comitente y factura de venta</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2892,6 +3244,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="informes">
 <summary>
+<span class="card-kicker">
+<span class="card-number">48</span>Operativo · Obras</span>
 <h3>Informes y seguimiento de obra</h3>
 <p>Reúne lecturas de presupuesto y ejecución para revisar el proyecto.</p>
 </summary>
@@ -2917,10 +3271,10 @@
 </div>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#presupuesto">Presupuesto y cómputo de la obra</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#costeo">Costeo, APU, jornales y plantillas</a>
-<a href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="obra" href="#presupuesto">Presupuesto y cómputo de la obra</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#costeo">Costeo, APU, jornales y plantillas</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2939,6 +3293,8 @@
 </details>
 <details class="module" data-card data-area="obra" id="clima">
 <summary>
+<span class="card-kicker">
+<span class="card-number">49</span>Operativo · Obras</span>
 <h3>Clima, Libro de Obra y plazo contractual</h3>
 <p>Separa meteorología, registro de jornadas y evaluación contractual del plazo.</p>
 </summary>
@@ -2971,9 +3327,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#certificados">Certificados al comitente y factura de venta</a>
+<a data-area="obra" href="#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#certificados">Certificados al comitente y factura de venta</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -2996,13 +3352,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-licitar">
+<section class="section" data-group data-area="licitar" id="area-licitar">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">07</span>
+<div>
 <h2>Licitaciones</h2>
 <p>Oportunidades DNCP, oferta PREBID, evidencia y simuladores.</p>
 </div>
+</div>
 <details class="module" data-card data-area="licitar" id="licitaciones">
 <summary>
+<span class="card-kicker">
+<span class="card-number">50</span>Licitaciones</span>
 <h3>Licitaciones: importar DNCP y seguir oportunidades</h3>
 <p>Organiza llamados, fechas, documentos y el seguimiento privado de oportunidades de la empresa.</p>
 </summary>
@@ -3033,9 +3394,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
-<a href="#competidores">Competidores y radar comercial</a>
-<a href="#documentos-empresa">Documentos de empresa para licitar</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="licitar" href="#competidores">Competidores y radar comercial</a>
+<a data-area="licitar" href="#documentos-empresa">Documentos de empresa para licitar</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3060,6 +3421,8 @@
 </details>
 <details class="module" data-card data-area="licitar" id="prebid">
 <summary>
+<span class="card-kicker">
+<span class="card-number">51</span>Licitaciones</span>
 <h3>PREBID: cómputo, costos, oferta y resultado</h3>
 <p>Prepara la oferta comercial de un llamado en su propio contexto, sin crear una obra ficticia.</p>
 </summary>
@@ -3094,11 +3457,11 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#competidores">Competidores y radar comercial</a>
-<a href="#documentos-empresa">Documentos de empresa para licitar</a>
-<a href="#proyectos">Obras: crear, importar y abrir el proyecto</a>
+<a data-area="licitar" href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="licitar" href="#competidores">Competidores y radar comercial</a>
+<a data-area="licitar" href="#documentos-empresa">Documentos de empresa para licitar</a>
+<a data-area="obra" href="#proyectos">Obras: crear, importar y abrir el proyecto</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3120,6 +3483,8 @@
 </details>
 <details class="module" data-card data-area="licitar" id="competidores">
 <summary>
+<span class="card-kicker">
+<span class="card-number">52</span>Licitaciones</span>
 <h3>Competidores y radar comercial</h3>
 <p>Consulta perfiles e información disponible de oferentes y permite ajustar su inclusión en el radar.</p>
 </summary>
@@ -3149,8 +3514,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="licitar" href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3172,6 +3537,8 @@
 </details>
 <details class="module" data-card data-area="licitar" id="documentos-empresa">
 <summary>
+<span class="card-kicker">
+<span class="card-number">53</span>Licitaciones</span>
 <h3>Documentos de empresa para licitar</h3>
 <p>Mantiene documentación y sus fechas para revisar la preparación de la empresa frente a requisitos de un llamado.</p>
 </summary>
@@ -3201,8 +3568,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="licitar" href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3224,6 +3591,8 @@
 </details>
 <details class="module" data-card data-area="licitar" id="auction-bot">
 <summary>
+<span class="card-kicker">
+<span class="card-number">54</span>Licitaciones</span>
 <h3>Auction Bot V0: simulador de estrategias</h3>
 <p>Simula estrategias SBE con una política configurada y congelada en la sesión del navegador.</p>
 </summary>
@@ -3254,8 +3623,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#auction-lab">Auction Lab: salas simuladas y participantes</a>
-<a href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+<a data-area="licitar" href="#auction-lab">Auction Lab: salas simuladas y participantes</a>
+<a data-area="licitar" href="#prebid">PREBID: cómputo, costos, oferta y resultado</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3277,6 +3646,8 @@
 </details>
 <details class="module" data-card data-area="licitar" id="auction-lab">
 <summary>
+<span class="card-kicker">
+<span class="card-number">55</span>Licitaciones</span>
 <h3>Auction Lab: salas simuladas y participantes</h3>
 <p>Crea salas de subasta de prueba con consola de operador y enlaces acotados para participantes y espectadores.</p>
 </summary>
@@ -3307,8 +3678,8 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#auction-bot">Auction Bot V0: simulador de estrategias</a>
-<a href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+<a data-area="licitar" href="#auction-bot">Auction Bot V0: simulador de estrategias</a>
+<a data-area="licitar" href="#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3332,13 +3703,18 @@
 </div>
 </details>
 </section>
-<section class="section" data-group id="area-asistencia">
+<section class="section" data-group data-area="asistencia" id="area-asistencia">
 <div class="group-head">
+<span class="area-number" aria-hidden="true">08</span>
+<div>
 <h2>Asistencia y portales</h2>
-<p>Rodrigo, correo, escaneo, práctica y accesos externos acotados.</p>
+<p>Rodrigo, correo, escaneo y accesos externos acotados.</p>
+</div>
 </div>
 <details class="module" data-card data-area="asistencia" id="rodrigo">
 <summary>
+<span class="card-kicker">
+<span class="card-number">56</span>Asistencia y portales</span>
 <h3>Rodrigo: consultas, propuestas y aprobaciones</h3>
 <p>Asiste con consultas y tareas habilitadas. Las herramientas y aprobaciones dependen del rol y de la operación solicitada.</p>
 </summary>
@@ -3366,13 +3742,11 @@
 <h4>Detalles que cambian el funcionamiento</h4>
 <ul>
 <li>Rodrigo no convierte el rol Comercial en Admin ni elimina las confirmaciones requeridas por una herramienta.</li>
-<li>Una aprobación de práctica en el instructivo no aprueba una tarea real.</li>
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
-<a href="#planillas">Plantilla de trabajo en grilla y confirmación</a>
-<a href="#instructivo">Instructivo interactivo: practicar sin operar</a>
+<a data-area="asistencia" href="#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
+<a data-area="obra" href="#planillas">Plantilla de trabajo en grilla y confirmación</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3397,6 +3771,8 @@
 </details>
 <details class="module" data-card data-area="asistencia" id="gmail">
 <summary>
+<span class="card-kicker">
+<span class="card-number">57</span>Asistencia y portales</span>
 <h3>Correo de Rodrigo: conectar, preparar y aprobar</h3>
 <p>Conecta una cuenta Gmail de la persona y permite preparar un correo que se envía con aprobación.</p>
 </summary>
@@ -3428,9 +3804,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#configuracion">Datos de empresa y formatos de documentos</a>
-<a href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="empezar" href="#configuracion">Datos de empresa y formatos de documentos</a>
+<a data-area="asistencia" href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3454,6 +3830,8 @@
 </details>
 <details class="module" data-card data-area="asistencia" id="scanner">
 <summary>
+<span class="card-kicker">
+<span class="card-number">58</span>Asistencia y portales</span>
 <h3>Scanner: enviar documentos desde el celular</h3>
 <p>Vincula una sesión de PC con el móvil para capturar, revisar y adjuntar documentos al contexto autorizado.</p>
 </summary>
@@ -3487,9 +3865,9 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
-<a href="#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
-<a href="#panol">Depósito de obra y partes con evidencia</a>
+<a data-area="comprar" href="#facturas-compra">Facturas de proveedores: carga y revisión</a>
+<a data-area="comprar" href="#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+<a data-area="obra" href="#panol">Depósito de obra y partes con evidencia</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3515,63 +3893,10 @@
 </details>
 </div>
 </details>
-<details class="module" data-card data-area="asistencia" id="instructivo">
-<summary>
-<h3>Instructivo interactivo: practicar sin operar</h3>
-<p>Ofrece ejercicios simplificados con valores de ejemplo y progreso guardado en el navegador.</p>
-</summary>
-<div class="module-body">
-<span class="anchor-alias" id="mocks">
-</span>
-<p class="location">
-<strong>Dónde:</strong> Menú izquierdo → Instructivo / botón de ayuda</p>
-<div class="badges">
-<span class="tag">Comercial / Administración / Admin</span>
-<span class="tag">Todos; el módulo real conserva sus permisos</span>
-</div>
-<h4>Antes de empezar</h4>
-<p>Cuenta activa para abrir el instructivo; los ejercicios no requieren crear una operación real.</p>
-<h4>Cómo se usa</h4>
-<ol>
-<li>Elegí un recorrido o buscá una práctica.</li>
-<li>Leé el objetivo, completá los datos de ejemplo y ejecutá la acción de práctica.</li>
-<li>Comprobá el resultado explicado y avanzá al siguiente paso.</li>
-<li>Retomá el avance guardado en ese navegador o reiniciá la práctica.</li>
-<li>Cuando pases al módulo real, verificá el contexto y sus permisos antes de cargar datos de la empresa.</li>
-</ol>
-<div class="result">
-<strong>Resultado que debés comprobar</strong>
-<p>Progreso de aprendizaje local, separado de la operación de negocio.</p>
-</div>
-<h4>Detalles que cambian el funcionamiento</h4>
-<ul>
-<li>Los ejercicios no crean facturas, compras, movimientos ni correos. La biblioteca actual no reemplaza este manual completo ni cubre todos los recorridos de Licitaciones.</li>
-</ul>
-<h4>Continúa o se relaciona con</h4>
-<div class="related">
-<a href="#acceso">Ingresar y orientarse en la app</a>
-<a href="#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
-</div>
-<details class="sources">
-<summary>Referencia al código y rutas</summary>
-<p>Rutas: <code>/instructivo</code>
-</p>
-<ul>
-<li>
-<code>app/(internal)/instructivo/page.tsx</code>
-</li>
-<li>
-<code>components/instructivo/interactive-guide.tsx</code>
-</li>
-<li>
-<code>lib/instructivo/content.ts</code>
-</li>
-</ul>
-</details>
-</div>
-</details>
 <details class="module" data-card data-area="asistencia" id="portales">
 <summary>
+<span class="card-kicker">
+<span class="card-number">59</span>Asistencia y portales</span>
 <h3>Qué hace cada enlace externo</h3>
 <p>Los portales permiten tareas concretas sin mostrar toda la aplicación interna.</p>
 </summary>
@@ -3605,13 +3930,13 @@
 </ul>
 <h4>Continúa o se relaciona con</h4>
 <div class="related">
-<a href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
-<a href="#proformas">Proformas, aceptación del cliente y OT</a>
-<a href="#recepciones">Recepción de mercadería y entrada al stock</a>
-<a href="#ejecucion">Registro de avance y parte diario del residente</a>
-<a href="#subcontratistas">Contratos y certificados de subcontratistas</a>
-<a href="#panol">Depósito de obra y partes con evidencia</a>
-<a href="#auction-lab">Auction Lab: salas simuladas y participantes</a>
+<a data-area="comprar" href="#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a data-area="vender" href="#proformas">Proformas, aceptación del cliente y OT</a>
+<a data-area="comprar" href="#recepciones">Recepción de mercadería y entrada al stock</a>
+<a data-area="obra" href="#ejecucion">Registro de avance y parte diario del residente</a>
+<a data-area="obra" href="#subcontratistas">Contratos y certificados de subcontratistas</a>
+<a data-area="obra" href="#panol">Depósito de obra y partes con evidencia</a>
+<a data-area="licitar" href="#auction-lab">Auction Lab: salas simuladas y participantes</a>
 </div>
 <details class="sources">
 <summary>Referencia al código y rutas</summary>
@@ -3643,7 +3968,7 @@
 </section>
 <details class="trace" id="cobertura">
 <summary>Inventario verificado: 76 pantallas, 19 herramientas de obra y redirecciones</summary>
-<p>Base de contraste: <code>7e63e97de0f17c7e9db7c6e32e1c97c636fbba14</code>. El inventario sale de todos los archivos <code>app/**/page.tsx</code> del repositorio, incluidos formularios, detalles, impresiones y portales. Una ficha puede agrupar varias rutas. Las herramientas dentro de una pantalla se detallan por separado.</p>
+<p>Base de contraste: <code>9dba47cec8658b0670f26834690f529f1c74b5e8</code>, con el retiro del instructivo revisado el 24 de octubre de 2026. Los 0 archivos funcionales modificados están fijados por SHA-256 en el catálogo para detectar cambios posteriores sin revisar. El inventario sale de todos los archivos <code>app/**/page.tsx</code> del repositorio, incluidos formularios, detalles, impresiones y portales. Una ficha puede agrupar varias rutas. Las herramientas dentro de una pantalla se detallan por separado.</p>
 <h3>Herramientas de obra por menú</h3>
 <div class="table-wrap">
 <table>
@@ -3799,6 +4124,8 @@
 <code>/ventas</code> redirige a <code>/proformas</code>. La navegación de ventas se organiza por tipo de documento.</li>
 <li>
 <code>/costs</code> redirige a <code>/orders</code>. Es el acceso antiguo a OC; el Costeo de obra se abre dentro del proyecto.</li>
+<li>
+<code>/instructivo</code> redirige a <code>/dashboard</code>. El instructivo interactivo fue retirado; se conserva únicamente la redirección de enlaces antiguos.</li>
 </ul>
 <h3>Índice completo de pantallas</h3>
 <div class="table-wrap">
@@ -3963,9 +4290,7 @@
 <td>
 <code>/instructivo</code>
 </td>
-<td>
-<a href="#instructivo">Instructivo interactivo: practicar sin operar</a>
-</td>
+<td>Redirección a <code>/dashboard</code>. </td>
 </tr>
 <tr>
 <td>
@@ -4418,7 +4743,7 @@
 </div>
 </details>
 <footer>
-<p>Documentación reconstruida desde el código de main 7e63e97d. Describe el funcionamiento implementado y distingue las integraciones de las simulaciones. El contraste de código no sustituye una prueba real de credenciales, conectividad o respuesta de Gmail, DNCP, Goekua y otros proveedores.</p>
+<p>Documentación reconstruida desde el código de main 9dba47ce y el retiro del instructivo revisado el 24 de octubre de 2026. Describe el funcionamiento implementado y distingue las integraciones de las simulaciones. El contraste de código no sustituye una prueba real de credenciales, conectividad o respuesta de Gmail, DNCP, Goekua y otros proveedores.</p>
 <p>Al cambiar una pantalla, sus permisos o su lógica, revisá su ficha y regenerá ambos documentos con <code>node scripts/docs/generate-app-guides.mjs</code>. El generador comprueba rutas, pestañas, enlaces y fuentes antes de escribir.</p>
 <p class="no-print">
 <a href="#inicio">Volver al inicio ↑</a>

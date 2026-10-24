@@ -1,4 +1,8 @@
-export const BASE = '7e63e97de0f17c7e9db7c6e32e1c97c636fbba14';
+export const BASE = '9dba47cec8658b0670f26834690f529f1c74b5e8';
+export const REVIEW_DATE = '24 de octubre de 2026';
+// La base ya incorpora el retiro del instructivo y del logo superior del login.
+// Las excepciones futuras requieren revisión y SHA-256 del texto UTF-8 con saltos LF.
+export const REVIEWED_SOURCES = {};
 export const AREAS = [
   {id:'empezar',name:'Empezar y administrar',description:'Acceso, empresa, equipo y configuración.'},
   {id:'comprar',name:'Comprar y pagar',description:'Del proveedor y la necesidad hasta la factura y el pago.'},
@@ -7,7 +11,7 @@ export const AREAS = [
   {id:'finanzas',name:'Finanzas',description:'Dinero registrado, compromisos y proyecciones.'},
   {id:'obra',name:'Operativo · Obras',description:'Preparar, comprar para la obra, registrar avance y certificar.'},
   {id:'licitar',name:'Licitaciones',description:'Oportunidades DNCP, oferta PREBID, evidencia y simuladores.'},
-  {id:'asistencia',name:'Asistencia y portales',description:'Rodrigo, correo, escaneo, práctica y accesos externos acotados.'},
+  {id:'asistencia',name:'Asistencia y portales',description:'Rodrigo, correo, escaneo y accesos externos acotados.'},
 ];
 const A=['Administración','Admin'], ALL=['Comercial',...A];
 const internal='app/(internal)/', project=internal+'projects/';
@@ -25,7 +29,7 @@ mod({id:'acceso',area:'empezar',title:'Ingresar y orientarse en la app',roles:AL
     'Si la cuenta o empresa está suspendida, pedile al administrador que revise su estado. Cambiar la URL no habilita una función.'],
   result:'Trabajás con el contexto de tu empresa y con las opciones habilitadas para tu cuenta.',
   notes:['Comercial no tiene el mismo menú que Administración. Un rol llamado «Administración» no equivale al rol «Admin».'],
-  links:['dashboard','usuarios','empresas','instructivo'],sources:['lib/auth.ts','lib/plans.ts','components/layout/sidebar.tsx','components/layout/topbar.tsx','app/(auth)/login/page.tsx','app/(auth)/reset-password/page.tsx','app/suspendido/page.tsx']}),
+  links:['dashboard','usuarios','empresas'],sources:['lib/auth.ts','lib/plans.ts','components/layout/sidebar.tsx','components/layout/topbar.tsx','app/(auth)/login/page.tsx','app/(auth)/reset-password/page.tsx','app/suspendido/page.tsx']}),
 mod({id:'dashboard',area:'empezar',title:'Dashboard de Administración',roles:ALL,where:'Administración → Dashboard',routes:['/dashboard'],
   description:'Resume la gestión y permite entrar a los documentos que requieren atención.',before:'Documentos registrados en la empresa; las tarjetas dependen de tus permisos.',
   steps:['Revisá las tarjetas, importes, pendientes y período mostrado.', 'Abrí el listado o documento relacionado para verificar el detalle antes de tomar una decisión.', 'Usá Finanzas para revisar cuentas y proyecciones, y Operativo para revisar el avance de las obras.'],
@@ -251,7 +255,7 @@ mod({id:'auction-lab',area:'licitar',title:'Auction Lab: salas simuladas y parti
 mod({id:'rodrigo',area:'asistencia',title:'Rodrigo: consultas, propuestas y aprobaciones',roles:ALL,plan:'Según la herramienta y el contexto',where:'Mascota Rodrigo → panel del asistente / Actividad',routes:['/agent/activity'],
   description:'Asiste con consultas y tareas habilitadas. Las herramientas y aprobaciones dependen del rol y de la operación solicitada.',before:'Cuenta activa, contexto claro e integraciones configuradas para la función que querés usar.',
   steps:['Abrí el panel y pedí una consulta concreta indicando la obra o documento cuando sea necesario.', 'Revisá la respuesta y las fuentes o resultados que muestre; una propuesta no es una operación ejecutada.', 'Si aparece una aprobación, verificá documento, destinatario, alcance e importes antes de aprobar o rechazar.', 'Comprobá la ejecución en el módulo real y revisá Actividad: atención pendiente, trabajo en curso y tareas terminadas.', 'Si una tarea falla o queda esperando, revisá el estado antes de repetirla; cancelá desde la acción disponible cuando corresponda.'],
-  result:'Consultas y tareas con su resultado y estado verificables.',notes:['Rodrigo no convierte el rol Comercial en Admin ni elimina las confirmaciones requeridas por una herramienta.', 'Una aprobación de práctica en el instructivo no aprueba una tarea real.'],links:['gmail','planillas','instructivo'],sources:['components/agent/rodrigo-agent-widget.tsx','lib/agent/orchestrator.ts',internal+'agent/activity/page.tsx',internal+'agent/approval-actions.ts']}),
+  result:'Consultas y tareas con su resultado y estado verificables.',notes:['Rodrigo no convierte el rol Comercial en Admin ni elimina las confirmaciones requeridas por una herramienta.'],links:['gmail','planillas'],sources:['components/agent/rodrigo-agent-widget.tsx','lib/agent/orchestrator.ts',internal+'agent/activity/page.tsx',internal+'agent/approval-actions.ts']}),
 mod({id:'gmail',area:'asistencia',title:'Correo de Rodrigo: conectar, preparar y aprobar',roles:['Admin'],where:'Configuración → Correo de Rodrigo; aprobación en el panel del asistente',
   description:'Conecta una cuenta Gmail de la persona y permite preparar un correo que se envía con aprobación.',before:'Cuenta Gmail y configuración de la integración disponibles.',
   steps:['Desde Configuración, elegí Conectar Gmail y completá el consentimiento del proveedor.', 'Pedile a Rodrigo que prepare el correo indicando destinatario, asunto, contenido y adjuntos necesarios.', 'Revisá el borrador y aprobá el envío desde la cuenta y el contexto autorizados.', 'Comprobá el resultado: preparado, pendiente de aprobación, enviado, fallido o entrega por verificar.', 'Para retirar la conexión, usá Desconectar y revisá su estado hasta que se complete.'],
@@ -260,10 +264,6 @@ mod({id:'scanner',area:'asistencia',title:'Scanner: enviar documentos desde el c
   description:'Vincula una sesión de PC con el móvil para capturar, revisar y adjuntar documentos al contexto autorizado.',before:'Sesión creada desde el módulo habilitado; en facturas de proveedor, Administración o Admin.',
   steps:['En la PC, iniciá el escaneo y abrí el QR / PIN desde el celular.', 'Capturá las páginas y revisá encuadre, bordes, orden y legibilidad.', 'Prepará el documento y subilo; el circuito admite hasta 20 MiB por archivo donde está habilitada la subida directa.', 'Esperá la finalización y comprobá el adjunto recibido en la PC.', 'Revisá los datos extraídos y guardá el documento desde su formulario de origen.'],
   result:'Un adjunto disponible en el contexto de la sesión, listo para revisar.',notes:['El scanner ayuda a digitalizar; no confirma por sí solo una factura, una recepción ni la exactitud de la lectura.', 'El QR / PIN pertenece a una sesión temporal y a un contexto; no sirve para adjuntar a cualquier empresa o documento.'],links:['facturas-compra','revision-facturas','panol'],sources:['app/scanner/page.tsx','app/scanner/components/camera-capture.tsx','lib/scanner/session-access.ts','lib/scanner/session-service.ts',internal+'invoices/extract-actions.ts']}),
-mod({id:'instructivo',area:'asistencia',title:'Instructivo interactivo: practicar sin operar',roles:ALL,plan:'Todos; el módulo real conserva sus permisos',where:'Menú izquierdo → Instructivo / botón de ayuda',routes:['/instructivo'],
-  description:'Ofrece ejercicios simplificados con valores de ejemplo y progreso guardado en el navegador.',before:'Cuenta activa para abrir el instructivo; los ejercicios no requieren crear una operación real.',
-  steps:['Elegí un recorrido o buscá una práctica.', 'Leé el objetivo, completá los datos de ejemplo y ejecutá la acción de práctica.', 'Comprobá el resultado explicado y avanzá al siguiente paso.', 'Retomá el avance guardado en ese navegador o reiniciá la práctica.', 'Cuando pases al módulo real, verificá el contexto y sus permisos antes de cargar datos de la empresa.'],
-  result:'Progreso de aprendizaje local, separado de la operación de negocio.',notes:['Los ejercicios no crean facturas, compras, movimientos ni correos. La biblioteca actual no reemplaza este manual completo ni cubre todos los recorridos de Licitaciones.'],links:['acceso','rodrigo'],sources:[internal+'instructivo/page.tsx','components/instructivo/interactive-guide.tsx','lib/instructivo/content.ts']}),
 mod({id:'portales',area:'asistencia',title:'Qué hace cada enlace externo',roles:['Persona que recibe un enlace válido'],plan:'Según el contexto emisor',where:'Enlace compartido desde el documento, contrato, obra o sala correspondiente',
   description:'Los portales permiten tareas concretas sin mostrar toda la aplicación interna.',before:'Enlace correcto, recurso habilitado y datos del responsable que pide el formulario.',
   steps:['Para cotizar como proveedor, usá el enlace de respuesta a la solicitud.', 'Para aceptar una proforma como cliente, usá el portal de cotización comercial y revisá su versión.', 'Para recibir mercadería, usá el portal de recepción de esa OC; su confirmación ingresa stock.', 'Para cargar avance, usá el enlace del residente. Para certificados de subcontratista, el enlace de su contrato.', 'Para partes de depósito, usá el portal de la ubicación; la carga pasa por revisión y confirmación interna.', 'Para una sala Auction Lab, distinguí participar de observar. Es una simulación.'],
@@ -280,6 +280,7 @@ export const REDIRECTS = [
   {route:'/',target:'/dashboard',source:'app/page.tsx'},
   {route:'/ventas',target:'/proformas',source:internal+'ventas/page.tsx'},
   {route:'/costs',target:'/orders',source:internal+'costs/page.tsx'},
+  {route:'/instructivo',target:'/dashboard',source:internal+'instructivo/page.tsx'},
 ];
 
 export const FLOWS = [
@@ -289,7 +290,7 @@ export const FLOWS = [
       ['configuracion','Admin: datos y formatos','Completar datos de empresa y revisar las plantillas.'],
       ['usuarios','Admin: equipo y roles','Crear cuentas y asignar Comercial, Administración o Admin.'],
       ['acceso','Cada persona: ingresar y ubicarse','Elegir el espacio y confirmar el contexto de trabajo.']],
-    end:'Equipo habilitado para los módulos acordados.',control:'El Admin de empresa administra a su propio equipo. Solo el superadmin administra otras empresas y sus planes.',links:['gmail','instructivo']} ,
+    end:'Equipo habilitado para los módulos acordados.',control:'El Admin de empresa administra a su propio equipo. Solo el superadmin administra otras empresas y sus planes.',links:['gmail']} ,
   {id:'comprar-pagar',title:'2. Comprar y pagar a un proveedor',when:'Necesitás adquirir un producto o servicio, para la empresa o para una obra.',
     start:'Identificá qué falta, a quién se compra, destino, cantidad y condiciones.',stages:[
       ['proveedores','Identificar al proveedor','Usar un proveedor del catálogo y sus datos correctos.'],
@@ -359,5 +360,5 @@ export const FLOWS = [
       ['gmail','Para correos: conectar, preparar y aprobar','Revisar destinatarios, contenido y adjuntos antes del envío aprobado.'],
       ['scanner','Para archivos: vincular PC y celular','Revisar páginas, subir y comprobar el adjunto en el formulario de origen.'],
       ['rodrigo','Verificar en el documento y en Actividad','Distinguir pendiente, completado, fallido y resultado por verificar.']],
-    end:'Una ayuda aplicada y comprobada en su circuito real.',control:'Estas son ayudas transversales, no pasos obligatorios de una compra o venta. El instructivo es práctica y no ejecuta ninguna de esas operaciones.',links:['instructivo','portales']},
+    end:'Una ayuda aplicada y comprobada en su circuito real.',control:'Estas son ayudas transversales, no pasos obligatorios de una compra o venta. Verificá el resultado en el módulo donde corresponde la operación.',links:['portales']},
 ];

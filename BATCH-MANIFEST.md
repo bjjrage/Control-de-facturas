@@ -1,3 +1,36 @@
+# Cierre documental en main — 24/10/2026
+
+- Base funcional revisada: `9dba47cec8658b0670f26834690f529f1c74b5e8`; incluye el retiro del instructivo (`cd7344c4`) y del logo superior del login (`9dba47ce`).
+- Alcance autorizado: exactamente siete archivos: este manifest; los dos HTML en `instructivos y roadmap/`; `scripts/docs/app-guide-data.mjs`; `scripts/docs/generate-app-guides.mjs`; `scripts/docs/guide-styles.mjs`; `docs/operations/IASA-Y-QA.md`.
+- Se actualiza la base del catálogo al código publicado, sin excepciones pendientes sobre las fuentes funcionales. Se conservan las mejoras visuales y los recorridos revisados de ambos documentos.
+- Validación del cierre PASS: generación reproducible y cobertura completa de 59 fichas, 9 circuitos, 76 pantallas y 19 herramientas de obra; contenido instructivo conservado respecto de los HTML pendientes; enlaces locales y cruzados, filtros, búsqueda sin tildes, móvil de 390 px, impresión completa y lectura sin JavaScript. Cero errores JS y cero solicitudes de red. Sintaxis, lint y `git diff --check` PASS.
+- Autorización: commit y push solo de estos siete archivos desde main, excepción puntual y restauración inmediata de la protección. Sin ramas ni worktrees nuevos, cambios de código de la app, migraciones, promociones o cambios a otros proyectos.
+- La web estable debe conservar el despliegue `dpl_GnayEtbwrUs6VyqpHqXCvF2xc4ey`, commit `9dba47ce`, en IASA y bay. Este cierre documental no publica una versión de la web.
+- Evidencia y respaldos del cierre fuera del repositorio: `docs-close-20261024/`.
+
+---
+
+# Jerarquía visual de los dos manuales HTML — 24/10/2026
+
+- Pedido: hover consistente, mayor contraste y colores por jerarquía para facilitar la lectura del manual y flujo.
+- Alcance visual: los dos HTML originales, `scripts/docs/generate-app-guides.mjs`, estilos compartidos en `scripts/docs/guide-styles.mjs` y este manifest. La regeneración conserva el contenido y los destinos existentes.
+- Ocho áreas con nombre y color, numeración y señaladores de fichas; resultados y avisos diferenciados; controles con hover, pulsación y foco de teclado visibles. Reducción de movimiento e impresión adaptadas.
+- Validación: contenido funcional de fichas y etapas idéntico al inicio de este ajuste; botones con contraste de texto >=4.5:1 en estado normal y hover; filtros, navegación, anclas, móvil, impresión y lectura sin JS verificados. Evidencia fuera del repo en `docs-visual-20261024/`.
+- Se conservaron por hash las fuentes del retiro del instructivo y su catálogo durante el ajuste visual. El retiro de la app se publicó posteriormente en `cd7344c4`; estas mejoras de los HTML se incorporan en el cierre documental, sin actualizar la web estable.
+
+---
+
+# Retiro del instructivo interactivo — main af0f0ff7
+
+- Fecha: 24/10/2026. Pedido expreso: retirar el instructivo interactivo de la app.
+- Alcance: enlaces en sidebar y topbar; `/instructivo` pasa a redirigir a Dashboard; eliminación de componentes, estilos, contenido, progreso y pruebas exclusivos de la función retirada. Se conserva la regresión de navegación hacia una página servida por el servidor usando Actividad.
+- Los dos HTML completos se conservan y se actualizan para dejar de anunciar el módulo retirado; catálogo/generador mantienen cobertura de rutas y referencias verificables.
+- Verificación: TypeScript, lint del alcance, regresión de navegación, generación/cobertura y navegador offline de los HTML.
+- Resultado: TypeScript y lint PASS; 7 pruebas de solicitudes y 11 escenarios de navegador con sidebar/topbar reales PASS, cero solicitudes externas. HTML: 59 fichas, 9 circuitos, 76 rutas y 19 herramientas de obra; enlaces, filtros, móvil e impresión PASS. Sin imports ni enlaces activos a la biblioteca retirada.
+- Trabajo en main, sin ramas ni worktrees nuevos. Sin cambios en datos, migraciones ni otros proyectos. Retiro de la app publicado en QA y la estable mediante `cd7344c4`; los ajustes documentales se incorporan en este cierre.
+
+---
+
 # Manual y flujo completos de la aplicación — main 7e63e97d
 
 - Pedido: rehacer los dos HTML para que representen toda la aplicación y sus recorridos reales, con accesos, requisitos, pasos, resultados y conexiones entre módulos.
