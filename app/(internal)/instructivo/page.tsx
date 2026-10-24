@@ -1,10 +1,6 @@
-import { requireProfile } from "@/lib/auth";
-import { InteractiveGuide } from "@/components/instructivo/interactive-guide";
-import { progressStorageKey } from "@/lib/instructivo/progress";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Instructivo interactivo · Control de Facturas" };
-
-export default async function InstructivoPage() {
-  const profile = await requireProfile();
-  return <InteractiveGuide storageKey={progressStorageKey(profile.empresa_id,profile.id)} />;
+// Conserva los enlaces antiguos sin exponer el instructivo retirado.
+export default function InstructivoRedirect() {
+  redirect("/dashboard");
 }

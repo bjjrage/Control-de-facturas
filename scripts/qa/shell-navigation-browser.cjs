@@ -177,15 +177,15 @@ async function bundle() {
       await page.evaluate(() => window.__shell.release('/projects'));
       await expect(heading(page)).toHaveText('/projects v0');
     }, { held: ['/projects'], allowed: ['/projects', '/stock'] });
-    await scenario('old responses cannot replace another route or the instructivo', async page => {
+    await scenario('old responses cannot replace another server-rendered route', async page => {
       await page.evaluate(() => {window.__shell.navigate('/projects');window.__shell.navigate('/stock');});
       await expect(heading(page)).toHaveText('/stock v0');
-      await page.evaluate(() => window.__shell.server('/instructivo'));
-      await expect(heading(page)).toHaveText('Server /instructivo r1');
+      await page.evaluate(() => window.__shell.server('/agent/activity'));
+      await expect(heading(page)).toHaveText('Server /agent/activity r1');
       await page.evaluate(() => window.__shell.release('/projects'));
       await page.waitForTimeout(50);
-      await expect(heading(page)).toHaveText('Server /instructivo r1');
-      assert.equal(await page.evaluate(() => location.pathname), '/instructivo');
+      await expect(heading(page)).toHaveText('Server /agent/activity r1');
+      assert.equal(await page.evaluate(() => location.pathname), '/agent/activity');
     }, { held: ['/projects'] });
     await scenario('mutation refresh rejects old data and requests a fresh snapshot', async page => {
       await page.evaluate(() => window.__shell.navigate('/projects'));

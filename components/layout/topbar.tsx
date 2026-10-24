@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
+import { Bell, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
@@ -135,15 +135,6 @@ export function Topbar({
         >
           <Bell size={16} />
         </button>
-        <Link
-          href="/instructivo"
-          prefetch={false}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-[var(--muted)] hover:bg-[var(--hover)]"
-          title="Abrir instructivo interactivo"
-          aria-label="Abrir instructivo interactivo"
-        >
-          <HelpCircle size={16} />
-        </Link>
       </div>
       {projectInfo ? (
         <div
