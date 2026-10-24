@@ -1,430 +1,1673 @@
 <!doctype html>
-<html>
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Flujo de una obra</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<meta name="description" content="Flujos reales de Administración, Operativo y Licitaciones.">
+<title>Flujo completo · Control de Facturas</title>
 <style>
-  :root{
-    --bg:#0a0b0f; --panel:#14151b; --panel-2:#191b22; --panel-3:#1e2028; --border:#24262f;
-    --fg:#f2f3f5; --muted:#8b93a3; --dim:#5f6673;
-    --amber:#f5a524; --blue:#5b7cfa; --teal:#2dd4bf; --purple:#a78bfa; --green:#34d399; --orange:#fb923c; --red:#f2685c;
-    --sans:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
-  }
-  *{box-sizing:border-box}
-  html{color-scheme:dark}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
-
-  .wrap{max-width:780px;margin:0 auto;padding:44px 22px 120px}
-
-  .kicker{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--amber);margin-bottom:12px}
-  h1{font-size:clamp(27px,5.5vw,40px);font-weight:800;line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;text-wrap:balance}
-  .lead{font-size:15px;color:var(--muted);max-width:60ch;margin:0 0 24px}
-  .lead b{color:var(--fg);font-weight:600}
-
-  /* progreso */
-  .progress-bar{position:sticky;top:0;z-index:30;background:var(--bg);padding:12px 0 14px;margin-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .ptrack{flex:1;min-width:160px;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
-  .pfill{height:100%;background:linear-gradient(90deg,var(--blue),var(--teal));border-radius:3px;transition:width .35s ease;width:0}
-  .pcount{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .pbtns{display:flex;gap:6px}
-  .pbtn{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--muted)}
-  .pbtn:hover{color:var(--fg);border-color:var(--muted)}
-
-  /* fase */
-  .phase{position:relative;padding-left:52px;margin-top:34px}
-  .phase::before{content:"";position:absolute;left:17px;top:6px;bottom:-34px;width:2px;background:var(--border)}
-  .phase:last-of-type::before{display:none}
-  .pnode{position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:2px solid;background:var(--bg);z-index:1}
-  .p1 .pnode{border-color:var(--blue);color:var(--blue)}
-  .p2 .pnode{border-color:var(--teal);color:var(--teal)}
-  .p3 .pnode{border-color:var(--orange);color:var(--orange)}
-  .p4 .pnode{border-color:var(--purple);color:var(--purple)}
-  .p5 .pnode{border-color:var(--green);color:var(--green)}
-  .p6 .pnode{border-color:var(--amber);color:var(--amber)}
-
-  .phead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-top:3px;margin-bottom:3px}
-  .phead h2{font-size:19px;font-weight:700;margin:0;letter-spacing:-.01em}
-  .cadence{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:20px}
-  .cad-once{background:#1c2536;color:#8fb3ff}
-  .cad-loop{background:#3a2c0f;color:var(--amber)}
-  .cad-loop::before{content:"⟳ "}
-  .cad-perm{background:#10241f;color:var(--green)}
-  .psub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
-
-  /* pasos acordeón */
-  .steps{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-  .step{border:1px solid var(--border);border-radius:11px;background:var(--panel);overflow:hidden}
-  .step.open{border-color:var(--dim)}
-  .step-btn{width:100%;display:flex;align-items:center;gap:12px;padding:13px 14px;background:none;border:none;color:inherit;text-align:left;font:inherit;cursor:pointer}
-  .step-btn:hover{background:var(--panel-2)}
-  .check{width:20px;height:20px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;transition:.12s}
-  .step.done .check{background:var(--green);border-color:var(--green);color:#04160c}
-  .step-t{flex:1;font-size:14px;font-weight:600;min-width:0}
-  .step.done .step-t{color:var(--muted)}
-  .step-screen{flex-shrink:0;font-size:10.5px;font-weight:600;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:3px 7px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
-  .step-screen.auto{color:var(--green);border-color:#1d3a2e;background:#0f2018}
-  .chev{flex-shrink:0;color:var(--dim);transition:transform .18s;font-size:12px}
-  .step.open .chev{transform:rotate(90deg)}
-
-  .step-body{display:none;padding:0 14px 16px 46px;font-size:13.5px;color:var(--muted)}
-  .step.open .step-body{display:block}
-  .step-body .what{color:var(--fg);margin:0 0 12px}
-  .step-body h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 7px}
-  .step-body ol{margin:0;padding-left:18px;line-height:1.85}
-  .step-body ol li{margin-bottom:3px}
-  .step-body ol b{color:var(--fg);font-weight:600}
-  .step-body .tip{display:flex;gap:8px;margin-top:12px;padding:9px 11px;border-radius:8px;background:var(--panel-2);font-size:12.5px}
-  .step-body .tip.warn{background:#2a1f0c;color:var(--amber)}
-  .step-body .tip.ok{background:#10241f;color:var(--green)}
-  .step-body .tip .i{flex-shrink:0}
-  .step-body code{background:var(--panel-3);padding:1px 5px;border-radius:4px;color:var(--fg);font-size:12px}
-
-  .connector{padding-left:52px;position:relative;margin:20px 0 6px}
-  .connector::before{content:"";position:absolute;left:17px;top:-14px;height:28px;width:2px;background:var(--border)}
-  .connector span{font-size:12px;color:var(--amber);font-style:italic}
-
-  .foot{margin-top:44px;border:1px solid var(--border);background:var(--panel);border-radius:13px;padding:20px 22px;font-size:13px;color:var(--muted)}
-  .foot b{color:var(--fg)}
-  .foot a{color:var(--blue)}
-
-  @media(max-width:560px){
-    .phase{padding-left:40px}
-    .phase::before,.connector::before{left:15px}
-    .pnode{width:32px;height:32px;font-size:13px}
-    .step-body{padding-left:14px}
-    .step-screen{max-width:110px}
-  }
+:root{color-scheme:light;--ink:#142437;--muted:#526275;--bg:#f3f5f8;--line:#d6dfe8;--accent:#075d68;--wash:#eaf5f3;--nav:#102739}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:28px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--accent);text-underline-offset:3px}button,input,select{font:inherit}:focus-visible{outline:3px solid #d38319;outline-offset:4px;border-radius:4px}button{cursor:pointer}button,select{border:1px solid var(--line);border-radius:8px;background:white;padding:8px 12px;color:var(--ink)}button:hover{background:var(--wash)}h1,h2,h3,h4{line-height:1.22;letter-spacing:-.025em}h1{font-size:clamp(2rem,4vw,3.3rem);margin:12px 0 20px;max-width:850px}h2{font-size:1.8rem;margin:0 0 12px}h3{font-size:1.22rem;margin:0}h4{font-size:1rem;margin:20px 0 6px}p{margin:0 0 14px}li+li{margin-top:8px}li{padding-left:3px}ul,ol{padding-left:24px}code{font:13px/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}small,.muted{color:var(--muted)}[hidden]{display:none!important}.skip{position:absolute;left:12px;top:-100px;z-index:5;background:white;padding:10px}.skip:focus{top:12px}.shell{display:grid;grid-template-columns:275px minmax(0,1fr);min-height:100vh}.sidebar{background:var(--nav);color:#d5e3ec;padding:28px 22px;position:sticky;top:0;height:100vh;overflow-y:auto}.brand{color:#fff;font-weight:750;line-height:1.25;display:block;text-decoration:none;margin:0 0 8px}.sidebar p{font-size:13px;color:#b6cbd9}.sidebar summary{font-weight:650;color:white;cursor:pointer;margin:12px 0}.sidebar nav>a{display:block;color:#deedf4;border:1px solid #446070;border-radius:7px;padding:8px 10px;margin:18px 0;text-decoration:none}.nav-group{margin:18px 0}.nav-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#91c6cf;font-weight:700;margin-bottom:6px}.nav-group a{display:block;color:#d6e3ed;text-decoration:none;font-size:13px;line-height:1.45;padding:6px 8px;border-left:2px solid transparent}.nav-group a:hover,.nav-group a:focus{background:#203e53;border-color:#6cd3bf}.main{min-width:0;padding:48px clamp(22px,4vw,68px) 70px;max-width:1280px;width:100%;margin:auto}.eyebrow{font-size:12px;font-weight:750;letter-spacing:.11em;text-transform:uppercase;color:var(--accent)}.lead{font-size:1.15rem;max-width:780px;color:#354b5e}.meta{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}.tag{border:1px solid var(--line);border-radius:5px;padding:3px 8px;font-size:12px;line-height:1.5;background:#fff}.tag.green{background:var(--wash);border-color:#b1d4c9;color:#115b50}.notice{border-left:4px solid var(--accent);background:var(--wash);padding:18px 22px;border-radius:0 10px 10px 0;margin:22px 0}.notice p:last-child{margin-bottom:0}.workspace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}.workspace{border:1px solid var(--line);border-top:3px solid var(--accent);background:white;padding:18px;border-radius:10px}.workspace h3{font-size:1.05rem;margin:0 0 8px}.workspace p{font-size:14px;margin:0}.section{margin-top:44px;scroll-margin-top:28px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px;margin:20px 0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}th,td{padding:12px;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#eef3f6;font-size:12px;text-transform:uppercase;letter-spacing:.03em}td:first-child{font-weight:600}.toolbar{display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,.6fr);gap:12px;padding:20px;background:#e7edf2;border-radius:12px;margin:28px 0 18px}.toolbar label{display:block;font-size:13px;font-weight:650}.toolbar input,.toolbar select{display:block;width:100%;margin-top:5px;padding:10px 12px;background:white;border:1px solid #9aafbe;border-radius:8px;min-width:0}.toolbar .actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.counter{font-size:13px;color:var(--muted);margin-left:auto}.group-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:16px}.group-head h2{margin:0}.group-head p{font-size:14px;color:var(--muted);margin:0}.module{background:white;border:1px solid var(--line);border-radius:10px;margin:12px 0;scroll-margin-top:25px}.module[open]{border-color:#8fbcb9}.module>summary{padding:21px 23px;cursor:pointer;position:relative;list-style:none;padding-right:52px}.module>summary::-webkit-details-marker{display:none}.module>summary:after{content:'+';position:absolute;right:22px;top:18px;font-size:24px;color:var(--accent)}.module[open]>summary:after{content:'−'}.module>summary p{margin:9px 0 0;color:var(--muted);font-size:14px}.module-body{padding:0 23px 24px;border-top:1px solid #e7edf2}.location{margin-top:20px;padding:12px 14px;background:#f1f5f8;border-radius:7px;font-size:14px}.badges{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}.result{margin-top:20px;padding:16px 18px;background:var(--wash);border-radius:8px}.result strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.result p{margin:0}.related{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.related a{font-size:13px;padding:5px 9px;border:1px solid var(--line);border-radius:5px;text-decoration:none;background:#fafcfd}.sources{margin-top:20px;font-size:13px;color:var(--muted)}.sources summary{cursor:pointer}.sources ul{padding-left:18px}.anchor-alias{scroll-margin-top:25px}.empty{padding:25px;text-align:center;background:white;border:1px dashed var(--line);border-radius:10px}.journey{padding:28px;background:white;border:1px solid var(--line);border-radius:13px;margin:25px 0;scroll-margin-top:25px}.journey .when{color:var(--muted);font-size:15px}.stages{list-style:none;padding:0;counter-reset:stage;margin:25px 0}.stage{counter-increment:stage;position:relative;margin:0!important;padding:0 0 24px 52px;border-left:2px solid #c9dfdf;margin-left:16px!important}.stage:last-child{padding-bottom:0;border-color:transparent}.stage:before{content:counter(stage);position:absolute;left:-17px;top:0;width:32px;height:32px;display:grid;place-items:center;background:var(--accent);color:#fff;border-radius:50%;font-size:13px;font-weight:700}.stage h3{font-size:1.08rem}.stage p{margin:8px 0;font-size:15px}.stage a{font-size:13px}.checkpoint{padding:16px;border:1px solid #e3cfa5;background:#fff9ef;border-radius:8px;margin-top:18px;font-size:14px}.checkpoint strong{display:block;margin-bottom:6px}.flow-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.flow-index a{display:block;padding:14px;background:white;border:1px solid var(--line);border-radius:8px;text-decoration:none;font-size:14px;font-weight:600}.directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.directory .panel{margin:0}.directory ul{font-size:14px}.directory a{overflow-wrap:anywhere}.trace{margin-top:44px;border-top:1px solid var(--line);padding-top:24px}.trace>summary{cursor:pointer;font-weight:650}.trace table{margin-top:20px}footer{margin-top:32px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px}
+@media(max-width:1050px){.shell{grid-template-columns:230px minmax(0,1fr)}.sidebar{padding:22px 14px}.main{padding:35px 25px}.workspace-grid{grid-template-columns:1fr}.workspace{padding:16px}.workspace p{font-size:15px}}
+@media(max-width:740px){.shell{display:block}.sidebar{position:static;height:auto;padding:18px 20px}.sidebar .brand{font-size:16px}.sidebar>p{margin-bottom:0}.sidebar nav{padding-top:8px}.main{padding:28px 18px 45px}.toolbar{grid-template-columns:1fr;padding:15px}.counter{margin-left:0;flex-basis:100%}.module>summary{padding:18px;padding-right:45px}.module-body{padding:0 18px 20px}.journey,.panel{padding:20px}.flow-index,.directory{grid-template-columns:1fr}h2{font-size:1.5rem}.stage{padding-left:32px}.table-wrap{max-width:100%}table{min-width:520px}code{word-break:break-word}.meta{gap:6px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{@page{size:A4;margin:15mm}body{font-size:10pt;line-height:1.5;background:white;color:black}.shell{display:block}.sidebar,.skip,.toolbar,.no-print{display:none!important}.main{padding:0;max-width:none}[hidden]{display:block!important}.module,.journey,.panel{border:1px solid #bbb;box-shadow:none;break-inside:auto;padding:12px;margin:12px 0}.module>summary{padding:0 0 10px}.module>summary:after{display:none}.module-body{padding:0;border-top:1px solid #ccc}.module:not([open])>:not(summary),details::details-content{display:block!important;content-visibility:visible!important}.sources{font-size:8pt}.sources:not([open])>:not(summary){display:block!important}.workspace-grid{grid-template-columns:repeat(3,1fr)}.workspace{padding:10px}.tag{font-size:8pt}.directory,.flow-index{display:block}.table-wrap{overflow:visible}table{min-width:0!important;font-size:8pt}th,td{padding:6px}h1{font-size:27pt}h2{font-size:18pt;break-after:avoid}h3,h4,summary{break-after:avoid}a{color:black}.section{margin-top:24px}.result,.notice,.checkpoint{background:#f6f6f6}.trace table{table-layout:fixed}.trace td,.trace th{overflow-wrap:anywhere}.stage{padding-bottom:16px}.stage:before{print-color-adjust:exact;-webkit-print-color-adjust:exact}.trace{break-before:page}}
 </style>
 </head>
-<body>
-
-<div class="wrap">
-  <div class="kicker">niu.pack · Módulo Construcción</div>
-  <h1>El flujo de una obra, paso a paso</h1>
-  <p class="lead">Tocá cada punto para abrir <b>cómo se usa</b>. Marcá los que ya tenés claros — la barra de arriba lleva el avance. Las fases del medio <b>se repiten</b>: cada semana planificás, cada día ejecutás, cada compra abastece y cada mes certificás.</p>
-
-  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#1d3a2e;background:#0f2018">
-    <p style="margin:0 0 8px"><b>⛑ Capa transversal: Rodrigo — Frictionless Agent</b></p>
-    <p style="margin:0">Rodrigo no es un paso del flujo: opera <b>sobre</b> estos pasos. Desde la mascota abajo a la derecha pedís por <b>texto o voz</b> (“cotizame estos materiales”, “leé esta planilla”) y el agente ejecuta con las mismas reglas de cada pantalla. Responde siempre por escrito y <b>no habla</b>. Los pasos donde ayuda llevan la marca <b>“Disponible con Rodrigo”</b>. <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">Abrir explicación completa del módulo →</a></p>
-  </div>
-
-  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#3a2c0f;background:#1c1608">
-    <p style="margin:0 0 8px"><b>⛏ La cadena del Plan Semanal V3 — de la intención a la caja</b></p>
-    <p style="margin:0 0 6px">PRESUPUESTO / CÓMPUTO ↓ <b>RECETA PRODUCTIVA</b> (Excel → partidas) ↓ <b>PLAN SEMANAL</b> ↓ OBJETIVO FÍSICO → PARTIDAS ↓ <b>MRP DE OBRA</b> (BOM/APU → stock obra → central disponible neto de reservas → inbound a tiempo → faltante a comprar) ↓ CAJA NECESARIA ↓ COMPROMETER (recalcula server + <b>reserva central atómica</b>) ↓ EJECUCIÓN ↓ AVANCE REAL ↓ CERTIFICACIÓN ↓ CONTROL</p>
-    <p style="margin:0 0 6px">↳ Regla del central: <b>DISPONIBLE = FÍSICO − RESERVAS ACTIVE</b>. El stock de otra obra no entra en tu cobertura (transferencia = proceso aparte). Inbound tarde o sin fecha confirmada: informa, no cubre.</p>
-    <p style="margin:0 0 6px">↳ Lateral 1: PLAN SEMANAL → <b>WEATHER OVERLAY</b> (pronóstico <b>futuro</b>, opcional Clima OFF/ON, advisory: no recorta materiales ni compra).</p>
-    <p style="margin:0">↳ Lateral 2: EJECUCIÓN REAL → <b>DÍAS NO TRABAJADOS HISTÓRICOS</b> (Libro B/LL/HH/O + evidencia Climate Workdays). <b>No mezclar</b> futuro con histórico. <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a></p>
-  </div>
-
-  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#1e355b;background:#0d1829">
-    <p style="margin:0 0 8px"><b>📱 Digitalización física transversal: Control Scanner</b></p>
-    <p style="margin:0">En el formulario de factura, <b>Escanear desde celular</b> conecta PC y móvil con QR/PIN temporal. Capturás y revisás las páginas, y enviás hasta <b>20 MiB</b> por subida directa. La sesión de factura requiere Administración o Admin, pertenece a su creador y valida contexto/archivo. Al completarse se revisa el adjunto en la PC: escanear no registra automáticamente la factura. No se afirma una integración automática con cualquier otro documento del ERP. <a href="modulo-control-scanner.html" style="color:var(--blue)">Abrir explicación completa de Control Scanner →</a></p>
-  </div>
-
-  <div class="foot"><p><b>Revisado el 22/10/2026.</b> La planificación semanal se prepara antes de comprar y se revisa durante la ejecución. Los checks de este documento guardan lo que leíste; no acreditan operaciones realizadas. <a href="contraste-codigo-842ac721.html">Ver contraste con el código</a>. Para ejercicios: menú <b>Instructivo</b> de la app.</p></div>
-  <div class="progress-bar">
-    <div class="ptrack"><div class="pfill" id="pfill"></div></div>
-    <span class="pcount" id="pcount">0 de 0 revisados</span>
-    <div class="pbtns">
-      <button class="pbtn" id="expandAll">Abrir todo</button>
-      <button class="pbtn" id="collapseAll">Cerrar todo</button>
-    </div>
-  </div>
-
-  <div id="flow"></div>
-
-  <div class="foot">
-    <p style="margin:0 0 8px"><b>¿Y el detalle fino de cada pantalla?</b></p>
-    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra (Plan semanal: <a href="manual-de-obra.html#plan-semanal" style="color:var(--blue)">Preparar → Plan semanal</a>; Digitalización con celular: <a href="manual-de-obra.html#control-scanner" style="color:var(--blue)">§28 Control Scanner</a>) y el bloque de conocimiento <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Plan Semanal de Obra</a>. Para el agente que opera transversalmente sobre este flujo, <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">abrí el módulo Frictionless Agent · Rodrigo</a>, y para digitalización de comprobantes físicos <a href="modulo-control-scanner.html" style="color:var(--blue)">abrí Control Scanner</a>.</p>
-  </div>
+<body data-kind="flow">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="shell">
+<aside class="sidebar">
+<a class="brand" href="#inicio">Control de Facturas</a>
+<p>Los recorridos de trabajo<br>Base main 7e63e97d</p>
+<details id="nav" open>
+<summary>Índice de navegación</summary>
+<nav aria-label="Índice del documento">
+<a href="manual-de-obra.html">Ver el manual →</a>
+<a href="#elegir">Elegir un recorrido</a>
+<div class="nav-group">
+<a href="#arrancar">1. Preparar la empresa y el equipo</a>
 </div>
-
+<div class="nav-group">
+<a href="#comprar-pagar">2. Comprar y pagar a un proveedor</a>
+</div>
+<div class="nav-group">
+<a href="#costear">3. Consultar precios sin emitir compras</a>
+</div>
+<div class="nav-group">
+<a href="#vender-cobrar">4. Vender, entregar, facturar y cobrar</a>
+</div>
+<div class="nav-group">
+<a href="#construir">5. Preparar y ejecutar una obra</a>
+</div>
+<div class="nav-group">
+<a href="#certificar-cobrar">6. Certificar trabajo al comitente y cobrarlo</a>
+</div>
+<div class="nav-group">
+<a href="#licitar-obra">7. De una oportunidad DNCP a una obra</a>
+</div>
+<div class="nav-group">
+<a href="#material-fisico">8. Mover y controlar materiales</a>
+</div>
+<div class="nav-group">
+<a href="#asistir">9. Usar Rodrigo, correo y scanner con resultado verificable</a>
+</div>
+<a href="#mapa">Mapa de todos los módulos</a>
+<a href="#cobertura">Cobertura y rutas</a>
+</nav>
+</details>
+</aside>
+<main class="main" id="contenido">
+<header id="inicio">
+<div class="eyebrow">Control de Facturas · Documentación operativa</div>
+<h1>Cómo se conecta el trabajo de toda la app</h1>
+<p class="lead">Elegí el trabajo que necesitás hacer y seguí su recorrido. Los circuitos distinguen decisiones, documentos, hechos físicos y movimientos de dinero.</p>
+<div class="meta">
+<span class="tag green">Contrastado con main 7e63e97d</span>
+<span class="tag">60 fichas</span>
+<span class="tag">76 pantallas / rutas</span>
+<span class="tag">19 herramientas de obra</span>
+<span class="tag">23 de octubre de 2026</span>
+</div>
+<div class="workspace-grid">
+<div class="workspace">
+<h3>Administración</h3>
+<p>Compras, ventas y finanzas de la empresa: documentos, saldos y movimientos de dinero.</p>
+</div>
+<div class="workspace">
+<h3>Operativo</h3>
+<p>Obras: preparar, abastecer, ejecutar, certificar y controlar. Se trabaja dentro de una obra elegida.</p>
+</div>
+<div class="workspace">
+<h3>Licitaciones</h3>
+<p>Oportunidades DNCP, documentos, competencia y oferta PREBID. Los simuladores de subasta tienen un circuito separado.</p>
+</div>
+</div>
+<div class="notice">
+<p>
+<strong>Cómo leer estos documentos.</strong> El flujo explica el recorrido; el manual detalla cada herramienta. No hay un único camino obligatorio: una venta directa puede empezar en Facturas y una consulta de precios puede terminar sin una compra.</p>
+<p>
+<a href="manual-de-obra.html">Abrir el manual por módulos →</a> Estos archivos funcionan sin conexión. Sus buscadores y enlaces ayudan a leer; no ejecutan operaciones de la app.</p>
+</div>
+</header>
+<section class="section" id="elegir">
+<h2>Empezá por la tarea que tenés que resolver</h2>
+<p>Los pasos muestran el recorrido habitual. Las variantes, los controles paralelos y los retornos se explican dentro de cada circuito.</p>
+<div class="flow-index">
+<a href="#arrancar">1. Preparar la empresa y el equipo</a>
+<a href="#comprar-pagar">2. Comprar y pagar a un proveedor</a>
+<a href="#costear">3. Consultar precios sin emitir compras</a>
+<a href="#vender-cobrar">4. Vender, entregar, facturar y cobrar</a>
+<a href="#construir">5. Preparar y ejecutar una obra</a>
+<a href="#certificar-cobrar">6. Certificar trabajo al comitente y cobrarlo</a>
+<a href="#licitar-obra">7. De una oportunidad DNCP a una obra</a>
+<a href="#material-fisico">8. Mover y controlar materiales</a>
+<a href="#asistir">9. Usar Rodrigo, correo y scanner con resultado verificable</a>
+</div>
+<div class="toolbar no-print">
+<label for="search">Buscar un trabajo o una etapa<input id="search" type="search" placeholder="Ej.: vender, plan semanal, DNCP" autocomplete="off">
+</label>
+<label for="filter">Circuito<select id="filter">
+<option value="">Todos los circuitos</option>
+<option value="arrancar">1. Preparar la empresa y el equipo</option>
+<option value="comprar-pagar">2. Comprar y pagar a un proveedor</option>
+<option value="costear">3. Consultar precios sin emitir compras</option>
+<option value="vender-cobrar">4. Vender, entregar, facturar y cobrar</option>
+<option value="construir">5. Preparar y ejecutar una obra</option>
+<option value="certificar-cobrar">6. Certificar trabajo al comitente y cobrarlo</option>
+<option value="licitar-obra">7. De una oportunidad DNCP a una obra</option>
+<option value="material-fisico">8. Mover y controlar materiales</option>
+<option value="asistir">9. Usar Rodrigo, correo y scanner con resultado verificable</option>
+</select>
+</label>
+<div class="actions">
+<button id="reset" type="button">Mostrar todo</button>
+<button id="print" type="button">Imprimir / guardar PDF</button>
+<span class="counter" id="count" role="status" aria-live="polite">
+</span>
+</div>
+</div>
+<p id="empty" class="empty" hidden>No hay coincidencias. Probá otra palabra o elegí Mostrar todo.</p>
+<article class="journey" data-card id="arrancar">
+<h2>1. Preparar la empresa y el equipo</h2>
+<p class="when">Primera entrada o incorporación de una persona.</p>
+<p>
+<strong>Punto de partida:</strong> La empresa necesita cuentas, datos y accesos antes de operar.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Superadmin: empresa, plan y módulos</h3>
+<p>Crear la empresa y su primer Admin.</p>
+<a href="manual-de-obra.html#empresas">Ver cómo se hace: Empresas y administración global de usuarios →</a>
+</li>
+<li class="stage">
+<h3>Admin: datos y formatos</h3>
+<p>Completar datos de empresa y revisar las plantillas.</p>
+<a href="manual-de-obra.html#configuracion">Ver cómo se hace: Datos de empresa y formatos de documentos →</a>
+</li>
+<li class="stage">
+<h3>Admin: equipo y roles</h3>
+<p>Crear cuentas y asignar Comercial, Administración o Admin.</p>
+<a href="manual-de-obra.html#usuarios">Ver cómo se hace: Usuarios de tu empresa →</a>
+</li>
+<li class="stage">
+<h3>Cada persona: ingresar y ubicarse</h3>
+<p>Elegir el espacio y confirmar el contexto de trabajo.</p>
+<a href="manual-de-obra.html#acceso">Ver cómo se hace: Ingresar y orientarse en la app →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Equipo habilitado para los módulos acordados.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>El Admin de empresa administra a su propio equipo. Solo el superadmin administra otras empresas y sus planes.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
+<a href="manual-de-obra.html#instructivo">Instructivo interactivo: practicar sin operar</a>
+</div>
+</article>
+<article class="journey" data-card id="comprar-pagar">
+<h2>2. Comprar y pagar a un proveedor</h2>
+<p class="when">Necesitás adquirir un producto o servicio, para la empresa o para una obra.</p>
+<p>
+<strong>Punto de partida:</strong> Identificá qué falta, a quién se compra, destino, cantidad y condiciones.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Identificar al proveedor</h3>
+<p>Usar un proveedor del catálogo y sus datos correctos.</p>
+<a href="manual-de-obra.html#proveedores">Ver cómo se hace: Proveedores: catálogo de la empresa →</a>
+</li>
+<li class="stage">
+<h3>Pedir ofertas o elegir compra directa</h3>
+<p>Con ofertas: revisar, adjudicar y autorizar. Si ya está acordado: preparar preview de compra directa.</p>
+<a href="manual-de-obra.html#rfqs">Ver cómo se hace: Cotizaciones de proveedores: pedir, comparar y adjudicar →</a>
+</li>
+<li class="stage">
+<h3>Confirmar la OC</h3>
+<p>Revisar el documento exacto y confirmar su emisión.</p>
+<a href="manual-de-obra.html#ordenes-compra">Ver cómo se hace: Órdenes de compra y seguimiento →</a>
+</li>
+<li class="stage">
+<h3>Registrar la entrega cuando llega</h3>
+<p>Revisar cantidades, material y ubicación; confirmar el ingreso físico.</p>
+<a href="manual-de-obra.html#recepciones">Ver cómo se hace: Recepción de mercadería y entrada al stock →</a>
+</li>
+<li class="stage">
+<h3>Registrar y revisar la factura</h3>
+<p>Verificar original e identidad y relacionar la compra.</p>
+<a href="manual-de-obra.html#facturas-compra">Ver cómo se hace: Facturas de proveedores: carga y revisión →</a>
+</li>
+<li class="stage">
+<h3>Aptitud → OP → ejecución</h3>
+<p>Incluir facturas aptas, elegir cuenta y registrar el pago real.</p>
+<a href="manual-de-obra.html#pagos">Ver cómo se hace: Órdenes de pago: emitir y ejecutar →</a>
+</li>
+<li class="stage">
+<h3>Comprobar el movimiento y los saldos</h3>
+<p>Revisar la OP ejecutada, facturas y cuenta.</p>
+<a href="manual-de-obra.html#tesoreria">Ver cómo se hace: Tesorería: cuentas, movimientos y transferencias →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Pedido, entrega, factura y pago relacionados, cada uno con su estado.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>La factura puede llegar antes o después de la mercadería. Son controles paralelos: no dupliques una recepción ni un movimiento financiero.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#compra-directa">Compra directa sin pedir cotizaciones</a>
+<a href="manual-de-obra.html#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+<a href="manual-de-obra.html#scanner">Scanner: enviar documentos desde el celular</a>
+<a href="manual-de-obra.html#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+</div>
+</article>
+<article class="journey" data-card id="costear">
+<h2>3. Consultar precios sin emitir compras</h2>
+<p class="when">Necesitás evidencia para un costo de obra o una oferta PREBID.</p>
+<p>
+<strong>Punto de partida:</strong> Hay recursos o partidas cuyo precio necesita revisión.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Identificar el costo faltante</h3>
+<p>Revisar material, unidad y contexto de costeo.</p>
+<a href="manual-de-obra.html#costeo">Ver cómo se hace: Costeo, APU, jornales y plantillas →</a>
+</li>
+<li class="stage">
+<h3>Crear consulta de referencia</h3>
+<p>Invitar proveedores con intención de descubrimiento de costos.</p>
+<a href="manual-de-obra.html#rfqs">Ver cómo se hace: Cotizaciones de proveedores: pedir, comparar y adjudicar →</a>
+</li>
+<li class="stage">
+<h3>Revisar las respuestas</h3>
+<p>Comprobar unidad, moneda, condiciones, vigencia y respaldo.</p>
+<a href="manual-de-obra.html#rfqs">Ver cómo se hace: Cotizaciones de proveedores: pedir, comparar y adjudicar →</a>
+</li>
+<li class="stage">
+<h3>Adoptar el precio en el contexto correcto</h3>
+<p>Guardar el precio revisado en Costeo / PREBID y cerrar la referencia.</p>
+<a href="manual-de-obra.html#prebid">Ver cómo se hace: PREBID: cómputo, costos, oferta y resultado →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Un precio respaldado para calcular; no una OC emitida.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>La intención de referencia y la de compra tienen finales diferentes. Si decidís comprar, prepará y confirmá el circuito de compra correspondiente.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#precios">Lista de precios y vinculación de compras</a>
+<a href="manual-de-obra.html#compra-directa">Compra directa sin pedir cotizaciones</a>
+</div>
+</article>
+<article class="journey" data-card id="vender-cobrar">
+<h2>4. Vender, entregar, facturar y cobrar</h2>
+<p class="when">Una empresa o persona te compra un producto, servicio o trabajo.</p>
+<p>
+<strong>Punto de partida:</strong> Cliente identificado y una propuesta o venta a preparar.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Identificar al cliente</h3>
+<p>Revisar datos comerciales y fiscales.</p>
+<a href="manual-de-obra.html#clientes">Ver cómo se hace: Clientes y estado de cuenta →</a>
+</li>
+<li class="stage">
+<h3>Preparar propuesta y aceptación si corresponde</h3>
+<p>Compartir la versión vigente y revisar la respuesta del cliente.</p>
+<a href="manual-de-obra.html#proformas">Ver cómo se hace: Proformas, aceptación del cliente y OT →</a>
+</li>
+<li class="stage">
+<h3>Organizar el trabajo aceptado</h3>
+<p>Aplicar la aprobación interna y gestionar la OT cuando nace de una aceptación.</p>
+<a href="manual-de-obra.html#ordenes-trabajo">Ver cómo se hace: Órdenes de trabajo: autorización y ejecución interna →</a>
+</li>
+<li class="stage">
+<h3>Documentar la entrega cuando corresponde</h3>
+<p>Preparar la remisión vinculada y revisar sus líneas.</p>
+<a href="manual-de-obra.html#remisiones">Ver cómo se hace: Remisiones de venta →</a>
+</li>
+<li class="stage">
+<h3>Emitir la factura</h3>
+<p>Revisar el borrador y emitirlo; ejecutar el circuito electrónico si corresponde.</p>
+<a href="manual-de-obra.html#facturas-venta">Ver cómo se hace: Facturas de venta y emisión electrónica →</a>
+</li>
+<li class="stage">
+<h3>Registrar dinero recibido</h3>
+<p>Aplicar cobros parciales o totales y comprobar el saldo.</p>
+<a href="manual-de-obra.html#cobros">Ver cómo se hace: Cobros, saldos y reversión →</a>
+</li>
+<li class="stage">
+<h3>Revisar cuenta corriente</h3>
+<p>Contrastar documentos, notas de crédito y cobros del cliente.</p>
+<a href="manual-de-obra.html#clientes">Ver cómo se hace: Clientes y estado de cuenta →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Venta documentada y saldo del cliente actualizado con cobros reales.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>No todas las ventas requieren proforma, OT y remisión. Se puede crear una factura por su circuito directo. La aceptación de una proforma, emitir una factura y cobrarla son momentos diferentes.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#notas-credito">Notas de crédito y correcciones de ventas</a>
+<a href="manual-de-obra.html#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</div>
+</article>
+<article class="journey" data-card id="construir">
+<h2>5. Preparar y ejecutar una obra</h2>
+<p class="when">Tenés una obra nueva o necesitás organizar una semana de trabajo.</p>
+<p>
+<strong>Punto de partida:</strong> Proyecto manual, importado o creado desde una oferta ganadora confirmada.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Crear la obra y revisar contrato</h3>
+<p>Definir alcance, fechas, ubicación y parámetros aplicables.</p>
+<a href="manual-de-obra.html#proyectos">Ver cómo se hace: Obras: crear, importar y abrir el proyecto →</a>
+</li>
+<li class="stage">
+<h3>Confirmar partidas y cantidades</h3>
+<p>Revisar cómputo, estructura y presupuesto de venta.</p>
+<a href="manual-de-obra.html#presupuesto">Ver cómo se hace: Presupuesto y cómputo de la obra →</a>
+</li>
+<li class="stage">
+<h3>Completar APU y precios</h3>
+<p>Preparar materiales, mano de obra, equipos y subcontratos.</p>
+<a href="manual-de-obra.html#costeo">Ver cómo se hace: Costeo, APU, jornales y plantillas →</a>
+</li>
+<li class="stage">
+<h3>Programar las partidas</h3>
+<p>Ubicar el trabajo en el tiempo.</p>
+<a href="manual-de-obra.html#cronograma">Ver cómo se hace: Cronograma / Gantt →</a>
+</li>
+<li class="stage">
+<h3>Definir metas y calcular necesidades</h3>
+<p>Revisar cobertura de stock, OC a tiempo, faltantes y caja; guardar o comprometer.</p>
+<a href="manual-de-obra.html#plan-semanal">Ver cómo se hace: Plan semanal, recetas de producción y necesidades →</a>
+</li>
+<li class="stage">
+<h3>Abastecer la necesidad real</h3>
+<p>Comprar lo faltante y confirmar su recepción o traslado.</p>
+<a href="manual-de-obra.html#obra-cotizaciones">Ver cómo se hace: Cotizaciones y necesidades de la obra →</a>
+</li>
+<li class="stage">
+<h3>Registrar lo ejecutado</h3>
+<p>Cargar partes diarios y evidencia; contrastar contra la meta.</p>
+<a href="manual-de-obra.html#ejecucion">Ver cómo se hace: Registro de avance y parte diario del residente →</a>
+</li>
+<li class="stage">
+<h3>Revisar y volver a planificar</h3>
+<p>Ajustar la próxima semana usando datos reales.</p>
+<a href="manual-de-obra.html#informes">Ver cómo se hace: Informes y seguimiento de obra →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Un ciclo semanal que conecta metas, recursos y avance registrado.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>El plan es intención; ejecución es hecho. Comprometer metas puede reservar stock central con cobertura vigente, pero no ejecuta compras ni carga avance.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#bim">BIM / IFC y cantidades del presupuesto</a>
+<a href="manual-de-obra.html#planillas">Plantilla de trabajo en grilla y confirmación</a>
+<a href="manual-de-obra.html#obra-inventario">Inventario y consumo de materiales de la obra</a>
+<a href="manual-de-obra.html#panol">Depósito de obra y partes con evidencia</a>
+<a href="manual-de-obra.html#personal">Personal, horas y pagos de mano de obra</a>
+<a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a>
+<a href="manual-de-obra.html#clima">Clima, Libro de Obra y plazo contractual</a>
+</div>
+</article>
+<article class="journey" data-card id="certificar-cobrar">
+<h2>6. Certificar trabajo al comitente y cobrarlo</h2>
+<p class="when">Corresponde reconocer un período de avance en una obra con Caterpillar.</p>
+<p>
+<strong>Punto de partida:</strong> Contrato y parámetros confirmados; cantidades del período y evidencia revisadas.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Revisar los datos de avance</h3>
+<p>Usar ejecución / unidades como fuentes y comprobar cantidades.</p>
+<a href="manual-de-obra.html#ejecucion">Ver cómo se hace: Registro de avance y parte diario del residente →</a>
+</li>
+<li class="stage">
+<h3>Preparar el borrador</h3>
+<p>Revisar anterior, presente, acumulado, descuentos y anexos.</p>
+<a href="manual-de-obra.html#certificados">Ver cómo se hace: Certificados al comitente y factura de venta →</a>
+</li>
+<li class="stage">
+<h3>Elaborar, verificar y aprobar</h3>
+<p>Completar las transiciones del certificado.</p>
+<a href="manual-de-obra.html#certificados">Ver cómo se hace: Certificados al comitente y factura de venta →</a>
+</li>
+<li class="stage">
+<h3>Preparar y emitir la factura vinculada</h3>
+<p>Desde el aprobado, crear el borrador, revisar cliente e importe y emitir.</p>
+<a href="manual-de-obra.html#facturas-venta">Ver cómo se hace: Facturas de venta y emisión electrónica →</a>
+</li>
+<li class="stage">
+<h3>Registrar el cobro recibido</h3>
+<p>Aplicar el dinero a la factura correspondiente.</p>
+<a href="manual-de-obra.html#cobros">Ver cómo se hace: Cobros, saldos y reversión →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Certificado, factura de venta y cobro trazables.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>Un certificado del subcontratista es un circuito distinto: es un pedido del tercero a tu empresa. La creación de una factura en borrador no termina la certificación ni registra dinero.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#avance-fisico">Avance físico por unidades y partidas</a>
+<a href="manual-de-obra.html#clima">Clima, Libro de Obra y plazo contractual</a>
+<a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a>
+<a href="manual-de-obra.html#clientes">Clientes y estado de cuenta</a>
+</div>
+</article>
+<article class="journey" data-card id="licitar-obra">
+<h2>7. De una oportunidad DNCP a una obra</h2>
+<p class="when">Vas a analizar y preparar una oferta para una licitación.</p>
+<p>
+<strong>Punto de partida:</strong> Número de llamado y datos de empresa / documentos disponibles.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Importar y analizar el llamado</h3>
+<p>Revisar fechas, ítems, documentos y decisión de participar.</p>
+<a href="manual-de-obra.html#licitaciones">Ver cómo se hace: Licitaciones: importar DNCP y seguir oportunidades →</a>
+</li>
+<li class="stage">
+<h3>Revisar preparación y evidencia</h3>
+<p>Comprobar requisitos y vigencia de documentos; consultar competencia.</p>
+<a href="manual-de-obra.html#documentos-empresa">Ver cómo se hace: Documentos de empresa para licitar →</a>
+</li>
+<li class="stage">
+<h3>Preparar la oferta en PREBID</h3>
+<p>Trabajar Cómputo, BIM cuando corresponda, APU, evidencia de precios y composición de oferta.</p>
+<a href="manual-de-obra.html#prebid">Ver cómo se hace: PREBID: cómputo, costos, oferta y resultado →</a>
+</li>
+<li class="stage">
+<h3>Guardar / PRESENTAR una versión completa</h3>
+<p>Congelar en la app la versión y su evidencia comercial.</p>
+<a href="manual-de-obra.html#prebid">Ver cómo se hace: PREBID: cómputo, costos, oferta y resultado →</a>
+</li>
+<li class="stage">
+<h3>Registrar el resultado humano</h3>
+<p>Confirmar GANADA o PERDIDA y monto adjudicado / versión cuando sea ganadora.</p>
+<a href="manual-de-obra.html#prebid">Ver cómo se hace: PREBID: cómputo, costos, oferta y resultado →</a>
+</li>
+<li class="stage">
+<h3>Confirmar traspaso de la ganadora a obra</h3>
+<p>Crear el proyecto a partir del snapshot ganador y conservar su trazabilidad.</p>
+<a href="manual-de-obra.html#proyectos">Ver cómo se hace: Obras: crear, importar y abrir el proyecto →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Una oferta registrada y, si se gana y confirma el traspaso, una obra operativa.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>La app no presenta automáticamente ofertas en DNCP por pulsar PRESENTAR. Auction Bot y Auction Lab son simulaciones separadas de ese proceso real.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#competidores">Competidores y radar comercial</a>
+<a href="manual-de-obra.html#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+<a href="manual-de-obra.html#auction-bot">Auction Bot V0: simulador de estrategias</a>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</div>
+</article>
+<article class="journey" data-card id="material-fisico">
+<h2>8. Mover y controlar materiales</h2>
+<p class="when">Entra mercadería, se traslada stock o se carga un parte de depósito.</p>
+<p>
+<strong>Punto de partida:</strong> Material, unidad, cantidad, ubicación y hecho físico identificados.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Identificar el material del catálogo</h3>
+<p>Evitar materiales duplicados y unidades incompatibles.</p>
+<a href="manual-de-obra.html#stock">Ver cómo se hace: Materiales: catálogo, unidades y presentaciones →</a>
+</li>
+<li class="stage">
+<h3>Entrada desde OC o stock inicial / movimiento específico</h3>
+<p>Usar el circuito correspondiente al hecho real.</p>
+<a href="manual-de-obra.html#recepciones">Ver cómo se hace: Recepción de mercadería y entrada al stock →</a>
+</li>
+<li class="stage">
+<h3>Confirmar ubicación y movimiento</h3>
+<p>Revisar el saldo por depósito; gestionar traslados desde el control disponible.</p>
+<a href="manual-de-obra.html#inventario">Ver cómo se hace: Stock e Inventario: ubicaciones y movimientos →</a>
+</li>
+<li class="stage">
+<h3>Parte con evidencia, si corresponde</h3>
+<p>Cargar archivos, procesar, revisar líneas y confirmar una sola vez.</p>
+<a href="manual-de-obra.html#panol">Ver cómo se hace: Depósito de obra y partes con evidencia →</a>
+</li>
+<li class="stage">
+<h3>Contrastar existencia y consumo</h3>
+<p>Consultar origen de los movimientos y usar el saldo al planificar.</p>
+<a href="manual-de-obra.html#obra-inventario">Ver cómo se hace: Inventario y consumo de materiales de la obra →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Existencias físicas y movimientos verificables por ubicación.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>Un adjunto, una factura y un pago no son por sí solos un movimiento de material. La confirmación del portal de recepción sí ingresa stock; la carga del portal de depósito necesita revisión y confirmación interna.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+<a href="manual-de-obra.html#obra-recepciones">Recepciones de la obra</a>
+</div>
+</article>
+<article class="journey" data-card id="asistir">
+<h2>9. Usar Rodrigo, correo y scanner con resultado verificable</h2>
+<p class="when">Querés apoyo para consultar, preparar un correo o capturar documentos.</p>
+<p>
+<strong>Punto de partida:</strong> Identificá primero el contexto y la acción que necesitás.</p>
+<ol class="stages">
+<li class="stage">
+<h3>Consultar o preparar una tarea</h3>
+<p>Indicar empresa / obra / documento según el caso y revisar el resultado propuesto.</p>
+<a href="manual-de-obra.html#rodrigo">Ver cómo se hace: Rodrigo: consultas, propuestas y aprobaciones →</a>
+</li>
+<li class="stage">
+<h3>Para correos: conectar, preparar y aprobar</h3>
+<p>Revisar destinatarios, contenido y adjuntos antes del envío aprobado.</p>
+<a href="manual-de-obra.html#gmail">Ver cómo se hace: Correo de Rodrigo: conectar, preparar y aprobar →</a>
+</li>
+<li class="stage">
+<h3>Para archivos: vincular PC y celular</h3>
+<p>Revisar páginas, subir y comprobar el adjunto en el formulario de origen.</p>
+<a href="manual-de-obra.html#scanner">Ver cómo se hace: Scanner: enviar documentos desde el celular →</a>
+</li>
+<li class="stage">
+<h3>Verificar en el documento y en Actividad</h3>
+<p>Distinguir pendiente, completado, fallido y resultado por verificar.</p>
+<a href="manual-de-obra.html#rodrigo">Ver cómo se hace: Rodrigo: consultas, propuestas y aprobaciones →</a>
+</li>
+</ol>
+<div class="result">
+<strong>El circuito termina cuando</strong>
+<p>Una ayuda aplicada y comprobada en su circuito real.</p>
+</div>
+<div class="checkpoint">
+<strong>Control y variantes del recorrido</strong>Estas son ayudas transversales, no pasos obligatorios de una compra o venta. El instructivo es práctica y no ejecuta ninguna de esas operaciones.</div>
+<h4>Herramientas relacionadas</h4>
+<div class="related">
+<a href="manual-de-obra.html#instructivo">Instructivo interactivo: practicar sin operar</a>
+<a href="manual-de-obra.html#portales">Qué hace cada enlace externo</a>
+</div>
+</article>
+</section>
+<section class="section" id="resultados">
+<h2>Qué significa que un paso esté terminado</h2>
+<div class="panel table-wrap">
+<table>
+<thead>
+<tr>
+<th>En la pantalla</th>
+<th>Resultado real</th>
+<th>El siguiente control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OC confirmada</td>
+<td>Pedido autorizado al proveedor.</td>
+<td>Entrega, factura y pago se registran por sus circuitos.</td>
+</tr>
+<tr>
+<td>Recepción confirmada</td>
+<td>Ingreso físico al stock de la ubicación.</td>
+<td>Verificar material, cantidad y destino; evitar duplicarla.</td>
+</tr>
+<tr>
+<td>Factura APTO_PARA_PAGO</td>
+<td>Documento habilitado para una OP.</td>
+<td>Emitir la OP y registrar su ejecución con cuenta.</td>
+</tr>
+<tr>
+<td>OP EMITIDA / EJECUTADA</td>
+<td>Preparada / pago registrado con salida en tesorería.</td>
+<td>Contrastar comprobante, cuenta y facturas.</td>
+</tr>
+<tr>
+<td>Proforma aceptada</td>
+<td>Versión comercial aceptada; genera una OT.</td>
+<td>Aprobación interna del trabajo, entrega y facturación según el caso.</td>
+</tr>
+<tr>
+<td>Factura de venta emitida</td>
+<td>Documento comercial emitido.</td>
+<td>El envío fiscal electrónico y el cobro tienen sus propios resultados.</td>
+</tr>
+<tr>
+<td>Meta semanal comprometida</td>
+<td>Plan guardado; puede reservar stock central con cobertura válida.</td>
+<td>Comprar lo faltante y registrar el trabajo ejecutado.</td>
+</tr>
+<tr>
+<td>Certificado al comitente</td>
+<td>BORRADOR → ELABORADO → VERIFICADO → APROBADO → FACTURADO.</td>
+<td>El borrador de factura generado desde el aprobado todavía requiere revisión y emisión.</td>
+</tr>
+<tr>
+<td>PRESENTAR en PREBID</td>
+<td>Congela una versión de oferta en la app.</td>
+<td>La presentación externa en DNCP no la ejecuta ese botón.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="section" id="mapa">
+<h2>Mapa de toda la aplicación</h2>
+<p>Los circuitos anteriores conectan las tareas principales. Este mapa incluye también las herramientas transversales y las pantallas de apoyo. Cada enlace abre su explicación en el manual.</p>
+<div class="directory">
+<div class="panel">
+<h3>Empezar y administrar</h3>
+<p class="muted">Acceso, empresa, equipo y configuración.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#acceso">Ingresar y orientarse en la app</a>
+</li>
+<li>
+<a href="manual-de-obra.html#dashboard">Dashboard de Administración</a>
+</li>
+<li>
+<a href="manual-de-obra.html#configuracion">Datos de empresa y formatos de documentos</a>
+</li>
+<li>
+<a href="manual-de-obra.html#usuarios">Usuarios de tu empresa</a>
+</li>
+<li>
+<a href="manual-de-obra.html#empresas">Empresas y administración global de usuarios</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Comprar y pagar</h3>
+<p class="muted">Del proveedor y la necesidad hasta la factura y el pago.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#proveedores">Proveedores: catálogo de la empresa</a>
+</li>
+<li>
+<a href="manual-de-obra.html#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+</li>
+<li>
+<a href="manual-de-obra.html#compra-directa">Compra directa sin pedir cotizaciones</a>
+</li>
+<li>
+<a href="manual-de-obra.html#ordenes-compra">Órdenes de compra y seguimiento</a>
+</li>
+<li>
+<a href="manual-de-obra.html#recepciones">Recepción de mercadería y entrada al stock</a>
+</li>
+<li>
+<a href="manual-de-obra.html#facturas-compra">Facturas de proveedores: carga y revisión</a>
+</li>
+<li>
+<a href="manual-de-obra.html#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+</li>
+<li>
+<a href="manual-de-obra.html#pagos">Órdenes de pago: emitir y ejecutar</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Materiales e inventario</h3>
+<p class="muted">Catálogo, precios y existencia física por ubicación.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#stock">Materiales: catálogo, unidades y presentaciones</a>
+</li>
+<li>
+<a href="manual-de-obra.html#precios">Lista de precios y vinculación de compras</a>
+</li>
+<li>
+<a href="manual-de-obra.html#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Vender y cobrar</h3>
+<p class="muted">Del cliente y la proforma hasta la entrega, la factura y el cobro.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#clientes">Clientes y estado de cuenta</a>
+</li>
+<li>
+<a href="manual-de-obra.html#proformas">Proformas, aceptación del cliente y OT</a>
+</li>
+<li>
+<a href="manual-de-obra.html#ordenes-trabajo">Órdenes de trabajo: autorización y ejecución interna</a>
+</li>
+<li>
+<a href="manual-de-obra.html#remisiones">Remisiones de venta</a>
+</li>
+<li>
+<a href="manual-de-obra.html#facturas-venta">Facturas de venta y emisión electrónica</a>
+</li>
+<li>
+<a href="manual-de-obra.html#notas-credito">Notas de crédito y correcciones de ventas</a>
+</li>
+<li>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</li>
+<li>
+<a href="manual-de-obra.html#cobros">Cobros, saldos y reversión</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Finanzas</h3>
+<p class="muted">Dinero registrado, compromisos y proyecciones.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+</li>
+<li>
+<a href="manual-de-obra.html#flujo-caja">Flujo de caja y gastos recurrentes</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Operativo · Obras</h3>
+<p class="muted">Preparar, comprar para la obra, registrar avance y certificar.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#proyectos">Obras: crear, importar y abrir el proyecto</a>
+</li>
+<li>
+<a href="manual-de-obra.html#presupuesto">Presupuesto y cómputo de la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#planillas">Plantilla de trabajo en grilla y confirmación</a>
+</li>
+<li>
+<a href="manual-de-obra.html#costeo">Costeo, APU, jornales y plantillas</a>
+</li>
+<li>
+<a href="manual-de-obra.html#cronograma">Cronograma / Gantt</a>
+</li>
+<li>
+<a href="manual-de-obra.html#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+</li>
+<li>
+<a href="manual-de-obra.html#bim">BIM / IFC y cantidades del presupuesto</a>
+</li>
+<li>
+<a href="manual-de-obra.html#computo-avanzado">Cómputo avanzado desde Excel o PDF</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-proveedores">Proveedores vinculados a la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-compras">Órdenes de compra de la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-recepciones">Recepciones de la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-facturas">Facturas de compra vinculadas a la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-pagos">Pagos vinculados a la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#ejecucion">Registro de avance y parte diario del residente</a>
+</li>
+<li>
+<a href="manual-de-obra.html#obra-inventario">Inventario y consumo de materiales de la obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#panol">Depósito de obra y partes con evidencia</a>
+</li>
+<li>
+<a href="manual-de-obra.html#personal">Personal, horas y pagos de mano de obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a>
+</li>
+<li>
+<a href="manual-de-obra.html#certificados">Certificados al comitente y factura de venta</a>
+</li>
+<li>
+<a href="manual-de-obra.html#avance-fisico">Avance físico por unidades y partidas</a>
+</li>
+<li>
+<a href="manual-de-obra.html#informes">Informes y seguimiento de obra</a>
+</li>
+<li>
+<a href="manual-de-obra.html#clima">Clima, Libro de Obra y plazo contractual</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Licitaciones</h3>
+<p class="muted">Oportunidades DNCP, oferta PREBID, evidencia y simuladores.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+</li>
+<li>
+<a href="manual-de-obra.html#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+</li>
+<li>
+<a href="manual-de-obra.html#competidores">Competidores y radar comercial</a>
+</li>
+<li>
+<a href="manual-de-obra.html#documentos-empresa">Documentos de empresa para licitar</a>
+</li>
+<li>
+<a href="manual-de-obra.html#auction-bot">Auction Bot V0: simulador de estrategias</a>
+</li>
+<li>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</li>
+</ul>
+</div>
+<div class="panel">
+<h3>Asistencia y portales</h3>
+<p class="muted">Rodrigo, correo, escaneo, práctica y accesos externos acotados.</p>
+<ul>
+<li>
+<a href="manual-de-obra.html#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
+</li>
+<li>
+<a href="manual-de-obra.html#gmail">Correo de Rodrigo: conectar, preparar y aprobar</a>
+</li>
+<li>
+<a href="manual-de-obra.html#scanner">Scanner: enviar documentos desde el celular</a>
+</li>
+<li>
+<a href="manual-de-obra.html#instructivo">Instructivo interactivo: practicar sin operar</a>
+</li>
+<li>
+<a href="manual-de-obra.html#portales">Qué hace cada enlace externo</a>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<details class="trace" id="cobertura">
+<summary>Inventario verificado: 76 pantallas, 19 herramientas de obra y redirecciones</summary>
+<p>Base de contraste: <code>7e63e97de0f17c7e9db7c6e32e1c97c636fbba14</code>. El inventario sale de todos los archivos <code>app/**/page.tsx</code> del repositorio, incluidos formularios, detalles, impresiones y portales. Una ficha puede agrupar varias rutas. Las herramientas dentro de una pantalla se detallan por separado.</p>
+<h3>Herramientas de obra por menú</h3>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Grupo</th>
+<th>Herramienta</th>
+<th>Ficha</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Preparar</td>
+<td>Presupuesto · pro</td>
+<td>
+<a href="manual-de-obra.html#presupuesto">Presupuesto y cómputo de la obra</a>
+</td>
+</tr>
+<tr>
+<td>Preparar</td>
+<td>Costeo · pro</td>
+<td>
+<a href="manual-de-obra.html#costeo">Costeo, APU, jornales y plantillas</a>
+</td>
+</tr>
+<tr>
+<td>Preparar</td>
+<td>Cronograma / Gantt · pro</td>
+<td>
+<a href="manual-de-obra.html#cronograma">Cronograma / Gantt</a>
+</td>
+</tr>
+<tr>
+<td>Preparar</td>
+<td>Plan semanal · pro</td>
+<td>
+<a href="manual-de-obra.html#plan-semanal">Plan semanal, recetas de producción y necesidades</a>
+</td>
+</tr>
+<tr>
+<td>Preparar</td>
+<td>BIM / IFC · caterpillar</td>
+<td>
+<a href="manual-de-obra.html#bim">BIM / IFC y cantidades del presupuesto</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>Proveedores · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-proveedores">Proveedores vinculados a la obra</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>Cotizaciones · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>OC · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-compras">Órdenes de compra de la obra</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>Recepciones · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-recepciones">Recepciones de la obra</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>Facturas · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-facturas">Facturas de compra vinculadas a la obra</a>
+</td>
+</tr>
+<tr>
+<td>Comprar</td>
+<td>Pagos · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-pagos">Pagos vinculados a la obra</a>
+</td>
+</tr>
+<tr>
+<td>Avance de obra</td>
+<td>Registro de avance · pro</td>
+<td>
+<a href="manual-de-obra.html#ejecucion">Registro de avance y parte diario del residente</a>
+</td>
+</tr>
+<tr>
+<td>Avance de obra</td>
+<td>Inventario · pro</td>
+<td>
+<a href="manual-de-obra.html#obra-inventario">Inventario y consumo de materiales de la obra</a>
+</td>
+</tr>
+<tr>
+<td>Avance de obra</td>
+<td>Depósito de obra · pro</td>
+<td>
+<a href="manual-de-obra.html#panol">Depósito de obra y partes con evidencia</a>
+</td>
+</tr>
+<tr>
+<td>Avance de obra</td>
+<td>Personal · caterpillar</td>
+<td>
+<a href="manual-de-obra.html#personal">Personal, horas y pagos de mano de obra</a>
+</td>
+</tr>
+<tr>
+<td>Avance de obra</td>
+<td>Subcontratistas · caterpillar</td>
+<td>
+<a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a>
+</td>
+</tr>
+<tr>
+<td>Certificar</td>
+<td>Certificados · caterpillar</td>
+<td>
+<a href="manual-de-obra.html#certificados">Certificados al comitente y factura de venta</a>
+</td>
+</tr>
+<tr>
+<td>Certificar</td>
+<td>Avance físico · caterpillar</td>
+<td>
+<a href="manual-de-obra.html#avance-fisico">Avance físico por unidades y partidas</a>
+</td>
+</tr>
+<tr>
+<td>Certificar</td>
+<td>Informes · pro</td>
+<td>
+<a href="manual-de-obra.html#informes">Informes y seguimiento de obra</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Redirecciones existentes</h3>
+<ul>
+<li>
+<code>/</code> redirige a <code>/dashboard</code>.</li>
+<li>
+<code>/ventas</code> redirige a <code>/proformas</code>. La navegación de ventas se organiza por tipo de documento.</li>
+<li>
+<code>/costs</code> redirige a <code>/orders</code>. Es el acceso antiguo a OC; el Costeo de obra se abre dentro del proyecto.</li>
+</ul>
+<h3>Índice completo de pantallas</h3>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Ruta</th>
+<th>Está explicada en</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>/</code>
+</td>
+<td>Redirección a <code>/dashboard</code>. <a href="manual-de-obra.html#acceso">Ingresar y orientarse en la app</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/agent/activity</code>
+</td>
+<td>
+<a href="manual-de-obra.html#rodrigo">Rodrigo: consultas, propuestas y aprobaciones</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/auction-lab/join/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/auction-lab/watch/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/avance/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#ejecucion">Registro de avance y parte diario del residente</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/certificados/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/clientes</code>
+</td>
+<td>
+<a href="manual-de-obra.html#clientes">Clientes y estado de cuenta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/clientes/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#clientes">Clientes y estado de cuenta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/clientes/[id]/estado-cuenta</code>
+</td>
+<td>
+<a href="manual-de-obra.html#clientes">Clientes y estado de cuenta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/cobros</code>
+</td>
+<td>
+<a href="manual-de-obra.html#cobros">Cobros, saldos y reversión</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/configuracion</code>
+</td>
+<td>
+<a href="manual-de-obra.html#configuracion">Datos de empresa y formatos de documentos</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/costs</code>
+</td>
+<td>Redirección a <code>/orders</code>. </td>
+</tr>
+<tr>
+<td>
+<code>/cotizacion/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proformas">Proformas, aceptación del cliente y OT</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/cotizar/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/dashboard</code>
+</td>
+<td>
+<a href="manual-de-obra.html#dashboard">Dashboard de Administración</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/empresas</code>
+</td>
+<td>
+<a href="manual-de-obra.html#empresas">Empresas y administración global de usuarios</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/facturas-venta</code>
+</td>
+<td>
+<a href="manual-de-obra.html#facturas-venta">Facturas de venta y emisión electrónica</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/facturas-venta/nueva</code>
+</td>
+<td>
+<a href="manual-de-obra.html#facturas-venta">Facturas de venta y emisión electrónica</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/flujo-caja</code>
+</td>
+<td>
+<a href="manual-de-obra.html#flujo-caja">Flujo de caja y gastos recurrentes</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/instructivo</code>
+</td>
+<td>
+<a href="manual-de-obra.html#instructivo">Instructivo interactivo: practicar sin operar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/inventario</code>
+</td>
+<td>
+<a href="manual-de-obra.html#inventario">Stock e Inventario: ubicaciones y movimientos</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/invoices</code>
+</td>
+<td>
+<a href="manual-de-obra.html#facturas-compra">Facturas de proveedores: carga y revisión</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/invoices/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#facturas-compra">Facturas de proveedores: carga y revisión</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/invoices/bulk</code>
+</td>
+<td>
+<a href="manual-de-obra.html#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/invoices/revision</code>
+</td>
+<td>
+<a href="manual-de-obra.html#revision-facturas">Carga masiva y bandeja de revisión de facturas</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones</code>
+</td>
+<td>
+<a href="manual-de-obra.html#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#licitaciones">Licitaciones: importar DNCP y seguir oportunidades</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/[id]/prebid</code>
+</td>
+<td>
+<a href="manual-de-obra.html#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/auction-bot</code>
+</td>
+<td>
+<a href="manual-de-obra.html#auction-bot">Auction Bot V0: simulador de estrategias</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/auction-lab</code>
+</td>
+<td>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/auction-lab/[roomId]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#auction-lab">Auction Lab: salas simuladas y participantes</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/competidores</code>
+</td>
+<td>
+<a href="manual-de-obra.html#competidores">Competidores y radar comercial</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/competidores/[ruc]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#competidores">Competidores y radar comercial</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/documentos</code>
+</td>
+<td>
+<a href="manual-de-obra.html#documentos-empresa">Documentos de empresa para licitar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/licitaciones/prebid</code>
+</td>
+<td>
+<a href="manual-de-obra.html#prebid">PREBID: cómputo, costos, oferta y resultado</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/login</code>
+</td>
+<td>
+<a href="manual-de-obra.html#acceso">Ingresar y orientarse en la app</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/notas-credito</code>
+</td>
+<td>
+<a href="manual-de-obra.html#notas-credito">Notas de crédito y correcciones de ventas</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ordenes-trabajo</code>
+</td>
+<td>
+<a href="manual-de-obra.html#ordenes-trabajo">Órdenes de trabajo: autorización y ejecución interna</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ordenes-trabajo/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#ordenes-trabajo">Órdenes de trabajo: autorización y ejecución interna</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/orders</code>
+</td>
+<td>
+<a href="manual-de-obra.html#ordenes-compra">Órdenes de compra y seguimiento</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/orders/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#ordenes-compra">Órdenes de compra y seguimiento</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/pagos</code>
+</td>
+<td>
+<a href="manual-de-obra.html#pagos">Órdenes de pago: emitir y ejecutar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/pagos/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#pagos">Órdenes de pago: emitir y ejecutar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/pagos/[id]/imprimir</code>
+</td>
+<td>
+<a href="manual-de-obra.html#pagos">Órdenes de pago: emitir y ejecutar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/pagos/nueva</code>
+</td>
+<td>
+<a href="manual-de-obra.html#pagos">Órdenes de pago: emitir y ejecutar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/planillas/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#planillas">Plantilla de trabajo en grilla y confirmación</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/precios</code>
+</td>
+<td>
+<a href="manual-de-obra.html#precios">Lista de precios y vinculación de compras</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/proformas</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proformas">Proformas, aceptación del cliente y OT</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/proformas/nueva</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proformas">Proformas, aceptación del cliente y OT</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/projects</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proyectos">Obras: crear, importar y abrir el proyecto</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/projects/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proyectos">Obras: crear, importar y abrir el proyecto</a> · <a href="manual-de-obra.html#presupuesto">Presupuesto y cómputo de la obra</a> · <a href="manual-de-obra.html#costeo">Costeo, APU, jornales y plantillas</a> · <a href="manual-de-obra.html#cronograma">Cronograma / Gantt</a> · <a href="manual-de-obra.html#plan-semanal">Plan semanal, recetas de producción y necesidades</a> · <a href="manual-de-obra.html#bim">BIM / IFC y cantidades del presupuesto</a> · <a href="manual-de-obra.html#obra-proveedores">Proveedores vinculados a la obra</a> · <a href="manual-de-obra.html#obra-cotizaciones">Cotizaciones y necesidades de la obra</a> · <a href="manual-de-obra.html#obra-compras">Órdenes de compra de la obra</a> · <a href="manual-de-obra.html#obra-recepciones">Recepciones de la obra</a> · <a href="manual-de-obra.html#obra-facturas">Facturas de compra vinculadas a la obra</a> · <a href="manual-de-obra.html#obra-pagos">Pagos vinculados a la obra</a> · <a href="manual-de-obra.html#ejecucion">Registro de avance y parte diario del residente</a> · <a href="manual-de-obra.html#obra-inventario">Inventario y consumo de materiales de la obra</a> · <a href="manual-de-obra.html#panol">Depósito de obra y partes con evidencia</a> · <a href="manual-de-obra.html#personal">Personal, horas y pagos de mano de obra</a> · <a href="manual-de-obra.html#subcontratistas">Contratos y certificados de subcontratistas</a> · <a href="manual-de-obra.html#certificados">Certificados al comitente y factura de venta</a> · <a href="manual-de-obra.html#avance-fisico">Avance físico por unidades y partidas</a> · <a href="manual-de-obra.html#informes">Informes y seguimiento de obra</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/projects/[id]/orders/[orderId]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#obra-compras">Órdenes de compra de la obra</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/projects/[id]/rfqs/[rfqId]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#obra-cotizaciones">Cotizaciones y necesidades de la obra</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/providers</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proveedores">Proveedores: catálogo de la empresa</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/providers/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#proveedores">Proveedores: catálogo de la empresa</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/recepcion/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#recepciones">Recepción de mercadería y entrada al stock</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/remisiones</code>
+</td>
+<td>
+<a href="manual-de-obra.html#remisiones">Remisiones de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/remisiones/nueva</code>
+</td>
+<td>
+<a href="manual-de-obra.html#remisiones">Remisiones de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/reset-password</code>
+</td>
+<td>
+<a href="manual-de-obra.html#acceso">Ingresar y orientarse en la app</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/rfqs</code>
+</td>
+<td>
+<a href="manual-de-obra.html#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/rfqs/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#rfqs">Cotizaciones de proveedores: pedir, comparar y adjudicar</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/scanner</code>
+</td>
+<td>
+<a href="manual-de-obra.html#scanner">Scanner: enviar documentos desde el celular</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/stock</code>
+</td>
+<td>
+<a href="manual-de-obra.html#stock">Materiales: catálogo, unidades y presentaciones</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/stock/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#stock">Materiales: catálogo, unidades y presentaciones</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/stock/[id]/editar</code>
+</td>
+<td>
+<a href="manual-de-obra.html#stock">Materiales: catálogo, unidades y presentaciones</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/stock/nuevo</code>
+</td>
+<td>
+<a href="manual-de-obra.html#stock">Materiales: catálogo, unidades y presentaciones</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/suspendido</code>
+</td>
+<td>
+<a href="manual-de-obra.html#acceso">Ingresar y orientarse en la app</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/tesoreria</code>
+</td>
+<td>
+<a href="manual-de-obra.html#tesoreria">Tesorería: cuentas, movimientos y transferencias</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/users</code>
+</td>
+<td>
+<a href="manual-de-obra.html#usuarios">Usuarios de tu empresa</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ventas</code>
+</td>
+<td>Redirección a <code>/proformas</code>. </td>
+</tr>
+<tr>
+<td>
+<code>/ventas/[id]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ventas/[id]/editar</code>
+</td>
+<td>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ventas/[id]/imprimir</code>
+</td>
+<td>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ventas/nueva</code>
+</td>
+<td>
+<a href="manual-de-obra.html#documentos-venta">Detalle, edición e impresión de documentos de venta</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/ventas/nueva-nc</code>
+</td>
+<td>
+<a href="manual-de-obra.html#notas-credito">Notas de crédito y correcciones de ventas</a>
+</td>
+</tr>
+<tr>
+<td>
+<code>/warehouse/[token]</code>
+</td>
+<td>
+<a href="manual-de-obra.html#panol">Depósito de obra y partes con evidencia</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+<footer>
+<p>Documentación reconstruida desde el código de main 7e63e97d. Describe el funcionamiento implementado y distingue las integraciones de las simulaciones. El contraste de código no sustituye una prueba real de credenciales, conectividad o respuesta de Gmail, DNCP, Goekua y otros proveedores.</p>
+<p>Al cambiar una pantalla, sus permisos o su lógica, revisá su ficha y regenerá ambos documentos con <code>node scripts/docs/generate-app-guides.mjs</code>. El generador comprueba rutas, pestañas, enlaces y fuentes antes de escribir.</p>
+<p class="no-print">
+<a href="#inicio">Volver al inicio ↑</a>
+</p>
+</footer>
+</main>
+</div>
 <script>
-(function(){
-  "use strict";
-  const KEY = 'flujo-obra-done-v2';
-
-  const PHASES = [
-    {
-      n:1, cls:'p1', title:'Preparar la obra', cad:'cad-once', cadTxt:'Una vez · antes de arrancar',
-      sub:'Dejás la obra lista para operar: contrato, presupuesto, cronograma.',
-      steps:[
-        { id:'crear', t:'Crear el proyecto', screen:'Proyectos → Nuevo',
-          what:'Un proyecto es una obra. Presupuesto, avance, certificados, stock — todo cuelga de acá.',
-          how:['Botón <b>"Nuevo proyecto"</b> en la lista de Proyectos.',
-               'Cargá <b>nombre</b>, <b>código</b> (ej. <code>OBR-001</code>), cliente, ubicación.',
-               'Datos del contrato: <b>comitente</b>, N° de contrato, <b>monto contractual</b>, <b>% de anticipo</b>, <b>% de retención</b>, plazo en meses. (Esto lo usa el certificado para calcular las deducciones.)',
-               'Dejá tildado <b>"Crear depósito/pañol para esta obra"</b> si vas a controlar stock por obra.'],
-          tip:{k:'ok', t:'Adentro del proyecto las tabs están agrupadas por fase: Preparar · Comprar · Ejecutar · Certificar y controlar. Seguí ese orden.'} },
-        { id:'acepta', t:'Si la obra nace de una cotización: el cliente la acepta → se genera la OT interna', screen:'Proformas / Ventas',
-          what:'Paso opcional, solo cuando el trabajo viene de una propuesta comercial. El cliente acepta la <b>cotización</b> desde un link seguro — no acepta la Orden de Trabajo. Al aceptar, el sistema genera sola la <b>OT interna</b>. Una obra también puede nacer por otros orígenes sin pasar por acá.',
-          how:['Creás la <b>proforma/cotización</b> y generás el <b>link seguro</b> de aceptación.',
-               'El cliente abre el link (sin login) y pulsa <b>aceptar</b> — abrir el link no acepta solo.',
-               'La aceptación queda registrada y se genera <b>exactamente 1 OT interna</b> con los datos de la cotización.',
-               'La OT entra por defecto a <b>aprobación interna</b>; solo con un permiso explícito va <b>directo a producción</b>.',
-               'La aceptación <b>no factura, no mueve stock, no genera OC ni tiene efecto fiscal</b> por sí misma.'],
-          tip:{k:'ok', t:'Cliente acepta cotización. OT = documento interno. Detalle técnico en el bloque “Aceptación de cotización + OT”.'} },
-        { id:'panol', t:'Se crea el pañol/depósito de la obra', screen:'automático', auto:true,
-          what:'Un depósito físico vinculado al proyecto. Todo el material de esta obra entra y sale de acá.',
-          how:['Se crea solo al crear el proyecto (si dejaste la opción tildada).',
-               'Queda con el nombre <code>Pañol OBR-001 — Nombre de la obra</code>.',
-               'Si no lo creaste ahí, lo podés crear después desde <b>Stock → Depósitos</b> y vincularlo al proyecto.'] },
-        { id:'presup', t:'Importar el presupuesto', screen:'tab Presupuesto',
-          what:'El cómputo métrico de la obra. Es la base de todo: cronograma, avance, certificados y consumo de materiales.',
-          how:['Botón <b>"Importar Excel"</b> → subís el <code>.xlsx</code> o <code>.csv</code> del cómputo.',
-               '<b>Mapeás las columnas</b>: cuál es Código, Descripción, Unidad, Cantidad, Precio. Se auto-detecta por el encabezado; lo corregís a mano si hace falta.',
-               'Previsualizás — las filas con problemas se marcan en rojo y se saltean.',
-               'Si tus códigos son jerárquicos (<code>1</code>, <code>1.1</code>, <code>1.2</code>) la jerarquía se arma sola.'],
-          tip:{k:'warn', t:'Si vas a hacer certificados, importá del MISMO Excel de medición que vas a usar para pegar el avance — así los códigos coinciden y el emparejamiento es exacto.'} },
-        { id:'planilla', t:'Ajustar el presupuesto en la planilla embebida', screen:'tab Presupuesto',
-          what:'Una grilla tipo Excel adentro del ERP, para retocar el cómputo sin exportar/reimportar: fórmulas, copiar/pegar rangos, agregar y eliminar filas, deshacer/rehacer.',
-          how:['Botón <b>"Generar plantilla de trabajo"</b> arriba de la tabla de presupuesto.',
-               'Editás como en Excel — el <b>Subtotal</b> se recalcula solo con una fórmula mientras tipeás.',
-                'Se guarda como <b>borrador</b> en segundo plano; el presupuesto real todavía no cambia.',
-                'Botón <b>"Confirmar"</b>: recién ahí se aplican altas, bajas y ediciones juntas — todo o nada.',
-                'Disponible con Rodrigo: <b>“leé esta planilla y decime qué falta comprar”</b> — lee snapshot y rangos con las mismas reglas del motor.'],
-          tip:{k:'warn', t:'Si alguien más tocó esos mismos rubros mientras tenías la planilla abierta, "Confirmar" avisa el conflicto en vez de pisar el cambio ajeno.'} },
-        { id:'crono', t:'Poner fechas en cada ítem', screen:'tab Cronograma',
-          what:'El Gantt de la obra. No se dibuja a mano — sale de las fechas de cada rubro.',
-          how:['En Presupuesto, editás cada ítem y le ponés <b>fecha de inicio y fin</b>.',
-               'En Cronograma se dibuja el Gantt. Los ítems sin fecha no aparecen.',
-               'Podés arrastrar una barra para mover sus fechas — se guarda solo.',
-               'Selector <b>Día / Semana / Mes</b> para el zoom.'] },
-        { id:'costeo', t:'Completar Costeo y recetas APU', screen:'Preparar → Costeo', what:'Revisás partidas, recetas, mano de obra, precios y costos pendientes. El precio contractual de venta no es costo de material.', how:['Revisá el checklist y resolvé faltantes.','Vinculá materiales y coeficientes en la APU.','Si cotizás costos, adoptá precios revisados: ese circuito no emite OC.'] },
-        { id:'plansemanal', t:'Armar el Plan Semanal de Obra', screen:'Preparar → Plan semanal',
-          what:'El residente define un <b>objetivo físico de producción</b> (ej.: 0,4 km de ruta). La <b>receta constructiva</b> —importada del Excel que la constructora ya usa— traduce ese objetivo a partidas físicas; el <b>BOM/APU</b> canónico (<code>budget_item_materials</code>) traduce cada partida a materiales; y el <b>MRP de obra</b> cruza la necesidad contra stock de obra, stock central disponible y OC inbound para mostrar el faltante real, la reserva y la caja.',
-          how:['Elegís el período, <b>importás/elegís una receta</b> (match exacto contra el presupuesto, fail-closed: código ambiguo bloquea y se corrige con mapeo manual) y ponés el <b>objetivo físico</b>: cantidad, % del tramo o "llegar a".',
-               'La receta produce <b>partidas físicas</b> (0,4 km → 600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión) y el BOM calcula la <b>necesidad bruta</b> de materiales.',
-               '<b>Cobertura en orden:</b> stock de obra → <b>central DISPONIBLE</b> (físico − reservas ACTIVE de otros planes) → <b>inbound a tiempo</b> (OC con fecha de entrega ≤ fin del plan; tarde o sin fecha solo informa) → <b>faltante a comprar × costo real</b> = <b>caja adicional</b> (ej.: 200 t × Gs. 3.000 = <b>Gs. 600.000</b>).',
-               '<b>CALCULAR PLAN es preview (no reserva); COMPROMETER recalcula en el servidor y reserva el stock central atómicamente</b> (plan + ítems + reservas en una transacción). Al cerrar el plan, las reservas se liberan.',
-               'Opcionalmente activás <b>Clima ON</b>: advisory; nunca recorta materiales ni compra.',
-               '<a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a>'],
-          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra ni consume stock de otras obras automáticamente: la cobertura central es el disponible neto de reservas, y transferir material entre obras es un proceso operativo aparte. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
-        { id:'subc', t:'Cargar contratos de subcontratistas', screen:'tab Subcontratistas',
-          what:'Cada rubro que tercerizás es un contrato con un subcontratista.',
-          how:['Botón <b>"Agregar contrato"</b>.',
-               'Elegís un subcontratista del catálogo o cargás uno nuevo en el momento.',
-               'Asignás el <b>rubro del presupuesto</b>, el <b>monto contratado</b> y el <b>% de retención</b> (5% por defecto).'],
-          tip:{k:'ok', t:'El subcontratista carga sus certificados desde un link propio sin login. El sistema bloquea aprobar más del monto contratado.'} },
-      ]
-    },
-    {
-      n:2, cls:'p2', title:'Comprar materiales', cad:'cad-loop', cadTxt:'Se repite con cada compra',
-      sub:'El circuito de aprovisionamiento. Cada vez que la obra necesita material, este ciclo entero.',
-      steps:[
-        { id:'cotizar', t:'Pedir precio a proveedores', screen:'Cotizaciones',
-          what:'Le pedís precio a varios proveedores para el mismo producto, sin llamarlos uno por uno.',
-          how:['Creás la solicitud: producto, cantidad, unidad, especificaciones, fecha requerida.',
-               'Invitás proveedores del catálogo — cada uno recibe un <b>link propio, sin login</b>.',
-                'El proveedor entra y carga su oferta: precio, plazo de entrega, validez, PDF opcional.',
-                'Comparás las ofertas y elegís una <b>marcando el motivo</b> (menor precio, mejor plazo, proveedor habitual).'],
-          tip:{k:'ok', t:'Disponible con Rodrigo: pedile “cotizame estos materiales” o “compará las respuestas de esta RFQ” por texto o voz — prepara y compara con las mismas reglas.'} },
-        { id:'oc', t:'Autorizar y emitir la Orden de Compra para la obra', screen:'Órdenes de compra',
-          what:'El compromiso formal de compra. Requiere revisión, adjudicación, autorización y confirmación de emisión; una cotización de costos no emite OC.',
-          how:['Seleccionás proveedor, justificás, autorizás y revisás la vista previa. La OC se crea al confirmar <b>Emitir OC</b>, no al seleccionar la oferta.',
-               'Abrís la OC y le <b>asignás el proyecto</b> — así aparece en las compras de esa obra.',
-               'La OC lleva su <b>saldo</b>: cuánto se facturó y cuánto queda.'],
-          tip:{k:'warn', t:'Si no le asignás el proyecto, la compra no aparece en el tab "Compras" de la obra ni suma a "comprado vs presupuesto".'} },
-        { id:'recep', t:'Llega el camión → recepción de la OC', screen:'Comprar → Recepciones',
-          what:'Registrás que la mercadería llegó físicamente. Es requisito para que la factura pase a apta para pago.',
-          how:['Desde la OC (o desde Stock), botón <b>"Recepcionar OC"</b>.',
-               'Marcás <b>qué llegó</b> y <b>cuánto</b> de cada línea (puede llegar en varias entregas).',
-               'Elegís a qué <b>producto de stock</b> corresponde cada línea → el material entra al pañol al precio de la OC.',
-               'El sistema recalcula el <b>Costo Promedio Ponderado</b> del producto.'],
-          tip:{k:'ok', t:'La recepción actualiza sola el estado de la OC a "Recibido" en el módulo de Compras.'} },
-        { id:'facprov', t:'Llega la factura del proveedor', screen:'Facturas',
-          what:'Una IA lee las facturas que subís (foto o PDF) e intenta identificar todo.',
-          how:['Carga masiva: subís todas las facturas del día juntas.',
-               'La lectura IA se revisa: proveedor/RUC, número, fecha, total y vinculación a una OC del mismo proveedor.',
-               'Revisá identidad del emisor, total y OC del mismo proveedor; la vinculación y la aptitud dependen de las validaciones del servidor.',
-               'Si algo no cierra, va a la cola de <b>revisión manual</b> con los datos pre-cargados.'],
-          tip:{k:'warn', t:'El matching nunca cruza proveedores: una factura de "Cartones SA" jamás se ofrece vincular con una OC de otro proveedor.'} },
-        { id:'pagoprov', t:'Orden de Pago → pagar', screen:'Pagos',
-          what:'Agrupás facturas aptas del mismo proveedor en una Orden de Pago y queda el respaldo formal.',
-          how:['Elegís el proveedor → el sistema muestra sus facturas aptas para pago.',
-               'Marcás cuáles pagás → se crea la OP con código propio.',
-               '<b>"Ver OP"</b>: documento con proveedor, facturas, OC de cada una, total — para imprimir.',
-               'Al marcarla <b>Ejecutada</b>, todas sus facturas pasan a Pagado.'] },
-      ]
-    },
-    {
-      n:3, cls:'p3', title:'Ejecutar en obra y revisar el plan', cad:'cad-loop', cadTxt:'Plan semanal · ejecución diaria',
-      sub:'Primero definís qué querés ejecutar; después el frente registra lo que realmente pasó.',
-      steps:[
-        { id:'avance', t:'El capataz carga el avance del día con foto', screen:'Avance de obra → Registro de avance',
-          what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta. Este dato alimenta el avance real y, cuando hay suficiente historial, sirve como referencia de capacidad para comparar contra el Plan Semanal.',
-          how:['En la tab Ejecución, botón <b>"QR para el capataz"</b> → <b>"Descargar QR"</b> (PNG).',
-               'Se lo mandás por WhatsApp o lo imprimís y lo pegás en el obrador.',
-               'El capataz lo escanea <b>una vez</b>, entra al parte de avance y lo <b>agrega a la pantalla de inicio</b>.',
-               'Carga: ítem del presupuesto, cantidad ejecutada, fecha, y hasta 5 fotos con <b>"Abrir cámara"</b>.'],
-          tip:{k:'ok', t:'Captura verificada: la cámara se abre DENTRO de la app (no la galería) y sella cada foto con GPS + fecha/hora. No se puede mandar una foto vieja, de otra obra o editada.'} },
-        { id:'salida', t:'El material sale del pañol al frente', screen:'Avance de obra → Inventario / Depósito de obra',
-          what:'Registrás el consumo. Es lo que alimenta el reporte de consumo vs presupuesto.',
-          how:['En <b>Stock e Inventario</b>, registrás el consumo: producto, cantidad, depósito de origen e imputación correcta. Una transferencia entre depósitos no equivale a consumo.',
-               '<b>Imputás a la obra</b> y, opcionalmente, al <b>rubro del presupuesto</b>.',
-               'El stock baja y la salida queda registrada contra esa obra.'],
-          tip:{k:'ok', t:'En la obra, Avance de obra → Inventario / Depósito de obra muestra el contexto físico; Materiales es el catálogo.'} },
-        { id:'personal', t:'Parte diario de personal', screen:'tab Personal',
-          what:'Partes de mano de obra: quién trabajó, cuántas horas, a qué costo.',
-          how:['En la tab Personal, cargás cada parte: fecha, trabajador, horas, costo por hora.',
-               'El total se suma al KPI <b>"Costo de Mano de Obra"</b> del proyecto.'] },
-        { id:'lluvia', t:'Validar días climáticos y efectos de lluvia', screen:'tab Cronograma',
-          what:'Climate Workdays cruza meteorología automática con la evidencia real de obra. Si la lluvia supera el umbral contractual, propone la jornada como no trabajable; el residente confirma, corrige o adjunta la foto del pluviómetro.',
-          how:['El proyecto guarda su <b>umbral contractual de precipitación</b> y sus coordenadas.',
-               '<b>DMH/DINAC</b> es la fuente automática primaria; Open-Meteo queda como fallback cuando la fuente oficial no es utilizable.',
-               'Si se supera el umbral, el sistema propone <b>No trabajable por lluvia</b>. La confirmación humana prevalece y la medición local del pluviómetro se conserva separada de la lectura externa.',
-               'Si al día siguiente no llueve pero el terreno, acceso o excavación siguen afectados, el residente marca <b>Efecto de lluvia</b> y lo vincula causalmente al día anterior.',
-               'La evidencia queda en la cronología climática y esos días alimentan el forecast para separar atraso bruto de atraso explicado por clima.',
-               '<a href="modulo-dias-climaticos.html" style="color:var(--blue)">Abrir explicación completa del módulo Climate Workdays →</a>'],
-          tip:{k:'ok', t:'Pronóstico futuro y Climate Workdays no son lo mismo: el Weather Overlay ayuda a planificar; Climate Workdays documenta lo que realmente ocurrió y deja evidencia auditable.'} },
-      ]
-    },
-    {
-      n:4, cls:'p4', title:'Certificar al comitente', cad:'cad-loop', cadTxt:'Se repite a fin de cada mes',
-      sub:'El documento con el que le cobrás al comitente lo ejecutado en el mes (obra pública).',
-      steps:[
-        { id:'nuevocert', t:'Nuevo certificado', screen:'tab Certificados',
-          what:'Congela el avance del período con columnas Anterior / Presente / Acumulado por rubro.',
-          how:['Botón <b>"+ Nuevo certificado"</b> — sale numerado solo (N°1, N°2…).',
-               'Nace en <b>BORRADOR</b> con todos los rubros del presupuesto.',
-               'La columna <b>"Anterior"</b> ya viene calculada de los certificados aprobados previos.'] },
-        { id:'pegar', t:'Pegar el avance del mes desde el Excel', screen:'tab Certificados',
-          what:'El avance real vive en tu planilla de medición. No se tipea rubro por rubro.',
-          how:['Copiás la columna <b>"Presente"</b> de tu Excel de medición (hoja ACTA / registro).',
-               'La pegás en el certificado → el sistema empareja por código de rubro (o por orden de fila) y llena todos los <code>qty_presente</code> de un golpe.',
-               'Alternativa para obras con unidades repetidas (viviendas, locales): cargás el <b>% de avance por unidad</b> y el botón "Calcular rubros desde unidades" hace la cuenta.'] },
-        { id:'deducc', t:'El sistema calcula las deducciones', screen:'automático', auto:true,
-          what:'Acumulado, devolución de anticipo, retención y monto líquido — todo desde los datos del contrato.',
-          how:['<b>Acumulado</b> = Anterior + Presente.',
-               '<b>Devolución de anticipo</b> = bruto × % anticipo del contrato.',
-               '<b>Retención</b> = bruto × % retención.',
-               'Fiscalización puede cargar <b>penalidades</b> (por avance o por presentación).',
-               '<b>Monto líquido</b> = lo que te van a pagar.'] },
-        { id:'firmas', t:'Circuito de firmas', screen:'tab Certificados',
-          what:'El certificado avanza por estados que mapean a las firmas reales.',
-          how:['<b>Borrador</b> → cargás y ajustás.',
-               '<b>Elaborado</b> → congelás las líneas (ya no cambian).',
-               '<b>Verificado</b> → Fiscalización revisa.',
-               '<b>Aprobado</b> → Supervisión firma. Listo para facturar.'] },
-        { id:'pdf', t:'Descargar el PDF y presentarlo', screen:'tab Certificados',
-          what:'El documento en A4 landscape, listo para firmar.',
-          how:['En cada certificado, enlace <b>"Descargar PDF"</b>.',
-               'Se genera en el servidor y se abre en una pestaña nueva — no necesitás ningún programa.',
-               'Incluye: encabezado (empresa / comitente / contrato), tabla de rubros completa, bloque de liquidación y bloque de firmas.'] },
-      ]
-    },
-    {
-      n:5, cls:'p5', title:'Cobrar', cad:'cad-once', cadTxt:'Cuando el comitente aprueba el certificado',
-      sub:'Acá el proyecto se conecta con el módulo Ventas que ya conocés.',
-      steps:[
-        { id:'fv', t:'Del certificado aprobado → Factura de Venta', screen:'Facturas de Venta',
-          what:'Facturás al comitente por el monto del certificado. Genera cuenta por cobrar.',
-          how:['Creás la Factura de Venta al comitente por el monto del certificado.',
-               'Podés emitirla como <b>factura electrónica (SIFEN)</b> con el botón "Emitir FE" — vuelve el CDC y el KUDE.',
-               'Queda con saldo pendiente hasta que se registre un cobro.'] },
-        { id:'cobro', t:'El comitente paga → registrás el cobro', screen:'Cobros',
-          what:'Cerrás el círculo. La factura queda saldada.',
-          how:['En Cobros, botón <b>"+ Cobro"</b> sobre la factura: monto, método, fecha.',
-               'La factura aparece en la <b>antigüedad de saldos</b> por cliente hasta que se cobra del todo.'],
-          tip:{k:'warn', t:'Si hubo un ajuste o devolución después de facturar, se emite una Nota de Crédito (desde la factura origen o libre), también con FE vía Goekua.'} },
-      ]
-    },
-    {
-      n:6, cls:'p6', title:'Controlar', cad:'cad-perm', cadTxt:'Permanente · en paralelo a todo',
-      sub:'No es un paso al final — lo mirás durante toda la obra para saber si vas bien.',
-      steps:[
-        { id:'curva', t:'Curva S — avance planificado vs real', screen:'tab Avance físico',
-          what:'Compara lo que deberías haber avanzado (cronograma) con lo que certificaste.',
-          how:['La línea gris = planificado acumulado (del cronograma vigente).',
-               'La línea de color = ejecutado acumulado (de los certificados en Elaborado o superior).',
-               'Si el real está por debajo, hay atraso — el sistema te dice cuánto en guaraníes (brecha % × monto contractual).'] },
-        { id:'consumo', t:'Consumo de materiales vs presupuesto', screen:'tab Presupuesto',
-          what:'Cuánto material salió a cada rubro contra lo presupuestado de ese rubro. El Plan Semanal agrega la mirada hacia adelante: cuánto material exige la meta y cuánto falta comprar después de stock e inbound.',
-          how:['Aparece automáticamente debajo de la tabla del presupuesto cuando hay salidas de stock imputadas a la obra.',
-               'Verde = dentro del presupuesto · amarillo = pasó el 80% · rojo = pasó el 100%.',
-               'Cada fila se expande para ver los productos individuales con cantidad y costo.',
-               'Ojo: esto mira lo <b>ya consumido</b>. La decisión de compra hacia adelante vive en la tarjeta ámbar de caja del Plan Semanal (ej.: faltante 2.000 × Gs. 2.400 = <b>Gs. 4.800.000</b>).'] },
-        { id:'informes', t:'Informes ejecutivos', screen:'tab Informes',
-          what:'El resumen de la obra: tres gráficas y dos exportes.',
-          how:['<b>Curva S de costos</b> (planificado vs real), <b>presupuesto vs compras</b>, <b>distribución por rubro</b>.',
-                '<b>"Exportar Excel"</b> — 3 hojas: Presupuesto / Ejecución / Compras.',
-                '<b>"Exportar PDF"</b> — con membrete de la empresa.',
-                'Disponible con Rodrigo: pedile el estado por texto o voz y te resume avance, faltantes y comparativas.'] },
-      ]
-    },
-  ];
-
-  const CONNECTORS = { 1:'la obra arranca — de acá en adelante todo se repite', 4:'el comitente aprueba y paga → pasás al flujo de Ventas' };
-
-  let done = new Set();
-  try { done = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch(e){}
-  function save(){ try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch(e){} }
-
-  const allIds = PHASES.flatMap(p => p.steps.map(s => s.id));
-
-  function updateProgress(){
-    const n = allIds.filter(id => done.has(id)).length;
-    document.getElementById('pfill').style.width = (n/allIds.length*100) + '%';
-    document.getElementById('pcount').textContent = `${n} de ${allIds.length} revisados`;
+(() => {
+  const cards = [...document.querySelectorAll('[data-card]')];
+  const groups = [...document.querySelectorAll('[data-group]')];
+  const search = document.getElementById('search'), filter = document.getElementById('filter');
+  const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const text = new Map(cards.map(c => [c,norm(c.textContent)]));
+  function apply() {
+    const terms = norm(search.value).trim().split(/\s+/).filter(Boolean);let count=0;
+    cards.forEach(c => {const match = (!filter.value || c.dataset.area === filter.value || c.id === filter.value) && terms.every(t => text.get(c).includes(t));c.hidden=!match;if(match){count++;if(terms.length && c.tagName==='DETAILS')c.open=true;}});
+    groups.forEach(g => {g.hidden=![...g.querySelectorAll('[data-card]')].some(c=>!c.hidden);});
+    document.getElementById('count').textContent=count+' de '+cards.length+' '+(document.body.dataset.kind==='manual'?'fichas':'circuitos');
+    document.getElementById('empty').hidden=count!==0;
   }
-
-  function render(){
-    const root = document.getElementById('flow');
-    root.innerHTML = PHASES.map(p => {
-      const steps = p.steps.map(s => {
-        const isDone = done.has(s.id);
-        const how = s.how.map(h => `<li>${h}</li>`).join('');
-        const tip = s.tip ? `<div class="tip ${s.tip.k}"><span class="i">${s.tip.k==='warn'?'⚠':'✓'}</span><span>${s.tip.t}</span></div>` : '';
-        return `<div class="step${isDone?' done':''}" data-id="${s.id}">
-          <button class="step-btn" data-act="toggle">
-            <span class="check" data-act="check">✓</span>
-            <span class="step-t">${s.t}</span>
-            <span class="step-screen${s.auto?' auto':''}">${s.screen}</span>
-            <span class="chev">▶</span>
-          </button>
-          <div class="step-body">
-            <p class="what">${s.what}</p>
-            <h4>Cómo se usa</h4>
-            <ol>${how}</ol>
-            ${tip}
-          </div>
-        </div>`;
-      }).join('');
-      const conn = CONNECTORS[p.n] ? `<div class="connector"><span>${CONNECTORS[p.n]}</span></div>` : '';
-      return `<section class="phase ${p.cls}">
-        <div class="pnode">${p.n}</div>
-        <div class="phead"><h2>${p.title}</h2><span class="cadence ${p.cad}">${p.cadTxt}</span></div>
-        <p class="psub">${p.sub}</p>
-        <div class="steps">${steps}</div>
-      </section>${conn}`;
-    }).join('');
-    updateProgress();
-  }
-
-  document.getElementById('flow').addEventListener('click', e => {
-    const step = e.target.closest('.step');
-    if(!step) return;
-    const id = step.dataset.id;
-    if(e.target.closest('[data-act="check"]')){
-      e.stopPropagation();
-      done.has(id) ? done.delete(id) : done.add(id);
-      step.classList.toggle('done');
-      save(); updateProgress();
-      return;
-    }
-    step.classList.toggle('open');
-  });
-
-  document.getElementById('expandAll').addEventListener('click', ()=> document.querySelectorAll('.step').forEach(s=>s.classList.add('open')));
-  document.getElementById('collapseAll').addEventListener('click', ()=> document.querySelectorAll('.step').forEach(s=>s.classList.remove('open')));
-
-  render();
-})();
-</script>
-
+  search.addEventListener('input',apply);filter.addEventListener('change',apply);
+  document.getElementById('reset').addEventListener('click',()=>{search.value='';filter.value='';apply();search.focus();});
+  document.getElementById('expand')?.addEventListener('click',()=>cards.filter(c=>!c.hidden).forEach(c=>{c.open=true;}));
+  document.getElementById('collapse')?.addEventListener('click',()=>cards.forEach(c=>{c.open=false;}));
+  document.getElementById('print').addEventListener('click',()=>window.print());
+  function reveal(){let id;try{id=decodeURIComponent(location.hash.slice(1));}catch{return;}const target=document.getElementById(id);if(!target)return;const card=target.closest('[data-card]');if(card){search.value='';filter.value='';apply();}for(let d=target.closest('details');d;d=d.parentElement?.closest('details'))d.open=true;requestAnimationFrame(()=>target.scrollIntoView({block:'start'}));}
+  window.addEventListener('hashchange',reveal);
+  document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(a && a.hash===location.hash)reveal();});
+  document.getElementById('nav').open=!window.matchMedia('(max-width:740px)').matches;
+  let openBeforePrint=[];
+  window.addEventListener('beforeprint',()=>{openBeforePrint=[...document.querySelectorAll('details')].map(d=>[d,d.open]);document.querySelectorAll('details').forEach(d=>{d.open=true;});});
+  window.addEventListener('afterprint',()=>openBeforePrint.forEach(([d,open])=>{d.open=open;}));
+  apply();if(location.hash)reveal();
+})();</script>
 </body>
 </html>

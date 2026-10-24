@@ -1,3 +1,15 @@
+# Manual y flujo completos de la aplicación — main 7e63e97d
+
+- Pedido: rehacer los dos HTML para que representen toda la aplicación y sus recorridos reales, con accesos, requisitos, pasos, resultados y conexiones entre módulos.
+- Alcance: `instructivos y roadmap/manual-de-obra.html`, `instructivos y roadmap/flujo-de-obra.html`, catálogo y generador bajo `scripts/docs/`, actualización de `scripts/update-obra-docs.ts` como entrada compatible al generador y este manifest.
+- Fuente de verdad: páginas, navegación, formularios y acciones del main 7e63e97de0f17c7e9db7c6e32e1c97c636fbba14. Documentos previos preservados por SHA-256 fuera del repo en `docs-rebuild-7e63e97/originals`.
+- Validación: cobertura de todas las páginas y las 19 pestañas canónicas de obra; referencias y enlaces internos; navegación, búsqueda, filtros, móvil e impresión en navegador sin red.
+- Trabajo en el checkout principal de main, sin ramas ni worktrees nuevos. Sin cambios a funcionalidades, permisos, datos, producción ni publicación.
+- Resultado: 60 fichas en 8 áreas, 9 circuitos, 76 páginas y 19 pestañas de obra cubiertas; 190 archivos fuente verificados contra la base. `/ventas` y `/costs` documentadas como redirecciones, no como módulos faltantes.
+- Verificación: generación reproducible y entrada compatible PASS; lint y `git diff --check` PASS; navegador local PASS (enlaces completos, filtros, búsqueda sin tildes, anclas históricas, móvil de 390 px, impresión y lectura sin JS). Cero errores JavaScript y cero solicitudes de red. Impresión con todas las fichas presentes; evidencia y originales preservados fuera del repo en `docs-rebuild-7e63e97/`.
+
+---
+
 # Navegación sin precarga masiva — main 9b1f0017
 
 - Fecha: 2026-10-23. Trabajo autorizado en el checkout principal de main, sin crear ramas ni worktrees.
