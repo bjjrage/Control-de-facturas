@@ -37,7 +37,8 @@ export async function getImportSession(sessionId: string): Promise<{ error: stri
   if (formatted.changed && session.status !== "CONFIRMED" && session.status !== "DISCARDED") {
     await supabase.from("workbook_import_sessions").update({ working_snapshot: encodeSnapshot(formatted.snapshot) }).eq("id", sessionId).eq("empresa_id", profile.empresa_id);
   }
-  return { error: null, session: toView({ ...session, workingSnapshot: formatted.snapshot }) };
+  const candidate = session.interpretation ? buildCanonicalImportCandidate(workbookFromSnapshot(formatted.snapshot), session.interpretation) : session.candidate;
+  return { error: null, session: toView({ ...session, candidate, workingSnapshot: formatted.snapshot }) };
 }
 
 /**

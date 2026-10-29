@@ -18,6 +18,7 @@ import { matchBudgetItemsToApuTemplates, matchLaborRate } from "@/lib/procuremen
 import { computePartidaCosts, type ResolvedPrice } from "@/lib/costing/cost-budget";
 import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { allRowsResult } from "@/lib/supabase/all-rows-result";
 
 // ---------------------------------------------------------------------------
 // CRUD + importación masiva del APU/BOM por partida: materiales, mano de
@@ -491,16 +492,16 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
     const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
-      supabase
+      allRowsResult(supabase
         .from("budget_item_materials")
-        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(costo_promedio)")
+        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(costo_promedio)")
         .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
-      supabase
+        .eq("empresa_id", profile.empresa_id)),
+      allRowsResult(supabase
         .from("budget_item_labor")
         .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
         .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
+        .eq("empresa_id", profile.empresa_id)),
       supabase
         .from("budget_item_equipment")
         .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
@@ -534,6 +535,7 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
           budgetItemId: r.budget_item_id,
           productoId: r.producto_id,
           cantidadPorUnidad: Number(r.cantidad_por_unidad_ejecutada),
+          precioUnitarioOrigen: r.precio_unitario_origen == null ? null : Number(r.precio_unitario_origen),
           desperdicioPct: Number(r.desperdicio_pct),
         })),
         labor: ((laborRes.data ?? []) as any[]).map((r) => ({

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
+import { extractBudgetItems, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
   ImportBlock,
@@ -112,6 +113,7 @@ export type BudgetContractCheck = {
 };
 
 export type CanonicalImportCandidate = {
+  linkedRecipes?: LinkedRecipes;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
@@ -584,7 +586,7 @@ export function buildCanonicalImportCandidate(
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
+  const budgetBlocks = selectBudgetBlocks(plan);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
@@ -846,6 +848,7 @@ export function buildCanonicalImportCandidate(
   }
 
   return {
+    linkedRecipes: extractLinkedRecipes(workbook, plan, canonicalBudgetItems),
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,

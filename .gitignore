@@ -62,3 +62,4 @@ E2E_PASSWORD*
 
 # UI Recovery private screenshots and generated local fixture bundle
 /audit-artifacts/ui-recovery-01/
+/audit-artifacts/workbook-linked-import/

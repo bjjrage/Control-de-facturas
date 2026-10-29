@@ -380,6 +380,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [applySchedule, setApplySchedule] = useState(true);
   const [applyWeather, setApplyWeather] = useState(true);
   const [applyExecution, setApplyExecution] = useState(true);
+  const [applyRecipes, setApplyRecipes] = useState(true);
+  const [referenceQuantities, setReferenceQuantities] = useState(true);
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
@@ -495,6 +497,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("apply_schedule", applySchedule ? "1" : "0");
     formData.set("apply_weather", applyWeather ? "1" : "0");
     formData.set("apply_execution", applyExecution ? "1" : "0");
+    formData.set("apply_recipes", applyRecipes && session.candidate?.linkedRecipes?.recipes.length ? "1" : "0");
+    formData.set("quantity_status", referenceQuantities ? "REFERENCE" : "CONFIRMED");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -571,7 +575,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         workbookId={session.id}
         fileName={session.originalFileName}
         initialSnapshot={session.workingSnapshot}
-        readOnly={false}
+        readOnly={Boolean(session.candidate?.linkedRecipes?.recipes.length)}
+        readOnlyLabel="Excel original conservado: actualizá cargando una nueva versión"
         onSave={handleSaveSnapshot}
         heightClassName="h-[50vh] min-h-[320px]"
         toolbar={
@@ -606,7 +611,15 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
 
       {result ? (
         <>
-          <ResultPreview result={result} candidate={candidate} />
+          {candidate?.linkedRecipes?.recipes.length ? <section className="space-y-2 rounded-xl border border-sky-300/20 p-3 text-sm">
+            <p><strong>{candidate.budgetItems.length} partidas · {candidate.linkedRecipes.recipes.length} recetas APU</strong></p>
+            <p>{candidate.linkedRecipes.recipes.reduce((n,r) => n + r.lines.length, 0)} vínculos de materiales, mano de obra, equipos y transporte. {candidate.schedulePlans.length} cronograma(s). {candidate.linkedRecipes.formulaCount} fórmulas conservadas.</p>
+            <label className="flex gap-2"><input type="checkbox" checked={applyRecipes} onChange={e => setApplyRecipes(e.target.checked)} /> Aplicar las recetas verificadas y sus materiales a la obra.</label>
+            <label className="flex gap-2"><input type="checkbox" checked={referenceQuantities} onChange={e => setReferenceQuantities(e.target.checked)} /> Las cantidades del archivo son referenciales; todavía no son el cómputo definitivo.</label>
+            <p className="text-[var(--muted)]">El Excel original y sus fórmulas se conservan. Los comparativos quedan como referencia. Los precios de materiales se guardan como base documental por receta.</p>
+            {candidate.linkedRecipes.issues.length ? <p className="text-amber-200">{candidate.linkedRecipes.issues.join(" ")}</p> : null}
+          </section> : null}
+          <details><summary className="cursor-pointer text-sm">Ver análisis completo y fuentes</summary><ResultPreview result={result} candidate={candidate} /></details>
           <section className="space-y-2 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Régimen contractual<InfoTooltip className="ml-1" label={"Régimen contractual"} content={"Luna solo sugiere; confirmá una vez — después gobierna la visibilidad de Certificados en esta obra."} /></h3>
 

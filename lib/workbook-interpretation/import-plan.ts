@@ -393,6 +393,13 @@ export function isBudgetShapedBlock(block: ImportBlock): boolean {
   return roles.has("description") && roles.has("quantity") && roles.has("unitPrice");
 }
 
+/** An explicit budget is authoritative. Shape recovery is only for legacy
+ * plans with no budget classification; it must never absorb comparisons. */
+export function selectBudgetBlocks(plan: ImportPlan): ImportBlock[] {
+  const explicit = plan.blocks.filter(block => block.mainProject !== false && block.target === "BUDGET");
+  return explicit.length ? explicit : plan.blocks.filter(isBudgetShapedBlock);
+}
+
 /**
  * Copies the rows of every budget-shaped block (see isBudgetShapedBlock)
  * exactly as the model mapped them. It does not judge whether a row "looks
@@ -408,8 +415,9 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let processedRows = 0;
   let excludedRows = 0;
   let pendingRows = 0;
+  const budgetBlocks = new Set(selectBudgetBlocks(plan).map(block => block.id));
   for (const block of plan.blocks) {
-    if (!isBudgetShapedBlock(block)) continue;
+    if (!budgetBlocks.has(block.id)) continue;
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));

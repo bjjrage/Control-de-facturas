@@ -31,6 +31,7 @@ export interface CostMaterialLine {
   productoId: string;
   cantidadPorUnidad: number;
   desperdicioPct: number;
+  precioUnitarioOrigen?: number | null;
 }
 
 export interface CostHourLine {
@@ -97,7 +98,7 @@ export function computePartidaCosts(
   for (const m of lines.materials) {
     const c = ensure(m.budgetItemId);
     c.tieneApu = true;
-    const price = prices.get(m.productoId);
+    const price = prices.get(m.productoId) ?? (m.precioUnitarioOrigen != null && Number.isFinite(m.precioUnitarioOrigen) && m.precioUnitarioOrigen >= 0 ? { precio: m.precioUnitarioOrigen, fuente: "MANUAL" as const } : undefined);
     if (!price) {
       if (!c.faltantes.includes(m.productoId)) c.faltantes.push(m.productoId);
       continue;

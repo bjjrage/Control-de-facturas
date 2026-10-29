@@ -16,6 +16,7 @@ import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession } from "@/lib/certificates/import-session-store";
 import { encodeSnapshot } from "@/lib/certificates/snapshot-storage";
+import { createLinkedWorkbookProject } from "@/lib/certificates/linked-workbook-import";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import { validateScheduleDates } from "@/lib/projects/schedule";
@@ -128,6 +129,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   // — en vez de un archivo re-subido con el resultado del preview.
   const session = sessionId ? await loadImportSession(await createClient(), profile.empresa_id, sessionId) : null;
   if (sessionId && !session) return { error: "La sesión de importación ya no existe." };
+  if (session?.status === "CONFIRMED" && session.confirmedProjectId) return { error: null, projectId: session.confirmedProjectId };
   if (session && session.status !== "ANALYZED") return { error: "La planilla todavía no terminó de analizarse (o la sesión ya fue cerrada)." };
   if (session && session.analyzedStructureHash !== session.structureHash) return { error: "La estructura de la planilla cambió desde el análisis. Reanalizá antes de crear la obra." };
   const rawResult = session ? JSON.stringify(session.interpretation) : formData.get("result_json");
@@ -155,6 +157,17 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   const code = ((formData.get("code_override") as string | null) || importedText(result.validated.project.code) || "").trim();
   if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
   if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
+  if (session && formData.get("apply_recipes") === "1") {
+    if (formData.get("apply_certificate") === "1") return { error: "Importá primero la obra con sus recetas; el certificado requiere su propia confirmación." };
+    const quantityStatus = formData.get("quantity_status");
+    if (quantityStatus !== "REFERENCE" && quantityStatus !== "CONFIRMED") return { error: "Confirmá el estado de las cantidades del archivo." };
+    const linked = await createLinkedWorkbookProject(await createClient(), {
+      session, candidate: result.candidate, name, code, regime: regime!, quantityStatus,
+      applySchedule: formData.get("apply_schedule") === "1",
+    });
+    if (!linked.error) revalidatePath("/projects");
+    return linked;
+  }
 
   // Una obra con el presupuesto a otra escala que su contrato arrastra mal
   // todo lo demás (avance, anticipo, compras). Mejor no crearla.
