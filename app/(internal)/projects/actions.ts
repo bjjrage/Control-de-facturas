@@ -15,6 +15,7 @@ import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/in
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession } from "@/lib/certificates/import-session-store";
+import { encodeSnapshot } from "@/lib/certificates/snapshot-storage";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import { validateScheduleDates } from "@/lib/projects/schedule";
@@ -437,7 +438,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         original_file_size: session.originalFileSize,
         original_storage_path: session.originalStoragePath,
         original_file_hash: session.originalFileHash,
-        working_snapshot: session.workingSnapshot,
+        working_snapshot: encodeSnapshot(session.workingSnapshot),
         structure_hash: session.structureHash,
         mapping: session.interpretation?.importPlan ?? null,
         mapping_structure_hash: session.analyzedStructureHash,
