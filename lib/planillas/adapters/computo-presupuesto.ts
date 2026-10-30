@@ -41,7 +41,7 @@ export const COMPUTO_PRESUPUESTO_COLUMNS: PlanillaColumn[] = [
     readOnly: true,
     // D=quantity, E=unit_price en el orden de columnas de arriba (0-indexed: code=A,
     // description=B, unit=C, quantity=D, unit_price=E, subtotal=F).
-    formulaTemplate: "=D{row}*E{row}",
+    formulaTemplate: "=ROUND(D{row}*E{row},2)",
   },
 ];
 

@@ -1,6 +1,7 @@
 import type { PlanillaRow } from "./types";
 import type { LinkedRecipes } from "@/lib/workbook-interpretation/linked-recipes";
 import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
+import { calcLineSubtotal } from "@/lib/format";
 
 export type RelativeSchedule = LinkedRecipes["relativeSchedule"][number];
 export type OperationalInputs = {
@@ -17,7 +18,7 @@ export function projectOperations(rows: PlanillaRow[], inputs: OperationalInputs
   const issues: string[] = [];
   const items = rows.filter(row => !row._deleted && String(row.description ?? "").trim()).map(row => {
     const quantity = number(row.quantity), price = number(row.unit_price), unitCost = number(inputs.unitCosts[row._rowId]);
-    const sale = quantity === null || price === null ? null : quantity * price;
+    const sale = quantity === null || price === null ? null : calcLineSubtotal(quantity, price);
     const cost = quantity === null || unitCost === null ? null : quantity * unitCost;
     const schedule = inputs.schedules[row._rowId];
     const source = schedule?.monthlyValues ?? [];

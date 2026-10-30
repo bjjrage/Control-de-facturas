@@ -23,7 +23,7 @@ async function api(path,method='GET',body){const r=await fetch(origin+path,{meth
 async function draft(){const r=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId}});assert.equal(r.status,201,JSON.stringify(r.body));return r.body;}
 const {data:material,error:me}=await db.from('budget_item_materials').select('id,budget_item_id,producto_id,cantidad_por_unidad_ejecutada,desperdicio_pct,precio_unitario_origen,productos(nombre,unidad)').eq('empresa_id',fixture.empresaId).eq('project_id',projectId).in('cantidad_por_unidad_ejecutada',[1,2,0.5,0.25,0.125]).order('id').limit(1).single();if(me)throw me;
 let current=await draft();const sourceRows=current.snapshot.rows, index=sourceRows.findIndex(row=>row._rowId===material.budget_item_id);assert(index>=0);
-const original=structuredClone(sourceRows[index]), quantity=Number(original.quantity), nextQuantity=quantity+1, nextConsumption=material.cantidad_por_unidad_ejecutada+0.125;
+const original=structuredClone(sourceRows[index]), quantity=Number(original.quantity), nextQuantity=quantity+1, fractionalQuantity=quantity+0.125, nextConsumption=material.cantidad_por_unidad_ejecutada+0.125;
 assert(Number.isFinite(quantity));
 const backup={mode,origin,companyId:fixture.empresaId,projectId,original,material,nextQuantity,nextConsumption};
 fs.writeFileSync(`audit-artifacts/workbook-linked-import/${mode}-editing-backup.json`,JSON.stringify(backup,null,2));
@@ -48,6 +48,9 @@ try{
  await page.screenshot({path:`audit-artifacts/workbook-linked-import/${mode}-apu-editing.png`,fullPage:true});
  await page.reload({waitUntil:'networkidle',timeout:180000});await selectApu();assert.equal(await page.locator(`form[data-apu-line="${material.id}"]`).getByRole('spinbutton',{name:/Consumo por unidad/}).inputValue(),String(nextConsumption));
  await saveMaterial(material.cantidad_por_unidad_ejecutada);materialApplied=false;
+ const fractionalDraft=await editQuantity(fractionalQuantity,`=${quantity}+1/8`);await confirmQuantity(fractionalQuantity);
+ current=await draft();await page.goto(origin+`/planillas/${current.id}`,{waitUntil:'networkidle',timeout:180000});
+ await propagation.verify(fractionalQuantity,material.cantidad_por_unidad_ejecutada,{ui:true,draftSubtotal:fractionalDraft.snapshot.rows[index].subtotal});
  const literal=await editQuantity(quantity);assert.equal(literal.snapshot.rows[index]._formulas?.quantity,undefined,'A literal must clear the previous formula');
  await page.reload({waitUntil:'networkidle',timeout:180000});const reopenedLiteral=await api(`/api/planillas/${current.id}`);assert.equal(reopenedLiteral.body.snapshot.rows[index].quantity,quantity);assert.equal(reopenedLiteral.body.snapshot.rows[index]._formulas?.quantity,undefined);
  if(original._formulas?.quantity)await editQuantity(quantity,original._formulas.quantity);
@@ -56,12 +59,12 @@ try{
  await page.getByRole('tab',{name:'APU',exact:true}).click();await page.getByLabel('Partida activa',{exact:true}).selectOption(material.budget_item_id);
  await page.getByRole('button',{name:'Editar APU',exact:true}).waitFor();
  assert.deepEqual(errors,[]);
- const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,...(await propagation.restored()),browserErrors:errors,checks:['literal replaces formula and persists after reload','quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
+ const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,testFractionalQuantity:fractionalQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,...(await propagation.restored()),browserErrors:errors,checks:['literal replaces formula and persists after reload','quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
  fs.writeFileSync(`audit-artifacts/workbook-linked-import/${mode}-editing-result.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }catch(error){if(page){await page.screenshot({path:`audit-artifacts/workbook-linked-import/${mode}-editing-failure.png`,fullPage:true}).catch(()=>{});console.log(JSON.stringify({url:page.url(),alerts:await page.getByRole('alert').allTextContents().catch(()=>[])}));}throw error;}
 finally{
  if(materialApplied){const {error}=await db.from('budget_item_materials').update({cantidad_por_unidad_ejecutada:material.cantidad_por_unidad_ejecutada,desperdicio_pct:material.desperdicio_pct}).eq('id',material.id).eq('empresa_id',fixture.empresaId).eq('cantidad_por_unidad_ejecutada',nextConsumption);if(error)console.log(JSON.stringify({restoreApuError:error.message}));}
- if(quantityApplied){const restore=await draft();const rows=restore.snapshot.rows;const row=rows.find(row=>row._rowId===original._rowId);if(row&&row.quantity===nextQuantity){row.quantity=quantity;row._formulas=original._formulas??{};const saved=await api(`/api/planillas/${restore.id}`,'PATCH',{rows,expectedVersion:restore.updated_at});if(saved.status===200){const restored=await api(`/api/planillas/${restore.id}/confirmar`,'POST',{expectedVersion:saved.body.updated_at});console.log(JSON.stringify({quantityCleanupStatus:restored.status}));}}}
+ if(quantityApplied){const restore=await draft();const rows=restore.snapshot.rows;const row=rows.find(row=>row._rowId===original._rowId);if(row&&[nextQuantity,fractionalQuantity].includes(row.quantity)){row.quantity=quantity;row._formulas=original._formulas??{};const saved=await api(`/api/planillas/${restore.id}`,'PATCH',{rows,expectedVersion:restore.updated_at});if(saved.status===200){const restored=await api(`/api/planillas/${restore.id}/confirmar`,'POST',{expectedVersion:saved.body.updated_at});console.log(JSON.stringify({quantityCleanupStatus:restored.status}));}}}
  if(browser)await browser.close();await db.auth.signOut({scope:'local'});
 }
 

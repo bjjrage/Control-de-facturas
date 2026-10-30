@@ -19,12 +19,14 @@ export async function setupPropagationChecks({db,api,page,projectId,material,ori
   const sourceSum=item.schedule.monthlyValues.reduce((sum,month)=>sum+month.value,0);
   const weight=month=>(item.schedule.monthlyValues.find(value=>value.month===month)?.value??0)/sourceSum;
   const baselineNeed=(month,key)=>initial.months.find(value=>value.month===month)?.materials.find(value=>value.key===key)?.quantity??0;
-  let checks=0;
-  async function verify(quantity,consumption,{ui=false}={}){
+  let checks=0;const evidence=[];
+  async function verify(quantity,consumption,{ui=false,draftSubtotal}={}){
     const current=await read();
     const costDeltaUnit=(consumption-material.cantidad_por_unidad_ejecutada)*(1+material.desperdicio_pct/100)*material.precio_unitario_origen;
     const expectedCost=initial.cost-item.cost+quantity*(initialUnitCost+costDeltaUnit);
-    const expectedSale=initial.sale+(quantity-original.quantity)*original.unit_price;
+    const {data:savedItem,error:itemError}=await db.from('budget_items').select('quantity,subtotal').eq('id',original._rowId).single();if(itemError)throw itemError;assert.equal(savedItem.quantity,quantity);
+    if(draftSubtotal!==undefined)near(draftSubtotal,savedItem.subtotal,'Univer subtotal / PostgreSQL subtotal');
+    const expectedSale=initial.sale-item.sale+savedItem.subtotal;
     near(current.sale,expectedSale,'project selling budget');near(current.cost,expectedCost,'project APU cost');
     const live=current.items.find(value=>value.rowId===original._rowId);assert.equal(live.quantity,quantity);assert.deepEqual(live.schedule,item.schedule);
     near(live.cost,quantity*(initialUnitCost+costDeltaUnit),'item APU cost');
@@ -69,8 +71,8 @@ export async function setupPropagationChecks({db,api,page,projectId,material,ori
         console.log(JSON.stringify({propagation:'erp-reports-verified',mode}));
       }finally{await erp.close();}
     }
-    return {sale:current.sale,cost:current.cost,monthlyMaterialNeed:current.months.map(month=>({month:month.month,quantity:month.materials.find(value=>value.key===material.producto_id)?.quantity??0}))};
+    const state={quantity,consumption,sale:current.sale,cost:current.cost,monthlyMaterialNeed:current.months.map(month=>({month:month.month,quantity:month.materials.find(value=>value.key===material.producto_id)?.quantity??0}))};evidence.push(state);return state;
   }
-  async function restored(){await verify(original.quantity,material.cantidad_por_unidad_ejecutada);return {propagationChecks:checks,sourceSchedulePreserved:true,contractAmountPreserved:true};}
+  async function restored(){await verify(original.quantity,material.cantidad_por_unidad_ejecutada);return {propagationChecks:checks,projectionEvidence:evidence,sourceSchedulePreserved:true,contractAmountPreserved:true};}
   return {verify,restored};
 }

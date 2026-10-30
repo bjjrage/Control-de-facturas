@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { projectMonthlyCurve, projectOperations, type OperationalInputs } from "./operational-projection";
+import { computeProjectCostTotals } from "@/lib/costing/cost-budget";
 
 const inputs: OperationalInputs = {
   schedules: { stable: { budgetCode: "old-code", startDay: 1, endDay: 60, source: { sheet: "Plan", row: 2 }, monthlyValues: [{ month: 1, value: 30, cell: "D2" }, { month: 2, value: 70, cell: "E2" }] } },
@@ -37,4 +38,10 @@ it("reports use the current item distribution for the cumulative curve and retai
   expect(projectMonthlyCurve(projection, [4])).toEqual([{ date: "M1", planificado: 6, real: 4 }, { date: "M2", planificado: 20, real: null }]);
   const decreased = projectOperations([{ ...rows[0], quantity: 1 }], inputs);
   expect(projectMonthlyCurve(decreased, [4])[1].planificado).toBe(10);
+});
+it("fractional quantities use the ERP's exact line rounding before monthly distribution", () => {
+  const projection = projectOperations([{ ...rows[0], quantity: 1.125, unit_price: 2548695 }], inputs);
+  expect(projection.sale).toBe(2867281.88);
+  expect(computeProjectCostTotals([{ id: "stable", quantity: 1.125, unitPrice: 2548695 }], {}).ventaTotal).toBe(2867281.88);
+  expect(projection.months.reduce((sum, month) => sum + month.sale!, 0)).toBeCloseTo(2867281.88, 6);
 });
