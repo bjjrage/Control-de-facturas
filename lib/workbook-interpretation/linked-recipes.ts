@@ -135,7 +135,9 @@ export function extractLinkedRecipes(workbook: WorkbookRepresentation, plan: Imp
   }
   if (anchors.length && result.recipes.length !== items.length) result.issues.push(`Se verificaron ${result.recipes.length} recetas para ${items.length} partidas. Las faltantes requieren revisión.`);
   const budgetByCode = new Map(items.map(item => [item.code, item]));
-  for (const block of plan.blocks.filter(b => b.target === "SCHEDULE" && b.mainProject !== false)) {
+  // The model can correctly classify an item-detail annex as OTHER while
+  // reserving SCHEDULE for the global curve. Proven formula links still apply.
+  for (const block of plan.blocks.filter(b => (b.target === "SCHEDULE" || b.target === "OTHER") && b.mainProject !== false)) {
     const sheet = sheets.get(block.sheet)?.sheet;
     if (!sheet) continue;
     // A sheet can have stage, equipment and item sections with different
@@ -165,7 +167,11 @@ export function extractLinkedRecipes(workbook: WorkbookRepresentation, plan: Imp
       const startDay = number(cells.find(c => c.column === start.column));
       const endDay = number(cells.find(c => c.column === end.column));
       if (startDay === null || endDay === null || startDay < 1 || endDay < startDay) { result.issues.push(`${sheet.sheetName}!${rowNo}: plazo relativo sin verificar.`); continue; }
-      if (result.relativeSchedule.some(s => s.budgetCode === budgetCode)) { result.issues.push(`Cronograma ambiguo para partida ${budgetCode}.`); continue; }
+      const prior = result.relativeSchedule.find(s => s.budgetCode === budgetCode);
+      if (prior) {
+        if (prior.source.sheet !== sheet.sheetName || prior.source.row !== rowNo || prior.startDay !== startDay || prior.endDay !== endDay) result.issues.push(`Cronograma ambiguo para partida ${budgetCode}.`);
+        continue;
+      }
       result.relativeSchedule.push({ budgetCode, startDay, endDay, source: { sheet: sheet.sheetName, row: rowNo }, monthlyValues: months.flatMap(m => { const c=cells.find(c => c.column === m.column); const value=number(c); return value === null ? [] : [{month:Number(norm(m.raw).replace(/\D/g,"")),value,cell:c!.address}]; }) });
     }
   }
