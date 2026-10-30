@@ -1,6 +1,6 @@
 # Primer lote: workspace de cómputo, presupuesto y APU
 
-Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre aplicación local conectada exclusivamente a la base QA `kyiihlkncatojvlasoag`. Motor seleccionado: núcleo de Univer 1.0.2, Apache 2.0. Publicación en IASA pendiente de verificar el despliegue final.
+Publicado en IASA el 30 de octubre de 2026, después de la verificación local y del circuito completo desplegado en QA. Motor seleccionado: núcleo de Univer 1.0.2, Apache 2.0.
 
 ## Estado de entrega al 30 de octubre de 2026
 
@@ -10,9 +10,11 @@ Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre apli
 - Pasaron 161 pruebas de regresión y, por separado, la prueba del archivo real. TypeScript y el build limpio pasaron.
 - El navegador desplegado en QA comprobó fórmula y descripción editadas por teclado, guardado/reapertura, APU, necesidad de 1,65 kg, pegado de 1.000 celdas, deshacer restaurado en base, confirmación idempotente, rechazo de revisiones viejas y libro de 597 partidas con estado referencial visible. No hubo errores JavaScript de página.
 - La función de confirmación está aplicada en QA y producción, con `SECURITY INVOKER`, acceso autenticado y sin permiso para `anon`.
-- **IASA sigue pendiente de publicar la aplicación.** La regla de producción cancela los builds automáticos con `IASA estable: publicacion manual`. La revisión automática rechazó el override `projectSettings.commandForIgnoringBuildStep: "exit 1"` por requerir autorización explícita de ese parámetro. Se solicitó esa autorización al usuario; los intentos cancelados o rechazados no se asignaron al dominio IASA.
+- [IASA publicado](https://control-de-facturas-iasa.vercel.app): despliegue `dpl_HRRy9FqBXMVhkR2ek3fhkzHTFGQh`, estado `READY`, mismo código `148ab66f3c48605b507152908c9cb21a56b2bcad` que QA.
+- Pasó el smoke test autenticado de producción: proyectos, API del workspace, grilla Univer, RPC de revisión desplegado y rechazo de acceso anónimo. Sin errores JavaScript de página ni escrituras en presupuesto, compras o stock.
+- El usuario autorizó explícitamente `projectSettings.commandForIgnoringBuildStep: "exit 1"` para ejecutar este build completo. Después se restauró la regla manual original y se asignó únicamente el dominio IASA.
 
-Una vez autorizado, ejecutar un build completo de producción del mismo código, comprobar/restaurar la regla manual original, asignar únicamente `control-de-facturas-iasa.vercel.app` y ejecutar el smoke test autenticado. No usar la promoción global de todos los dominios.
+Acceso al workspace: abrir una obra, entrar en Presupuesto y elegir **Abrir workspace de obra**. La regla de producción vuelve a cancelar builds automáticos con `IASA estable: publicacion manual`; las publicaciones futuras siguen requiriendo una acción manual. No se realizó una promoción global de dominios.
 
 ## Cambios
 
@@ -63,6 +65,6 @@ La selección de motor se resolvió con Univer después de confirmar que IASA no
 
 El alcance operativo conserva las seis columnas de cómputo/presupuesto. La creación de hojas auxiliares y los cambios de columnas pertenecen a P4. Las operaciones que podrían mover valores sin su identidad se bloquean; las filas completas mantienen sus vínculos. Esto no representa una certificación de compatibilidad con todas las funciones de Excel.
 
-La función SQL fue aplicada en QA como `20261030011748` y en producción como `20261030023454`, después de pasar el circuito desplegado de QA. El archivo del repositorio usa la versión de producción. La aplicación de producción todavía requiere la verificación final y la asignación explícita del dominio IASA.
+La función SQL fue aplicada en QA como `20261030011748` y en producción como `20261030023454`, después de pasar el circuito desplegado de QA. El archivo del repositorio usa la versión de producción. La aplicación de producción pasó la verificación final y el dominio IASA quedó asignado explícitamente al despliegue indicado arriba.
 
 La autoasignación de dominios de Vercel se desactivó para realizar publicaciones selectivas por alias. El proyecto comparte IASA y Bay; esta entrega asigna únicamente IASA una vez verificada la revisión.
