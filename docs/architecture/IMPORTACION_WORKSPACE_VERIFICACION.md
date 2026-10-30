@@ -1,5 +1,16 @@
 # Importación directa al workspace
 
+## Estado vigente de IASA: restauración anterior al workspace — 30 de octubre de 2026
+
+Por solicitud del usuario, IASA volvió al despliegue `dpl_BqCTtbtqrTvkJAMSZPKTvKpzBgja`, commit `0b5cbce157b465628b6bb75c707af83bf52da4ba`, anterior al primer lote del workspace. El despliegue reemplazado fue `dpl_DfqBDMTnQTKTT891swfgg79svydu` (`81c57d4c644e589f63bd18af74e158835e46f155`). Las entregas documentadas más abajo quedan como antecedentes y no describen la interfaz actualmente publicada en IASA.
+
+- Se reasignó únicamente `control-de-facturas-iasa.vercel.app` al artefacto de producción existente, sin reconstruirlo. Bay conserva `dpl_HUAYx9WHRSfpdwAkYHMM387YsTnh`. No se promovió globalmente el proyecto ni se modificó la configuración de build.
+- Se conserva la corrección de subida de archivos y el flujo anterior de Obras. Acceso a la obra existente: `/projects/91e6805f-eda9-4b39-90e5-9c514cc6c896?tab=presupuesto`. La ruta nueva `/projects/import/[id]` pertenece a la versión retirada; usar la ficha de la obra ya creada.
+- No se revirtieron migraciones ni se borraron datos. Las huellas de la obra, presupuesto, relaciones APU, cronograma, certificados y ejecución coinciden antes y después. Permanecen 597 partidas, 2.199 relaciones de materiales, 1.200 de mano de obra, 896 de equipos, 346 de servicios y un plan de cronograma. El total sigue en `738462025`.
+- La fuente y su sesión confirmada siguen conservadas. El original descargado mantiene SHA-256 `6c481dd5f9aa1ce1b3df565ea6b6f2b996f4d26d5dddcf670e946098e3d0a33e`.
+- Verificación autenticada en la empresa Iasa: Obras, presupuesto, certificados, plan semanal y cronograma respondieron 200 y renderizaron sin errores JavaScript ni respuestas 5xx. Se comprobó el botón anterior «Generar plantilla de trabajo» y la ausencia del encabezado del nuevo workspace en Presupuesto. Esta comprobación fue de lectura; no creó certificados ni operaciones.
+- Evidencia privada en `audit-artifacts/workbook-linked-import/`: `verify-iasa-rollback.mjs`, `iasa-rollback-before.json`, `iasa-rollback-after.json` e `iasa-rollback-presupuesto.png`. Las mejoras retiradas siguen conservadas en Git; su republicación requiere una nueva decisión de producto.
+
 El archivo se guarda en una sesión y abre `/projects/import/[id]`, una página de trabajo recuperable desde **Obras → Planillas en preparación**. La obra se crea sólo al confirmar la revisión guardada. Esta entrega conecta la entrada de Excel con las vistas nativas del primer lote.
 
 ## Comportamiento
