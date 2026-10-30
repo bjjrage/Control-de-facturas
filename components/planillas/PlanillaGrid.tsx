@@ -64,7 +64,7 @@ const BG_COLORS = [
 // libremente, como en Excel), pero tampoco ilimitado: nadie llena 500 filas
 // a mano, y sin tope una fila de fórmula en cascada o un paste accidental
 // podría degradar HyperFormula en el cliente.
-const MAX_ROWS = 500;
+const MAX_ROWS = 5000;
 
 // El validador nativo de Handsontable para type:"numeric" (numericValidator)
 // llama a isNumeric(value) y punto — "=120+80" no es numérico, así que
@@ -119,6 +119,7 @@ export type PlanillaGridProps = {
    * borrado) en cada cambio real de datos — el caller (la página) decide
    * cuándo debounciar el autosave; este componente es agnóstico de eso. */
   onChange: (rows: PlanillaGridRow[]) => void;
+  onSelectRow?: (id: string | null) => void;
   readOnly?: boolean;
 };
 
@@ -147,9 +148,12 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   columns,
   initialRows,
   onChange,
+  onSelectRow,
   readOnly = false,
 }: PlanillaGridProps) {
   const hotRef = useRef<HotTableRef>(null);
+  const onSelectRowRef = useRef(onSelectRow);
+  useEffect(() => { onSelectRowRef.current = onSelectRow; }, [onSelectRow]);
   const deletedRef = useRef<PlanillaGridRow[]>([]);
   // Refs para alinear la barra de filtros con las columnas reales de
   // Handsontable — ver syncFilterBarWidths más abajo.
@@ -247,7 +251,14 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const MIN_BLANK_ROWS = 20;
 
   const [seedInitialRows] = useState(() => {
-    const rows = initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i));
+    const rows = initialRows.map((r, i) => {
+      const restored = { ...r };
+      for (const col of columns) {
+        const formula = r._formulas?.[col.key];
+        if (col.type === "numeric" && formula?.startsWith("=")) restored[col.key] = formula;
+      }
+      return applyFormulaDefaults(restored, i);
+    });
     // Siempre termina con al menos MIN_BLANK_ROWS filas vacías (ver
     // ensureTrailingSpareRow para el comportamiento en régimen, que sigue
     // agregando de a una) para que la grilla se sienta como Excel de
@@ -327,10 +338,12 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     const sourceRows = hot.getSourceData() as PlanillaGridRow[];
     const current = sourceRows.map((row, physicalRowIndex) => {
       const resolved: PlanillaGridRow = { ...row };
+      resolved._formulas = {};
       const visualRowIndex = hot.toVisualRow(physicalRowIndex);
       columns.forEach((col, colIndex) => {
         const raw = resolved[col.key];
         if (typeof raw === "string" && raw.trim().startsWith("=")) {
+          resolved._formulas![col.key] = raw;
           // Fila oculta por el filtro: no tiene índice visual, y por lo
           // tanto no hay forma segura de pedirle a Handsontable el valor
           // calculado. No debería pasar en la práctica (no se puede editar
@@ -538,6 +551,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     const rowData = physicalRow !== null ? (hot.getSourceDataAtRow(physicalRow) as PlanillaGridRow | undefined) : undefined;
     const rowId = typeof rowData?._rowId === "string" ? rowData._rowId : null;
     setSelectedRowId((prev) => (prev === rowId ? prev : rowId));
+    onSelectRowRef.current?.(rowId);
 
     const raw = rowData ? rowData[columns[column]?.key ?? ""] : undefined;
     const next = raw === null || raw === undefined ? "" : String(raw);

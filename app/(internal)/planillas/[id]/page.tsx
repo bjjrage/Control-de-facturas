@@ -26,6 +26,8 @@ export default async function PlanillaSessionPage({
   return (
     <PlanillaSessionClient
       planillaId={planilla.id}
+      initialVersion={planilla.updated_at}
+      projectId={typeof planilla.contexto.projectId === "string" ? planilla.contexto.projectId : undefined}
       estado={planilla.estado}
       columns={adapter.columns}
       initialRows={planilla.snapshot.rows}

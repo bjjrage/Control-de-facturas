@@ -1,3 +1,4 @@
+import { rawNumber } from "./numbers";
 import * as XLSX from "xlsx";
 import {
   WORKBOOK_FILE_MAX_BYTES,
@@ -87,14 +88,8 @@ export function contiguousBlocks(cells: WorkbookCell[]): WorkbookBlock[] {
 }
 
 export function parseParaguayanNumber(value: string | number): number | null {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const compact = value.trim().replace(/\s/g, "");
-  if (!compact) return null;
-  const normalized = compact.includes(",")
-    ? compact.replace(/\./g, "").replace(",", ".")
-    : compact.replace(/\.(?=\d{3}(?:\.|$))/g, "");
-  const parsed = Number(normalized.replace(/[^\d.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  // This legacy API expresses percentages in percentage points (35% -> 35).
+  return rawNumber(typeof value === "string" ? value.trim().replace(/%$/, "") : value);
 }
 
 export function isRangeWithinSheet(range: string, sheet: WorkbookSheetRepresentation): boolean {

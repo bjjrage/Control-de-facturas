@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { numericCellRaw } from "./numbers";
 import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
 import { extractBudgetItems, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
@@ -217,6 +218,7 @@ function verifiedKeyValue(workbook: WorkbookRepresentation, blocks: ImportBlock[
     const address = cellPart.replace(/\$/g, "").toUpperCase();
     const cell = workbook.sheets.find((sheet) => sheet.sheetName === sheetPart)?.cells.find((item) => item.address === address);
     const cellText = cell ? String(cell.formatted ?? cell.raw ?? "") : "";
+    if (cell?.type === "e" || cell?.type === "b" || cell?.type === "d") return { value: String(entry.value), cell: `${sheetPart}!${address}`, verified: false, cellText };
     if (DATE_KEYS.includes(key)) {
       const expected = String(entry.value).slice(0, 10);
       const candidates = typeof cell?.raw === "number" ? [excelSerialToIso(cell.raw)] : datesInText(String(cell?.raw ?? ""));
@@ -262,7 +264,7 @@ function readCertificateBlock(workbook: WorkbookRepresentation, block: ImportBlo
     return [];
   }
   const cells = cellIndex(sheet);
-  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const raw = (row: number, column: string | null) => (column ? numericCellRaw(cells.get(`${column}${row}`)) : null);
   const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
   const num = (row: number, column: string | null) => (column ? rawNumber(raw(row, column)) : null);
   const excluded = excludedRows(block);
@@ -340,7 +342,7 @@ function readExecutionBlock(workbook: WorkbookRepresentation, block: ImportBlock
     return [];
   }
   const cells = cellIndex(sheet);
-  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const raw = (row: number, column: string | null) => (column ? numericCellRaw(cells.get(`${column}${row}`)) : null);
   const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
   const excluded = excludedRows(block);
   const result: CanonicalExecutionEntry[] = [];
@@ -467,7 +469,7 @@ function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock):
 
 function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
   const cell = cells.get(`${columnName(column)}${row}`);
-  const value = rawNumber(cell?.raw ?? null);
+  const value = rawNumber(numericCellRaw(cell));
   if (value === null) return null;
   // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
   // own column is 0-100, so only fraction-formatted cells get rescaled.

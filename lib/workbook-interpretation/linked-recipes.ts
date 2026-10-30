@@ -22,7 +22,7 @@ export type LinkedRecipe = {
 export type LinkedRecipes = { recipes: LinkedRecipe[]; issues: string[]; formulaCount: number; relativeSchedule: { budgetCode: string; startDay: number; endDay: number; source: { sheet: string; row: number }; monthlyValues: { month: number; value: number; cell: string }[] }[] };
 
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-const number = (c?: WorkbookCell): number | null => typeof c?.raw === "number" && Number.isFinite(c.raw) ? c.raw : null;
+const number = (c?: WorkbookCell): number | null => c?.type !== "e" && c?.type !== "b" && c?.type !== "d" && typeof c?.raw === "number" && Number.isFinite(c.raw) ? c.raw : null;
 const text = (c?: WorkbookCell) => String(c?.raw ?? "").trim();
 function reference(formula: string | null | undefined) {
   const m = /^=?\s*(?:'((?:[^']|'')+)'|([^'!]+))!\$?([A-Z]+)\$?(\d+)\s*$/.exec(formula ?? "");

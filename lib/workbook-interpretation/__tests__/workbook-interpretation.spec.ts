@@ -144,7 +144,9 @@ describe("ImportPlan validation and deterministic extraction", () => {
     const checked = validateImportPlan(budgetPlan("Base", "A1:E2", 2, 2), workbook);
     const result = extractBudgetItems(workbook, checked.plan, checked.coverage);
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ code: "1", description: "Excavación", quantity: 1234.5, unitPrice: 25000 });
+    // Text "25.000" is ambiguous across locales. Do not guess its scale.
+    expect(result.items[0]).toMatchObject({ code: "1", description: "Excavación", quantity: 1234.5, unitPrice: null });
+    expect(result.warnings.join(" ")).toContain("E2");
     expect(result.items[0].source).toEqual({ sheet: "Base", row: 2, range: "A1:E2" });
   });
 

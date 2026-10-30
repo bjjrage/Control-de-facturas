@@ -33,7 +33,7 @@ export function GenerarPlanillaButton({ projectId }: { projectId: string }) {
     <div className="inline-flex flex-col">
       <Button variant="secondary" onClick={handleClick} disabled={loading}>
         <Sheet size={14} className="mr-1.5" />
-        {loading ? "Generando…" : "Generar plantilla de trabajo"}
+        {loading ? "Abriendo…" : "Abrir workspace de obra"}
       </Button>
       {error ? <span className="text-[11px] text-[var(--error)] mt-1">{error}</span> : null}
     </div>
