@@ -11,8 +11,8 @@ import { importRows, sourceMaterials, validateImportDraft, type ImportWorkspaceD
 import { DraftSaveQueue } from "@/lib/planillas/save-queue";
 import { draftSignature } from "@/lib/planillas/draft-signature";
 import type { PlanillaColumn, PlanillaRow } from "@/lib/planillas/types";
-import { getImportWorkspace, openImportedProjectWorkspace, type ImportWorkspaceView } from "./import-workspace-actions";
-import { getImportSession } from "./import-session-actions";
+import { getImportWorkspace, getImportSourceSnapshot, getImportOriginalUrl, openImportedProjectWorkspace, type ImportWorkspaceView } from "./import-workspace-actions";
+import { decodeBrowserSnapshot } from "@/lib/certificates/browser-snapshot";
 import { createProjectFromWorkbook } from "./actions";
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
 
@@ -168,10 +168,10 @@ function ReadyImportWorkspace({ session }: { session: ImportWorkspaceView }) {
 function OriginalImportView({ id, fileName }: { id: string; fileName: string }) {
   const [snapshot, setSnapshot] = useState<WorkingSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { let active = true; void getImportSession(id).then(result => { if (active) { setSnapshot(result.session?.workingSnapshot ?? null); setError(result.error); } }).catch(() => { if (active) setError("No se pudo abrir el original."); }); return () => { active = false; }; }, [id]);
+  useEffect(() => { let active = true; void getImportSourceSnapshot(id).then(decodeBrowserSnapshot).then(snapshot => { if (active) setSnapshot(snapshot); }).catch(() => { if (active) setError("No se pudo abrir el original."); }); return () => { active = false; }; }, [id]);
   if (error) return <p role="alert" className="p-4">{error}</p>;
   if (!snapshot) return <p role="status" className="p-4">Abriendo la planilla conservada…</p>;
-  return <SourceGrid workbookId={id} fileName={fileName} initialSnapshot={snapshot} readOnly readOnlyLabel="Fuente conservada · fórmulas originales" onSave={async () => ({ error: "El original se conserva sin modificaciones." })} heightClassName="h-[65vh] min-h-[360px]" />;
+  return <section aria-label="Fuente Excel conservada"><div className="flex gap-3 items-center p-3"><p className="text-xs text-[var(--muted)]">Valores guardados en el documento, sin recalcular. Las fórmulas originales se conservan en el archivo descargable.</p><Button variant="secondary" onClick={() => { void getImportOriginalUrl(id).then(url => { window.location.href = url; }).catch(() => setError("No se pudo descargar el original.")); }}>Descargar Excel original</Button></div><SourceGrid workbookId={id} fileName={fileName} initialSnapshot={snapshot} readOnly cachedValuesOnly readOnlyLabel="Fuente conservada · valores del documento" onSave={async () => ({ error: "El original se conserva sin modificaciones." })} heightClassName="h-[65vh] min-h-[360px]" /></section>;
 }
 
 

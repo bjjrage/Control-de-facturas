@@ -12,7 +12,7 @@ import type { StoredCell, StoredSheet, StoredStyle, WorkingSnapshot } from "./wo
  * este solo lo importa el componente cliente que monta la grilla.
  */
 
-export function workingSnapshotToUniver(snapshot: WorkingSnapshot, workbookId: string): IWorkbookData {
+export function workingSnapshotToUniver(snapshot: WorkingSnapshot, workbookId: string, options: { cachedValuesOnly?: boolean } = {}): IWorkbookData {
   const sheets: IWorkbookData["sheets"] = {};
   const sheetOrder: string[] = [];
 
@@ -25,11 +25,11 @@ export function workingSnapshotToUniver(snapshot: WorkingSnapshot, workbookId: s
       cellData[r][c] = cellData[r][c] ?? {};
       return cellData[r][c];
     };
-    for (const [row, column, raw, , formula] of sheet.cells) {
+    for (const [row, column, raw, formatted, formula, type] of sheet.cells) {
       if (raw === null && !formula) continue;
       const entry = at(row - 1, column - 1);
-      if (raw !== null) entry.v = raw;
-      if (formula) entry.f = formula.startsWith("=") ? formula : `=${formula}`;
+      if (raw !== null) entry.v = options.cachedValuesOnly && type === "e" ? formatted ?? "#ERROR!" : raw;
+      if (formula && !options.cachedValuesOnly) entry.f = formula.startsWith("=") ? formula : `=${formula}`;
     }
     // El formato va aparte de los valores (ver workbook-formatting.ts):
     // incluye celdas vacías con bordes o relleno.

@@ -11,6 +11,8 @@ import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-wor
 import type { PlanillaRow } from "@/lib/planillas/types";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
+import { encodeSnapshot, type StoredWorkingSnapshot } from "@/lib/certificates/snapshot-storage";
+import { CERTIFICATE_WORKBOOKS_BUCKET } from "@/lib/certificates/workbook-store";
 
 export async function getImportWorkspace(id: string) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -24,6 +26,28 @@ export async function getImportWorkspace(id: string) {
   return { ...view, candidate, analysisStale: session.analyzedStructureHash !== session.structureHash };
 }
 export type ImportWorkspaceView = NonNullable<Awaited<ReturnType<typeof getImportWorkspace>>>;
+
+export async function getImportSourceSnapshot(id: string): Promise<StoredWorkingSnapshot> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data, error } = await db.from("workbook_import_sessions").select("working_snapshot")
+    .eq("id", id).eq("empresa_id", profile.empresa_id).neq("status", "DISCARDED").maybeSingle();
+  if (error || !data) throw new Error("No se pudo consultar la fuente de esta empresa.");
+  const stored = data.working_snapshot as StoredWorkingSnapshot;
+  // The real workbook is 10.7 MB decoded, beyond a function response's limit.
+  return "encoding" in stored ? stored : encodeSnapshot(stored);
+}
+
+export async function getImportOriginalUrl(id: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: source } = await db.from("workbook_import_sessions").select("original_storage_path")
+    .eq("id", id).eq("empresa_id", profile.empresa_id).neq("status", "DISCARDED").maybeSingle();
+  if (!source) throw new Error("Fuente no encontrada.");
+  const { data, error } = await db.storage.from(CERTIFICATE_WORKBOOKS_BUCKET).createSignedUrl(source.original_storage_path, 60, { download: true });
+  if (error || !data) throw new Error("No se pudo descargar el archivo original.");
+  return data.signedUrl;
+}
 
 export async function listPendingImportWorkspaces() {
   const profile = await requirePlan("pro", ["administracion", "admin"]);

@@ -107,6 +107,13 @@ try {
   await page.getByRole('tab', { name: 'Cronograma', exact: true }).click();
   await page.getByRole('heading', { name: 'Cronograma · 597 partidas vinculadas', exact: true }).waitFor();
   await page.screenshot({ path: `${out}-schedule.png`, fullPage: true });
+  await page.getByRole('tab', { name: 'Original', exact: true }).click();
+  await page.getByRole('region', { name: 'Fuente Excel conservada', exact: true }).waitFor({timeout:120000});
+  await page.getByText('Fuente conservada · valores del documento', {exact:true}).waitFor();
+  const download = page.waitForEvent('download', {timeout:60000});
+  await page.getByRole('button', {name:'Descargar Excel original',exact:true}).click();
+  const downloaded = await download;
+  assert.equal(hash(fs.readFileSync(await downloaded.path())), hash(original));
   await page.getByRole('tab', { name: 'Revisión', exact: true }).click();
   await page.getByLabel('Nombre de obra', { exact: true }).fill('QA Lote 2 workspace completo');
   await page.getByLabel('Código de obra', { exact: true }).fill(`QA-L2-${stamp}`);
@@ -145,6 +152,6 @@ try {
   const forbidden = await fetch(origin + path, {headers:{cookie:[...otherJar].map(([name,value])=>`${name}=${value}`).join('; ')},redirect:'manual'});
   assert.equal(forbidden.status,404); await other.auth.signOut({scope:'local'});
   assert.deepEqual(errors, []);
-  const report = { origin, sessionId: fixture.sessionId, projectId, tenant: fixture.empresaId, sourceHash: hash(original), counts, browserErrors: errors, checks: ['upload opens workspace', 'Luna links real workbook', 'resume from Projects', 'formula edit/save/reopen', 'stale revision rejected', 'four linked views before and after creation', 'atomic linked materialization', 'closed import immutable', 'source byte-identical', 'anonymous denied'] };
+  const report = { origin, sessionId: fixture.sessionId, projectId, tenant: fixture.empresaId, sourceHash: hash(original), counts, browserErrors: errors, checks: ['upload opens workspace', 'Luna links real workbook', 'resume from Projects', 'formula edit/save/reopen', 'stale revision rejected', 'material needs follow edited quantity', 'four linked views before and after creation', 'original viewer/download', 'atomic linked materialization', 'closed import immutable', 'source byte-identical', 'other company denied', 'anonymous denied'] };
   fs.writeFileSync(`${out}-result.json`, JSON.stringify(report, null, 2)); console.log(JSON.stringify(report));
 } finally { await browser.close(); await db.auth.signOut({ scope: 'local' }); }

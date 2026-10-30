@@ -19,6 +19,8 @@ export type CertificateWorkbookGridProps = {
   /** true desde ELABORADO en adelante (o sesión cerrada): se puede recorrer
    * (scroll, hojas) pero no editar. La base ya lo congela igual. */
   readOnly: boolean;
+  /** Source review shows stored values without recalculating Excel formulas. */
+  cachedValuesOnly?: boolean;
   /** Dónde se guarda la copia de trabajo: el certificado o la sesión de
    * importación. La grilla no sabe a cuál pertenece. */
   onSave: (snapshot: WorkingSnapshot) => Promise<{ error: string | null }>;
@@ -45,6 +47,7 @@ export function CertificateWorkbookGrid({
   fileName,
   initialSnapshot,
   readOnly,
+  cachedValuesOnly = false,
   onSave,
   toolbar,
   readOnlyLabel = "Planilla de solo lectura",
@@ -61,6 +64,7 @@ export function CertificateWorkbookGrid({
   // libro nuevo es un componente nuevo, vía key).
   const initialSnapshotRef = useRef(initialSnapshot);
   const readOnlyRef = useRef(readOnly);
+  const cachedValuesOnlyRef = useRef(cachedValuesOnly);
   const onSaveRef = useRef(onSave);
   const saveNowRefRef = useRef(saveNowRef);
   useEffect(() => {
@@ -127,7 +131,7 @@ export function CertificateWorkbookGrid({
       ],
     });
 
-    const univerSnapshot = workingSnapshotToUniver(initialSnapshotRef.current, workbookId) as IWorkbookData;
+    const univerSnapshot = workingSnapshotToUniver(initialSnapshotRef.current, workbookId, { cachedValuesOnly: cachedValuesOnlyRef.current }) as IWorkbookData;
     const fWorkbook = univerAPI.createWorkbook(univerSnapshot);
     // Si la primera hoja del libro está oculta (MAGY: "Julio", un mes
     // archivado), Univer la deja activa igual y la grilla se ve en blanco.
