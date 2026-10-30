@@ -6,6 +6,7 @@ import { getCostBudgetAction } from "@/app/(internal)/projects/[id]/costeo-actio
 import { ApuDialog } from "@/app/(internal)/projects/[id]/apu-dialog";
 import { Button } from "@/components/ui/button";
 import type { PlanillaGridRow } from "./PlanillaGrid";
+import { WorkspaceApuEditor } from "./WorkspaceApuEditor";
 
 type Apu = NonNullable<Awaited<ReturnType<typeof listApuAction>>["data"]>;
 const display = (n: number | null | undefined) => n == null ? "Pendiente" : n.toLocaleString("es-PY", { maximumFractionDigits: 6 });
@@ -16,6 +17,7 @@ export function WorkspaceApuPanel({ projectId, row, editable }: { projectId: str
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
+  const [editing, setEditing] = useState(false);
   const id = row?._rowId;
   useEffect(() => {
     if (!id || id.startsWith("new:")) return;
@@ -36,10 +38,12 @@ export function WorkspaceApuPanel({ projectId, row, editable }: { projectId: str
     <h2 className="font-semibold">{String(row?.code ?? "")} · {String(row?.description ?? "")}</h2>
     <p className="text-xs text-[var(--muted)]">APU vigente aplicado a la cantidad del borrador: {display(quantity)} {String(row?.unit ?? "")}. Editar la receta actualiza el APU de la obra; confirmar aplica el cómputo y precio del borrador.</p>
     <div className="flex gap-2">
+      {editable ? <Button variant="secondary" disabled={loading || Boolean(error) || !data} onClick={() => setEditing(value => !value)} aria-expanded={editing}>{editing ? "Cerrar edición APU" : "Editar APU"}</Button> : null}
       {editable ? <ApuDialog projectId={projectId} budgetItemId={id} budgetItemLabel={String(row?.description ?? "")} onUpdated={() => { setLoading(true); setReload(v => v + 1); }} /> : null}
       <Button variant="secondary" onClick={() => { setLoading(true); setReload(v => v + 1); }} disabled={loading}>Actualizar APU</Button>
     </div>
     {loading ? <p role="status">Consultando receta y precios…</p> : error ? <p role="alert">{error}</p> : data ? <>
+      {editing && editable ? <WorkspaceApuEditor projectId={projectId} budgetItemId={id} data={data} onSaved={() => { setReload(value => value + 1); }} /> : null}
       <dl className="grid grid-cols-2 gap-2 text-sm"><dt>Costo unitario APU</dt><dd>{display(cost)}</dd><dt>Costo para el cómputo</dt><dd>{display(cost != null && quantity != null ? cost * quantity : null)}</dd></dl>
       <h3 className="font-semibold">Materiales · necesidad bruta</h3>
       <table className="w-full text-xs"><thead><tr><th className="text-left">Recurso</th><th>Por unidad</th><th>Merma %</th><th>Necesidad</th></tr></thead><tbody>{data.materials.map(m => <tr key={m.id}><td>{m.producto_nombre} ({m.unidad_medida})</td><td>{display(m.cantidad_por_unidad_ejecutada)}</td><td>{display(m.desperdicio_pct)}</td><td>{display(quantity == null ? null : quantity * m.cantidad_por_unidad_ejecutada * (1 + m.desperdicio_pct / 100))}</td></tr>)}</tbody></table>

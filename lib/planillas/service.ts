@@ -48,14 +48,6 @@ export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promi
   // arbitrario que manda el cliente — valida pertenencia a la empresa antes
   // de leer una sola fila.
   const contexto = await adapter.resolverContexto(supabase, profile.empresa_id, contextoRaw);
-  // Reopening the workspace resumes this user's draft, rather than silently
-  // seeding another snapshot from the older operational budget.
-  const { data: draft, error: draftError } = await supabase.from("planillas").select(SELECT_COLS)
-    .eq("empresa_id", profile.empresa_id).eq("usuario_id", profile.id)
-    .eq("modulo", modulo).eq("estado", "draft").eq("contexto", JSON.stringify(contexto))
-    .order("updated_at", { ascending: false }).limit(1).maybeSingle();
-  if (draftError) throw new Error(draftError.message);
-  if (draft) return draft as PlanillaSessionRow;
   const filas = await adapter.obtenerFilasIniciales(supabase, contexto);
   if (filas.length > 5000) throw new Error("Esta obra supera las 5.000 filas disponibles en el workspace. No se creó un borrador parcial.");
 
@@ -64,19 +56,9 @@ export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promi
     if (f._version) baseVersions[f._rowId] = f._version;
   }
 
-  const { data, error } = await supabase
-    .from("planillas")
-    .insert({
-      empresa_id: profile.empresa_id,
-      usuario_id: profile.id,
-      modulo,
-      contexto: contexto as Record<string, unknown>,
-      snapshot: { rows: filas },
-      base_versions: baseVersions,
-      estado: "draft",
-    })
-    .select(SELECT_COLS)
-    .single();
+  const { data, error } = await supabase.rpc("planilla_crear_o_retomar", {
+    p_modulo: modulo, p_contexto: contexto, p_rows: filas, p_base_versions: baseVersions,
+  });
 
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear la planilla.");
   return data as PlanillaSessionRow;

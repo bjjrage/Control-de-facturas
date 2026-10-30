@@ -46,6 +46,7 @@ export default async function PlanillaSessionPage({
 
   return (
     <PlanillaSessionClient
+      key={planilla.id}
       planillaId={planilla.id}
       initialVersion={planilla.updated_at}
       projectId={projectId}

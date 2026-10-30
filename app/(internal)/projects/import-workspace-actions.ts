@@ -8,7 +8,7 @@ import { crearPlanilla } from "@/lib/planillas/service";
 import { actualizarSnapshot } from "@/lib/planillas/service";
 import { allRowsResult } from "@/lib/supabase/all-rows-result";
 import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
-import type { PlanillaRow } from "@/lib/planillas/types";
+import { PlanillaConcurrencyError, type PlanillaRow } from "@/lib/planillas/types";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { encodeSnapshot, type StoredWorkingSnapshot } from "@/lib/certificates/snapshot-storage";
@@ -88,8 +88,13 @@ export async function openImportedProjectWorkspace(projectId: string) {
   if (source?.workspace_draft?.rows && planilla.created_at === planilla.updated_at) {
     const sourceRows = source.workspace_draft.rows as { code: string; quantity: number | null; unit_price: number | null; _formulas?: Record<string, string> }[];
     const rows = planilla.snapshot.rows as PlanillaRow[];
-    if (sourceRows.length === rows.length && sourceRows.every((row, index) => row.code === rows[index].code && row.quantity === rows[index].quantity && row.unit_price === rows[index].unit_price)) {
-      await actualizarSnapshot(planilla.id, rows.map((row, index) => ({ ...row, _formulas: sourceRows[index]._formulas ?? {} })), planilla.updated_at);
+    if (sourceRows.some(row => row._formulas?.quantity || row._formulas?.unit_price) && sourceRows.length === rows.length && sourceRows.every((row, index) => row.code === rows[index].code && row.quantity === rows[index].quantity && row.unit_price === rows[index].unit_price)) {
+      try {
+        await actualizarSnapshot(planilla.id, rows.map((row, index) => ({ ...row, _formulas: sourceRows[index]._formulas ?? {} })), planilla.updated_at);
+      } catch (error) {
+        // Another opener can seed the same draft first; preserve that revision.
+        if (!(error instanceof PlanillaConcurrencyError)) throw error;
+      }
     }
   }
   return `/planillas/${planilla.id}?volver=${encodeURIComponent(`/projects/${projectId}?tab=presupuesto`)}`;
