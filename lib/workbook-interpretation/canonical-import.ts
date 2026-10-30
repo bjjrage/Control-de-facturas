@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { numericCellRaw } from "./numbers";
 import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
+import { aggregateLinkedSchedule } from "./linked-schedule";
 import { extractBudgetItems, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
@@ -849,8 +850,14 @@ export function buildCanonicalImportCandidate(
     domains.set(block.target, domain);
   }
 
+  const linkedRecipes = extractLinkedRecipes(workbook, plan, canonicalBudgetItems);
+  const linkedSchedule = linkedRecipes.recipes.length ? aggregateLinkedSchedule(canonicalBudgetItems, linkedRecipes) : null;
+  if (linkedSchedule) {
+    for (let i = schedulePlans.length - 1; i >= 0; i--) if (schedulePlans[i].sheet === linkedSchedule.sheet) schedulePlans.splice(i, 1);
+    schedulePlans.push(linkedSchedule);
+  }
   return {
-    linkedRecipes: extractLinkedRecipes(workbook, plan, canonicalBudgetItems),
+    linkedRecipes,
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,

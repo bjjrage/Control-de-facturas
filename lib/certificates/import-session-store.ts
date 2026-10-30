@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseWorkbook, WorkbookInputError } from "@/lib/workbook-interpretation/parser";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
+import type { ImportWorkspaceDraft } from "@/lib/workbook-interpretation/import-workspace";
 import { CERTIFICATE_WORKBOOKS_BUCKET, computeStructureHash, toStoredSheets, type WorkingSnapshot } from "./workbook-store";
 import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-formatting";
 import { decodeSnapshot, encodeSnapshot, type StoredWorkingSnapshot } from "./snapshot-storage";
@@ -36,6 +37,7 @@ export type ImportSession = {
   suggestedRegime: ContractRegime | null;
   confirmedProjectId: string | null;
   createdAt: string;
+  workspaceDraft?: ImportWorkspaceDraft;
 };
 
 type SessionRow = {
@@ -44,12 +46,13 @@ type SessionRow = {
   structure_hash: string; interpretation: WorkbookInterpretationResult | null; candidate: CanonicalImportCandidate | null;
   analyzed_structure_hash: string | null; analysis_started_at: string | null; analyzed_at: string | null; analysis_error: string | null;
   suggested_regime: ContractRegime | null; confirmed_project_id: string | null; created_at: string;
+  workspace_draft?: ImportWorkspaceDraft;
 };
 
 const SESSION_COLUMNS =
   "id, status, original_file_name, original_file_size, original_storage_path, original_file_hash, working_snapshot, " +
   "working_revision, structure_hash, interpretation, candidate, analyzed_structure_hash, analysis_started_at, analyzed_at, analysis_error, " +
-  "suggested_regime, confirmed_project_id, created_at";
+  "suggested_regime, confirmed_project_id, created_at, workspace_draft";
 
 function fromRow(row: SessionRow): ImportSession {
   return {
@@ -71,6 +74,7 @@ function fromRow(row: SessionRow): ImportSession {
     suggestedRegime: row.suggested_regime,
     confirmedProjectId: row.confirmed_project_id,
     createdAt: row.created_at,
+    workspaceDraft: row.workspace_draft,
   };
 }
 

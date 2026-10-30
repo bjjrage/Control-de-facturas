@@ -134,22 +134,34 @@ export function extractLinkedRecipes(workbook: WorkbookRepresentation, plan: Imp
     result.recipes.push(recipe);
   }
   if (anchors.length && result.recipes.length !== items.length) result.issues.push(`Se verificaron ${result.recipes.length} recetas para ${items.length} partidas. Las faltantes requieren revisión.`);
-  const budgetCodes = new Set(items.map(item => item.code));
+  const budgetByCode = new Map(items.map(item => [item.code, item]));
   for (const block of plan.blocks.filter(b => b.target === "SCHEDULE" && b.mainProject !== false)) {
     const sheet = sheets.get(block.sheet)?.sheet;
     if (!sheet) continue;
-    const headers = sheet.cells.filter(c => c.row >= block.headerRowStart && c.row <= block.headerRowEnd);
-    const start = headers.find(c => /^dia inicio$/.test(norm(c.raw)));
-    const end = headers.find(c => /^dia fin$/.test(norm(c.raw)));
+    // A sheet can have stage, equipment and item sections with different
+    // columns. Each row uses its nearest explicit pair of day headers.
+    const starts = sheet.cells.filter(c => c.row >= block.headerRowStart && c.row <= block.dataRowEnd && /^dia inicio$/.test(norm(c.raw))).sort((a,b) => a.row-b.row);
     const codeColumn = block.columnMappings.find(m => m.role === "code")?.column;
-    if (!start || !end || !codeColumn) continue;
+    if (!starts.length || !codeColumn) continue;
     const rows = new Map<number, WorkbookCell[]>();
     for (const c of sheet.cells) { const row = rows.get(c.row) ?? []; row.push(c); rows.set(c.row, row); }
-    const months = headers.filter(c => /^mes\s*\d+$/.test(norm(c.raw)));
     for (const [rowNo, cells] of rows) {
       if (rowNo < block.dataRowStart || rowNo > block.dataRowEnd) continue;
-      const budgetCode = text(cells.find(c => c.address === `${codeColumn}${rowNo}`));
-      if (!budgetCodes.has(budgetCode)) continue;
+      const codeCell = cells.find(c => c.address === `${codeColumn}${rowNo}`);
+      const budgetCode = text(codeCell);
+      const item = budgetByCode.get(budgetCode);
+      if (!item) continue;
+      const ref = reference(codeCell?.formula);
+      const budgetBlock = blocks.find(b => b.sheet === item.source.sheet && (item.source.row ?? 0) >= b.dataRowStart && (item.source.row ?? 0) <= b.dataRowEnd);
+      const sourceCodeColumn = budgetBlock?.columnMappings.find(m => m.role === "code")?.column;
+      // Equipment IDs can equal item IDs. Numeric equality is insufficient.
+      if (!ref || ref.sheet !== item.source.sheet || ref.cell !== `${sourceCodeColumn}${item.source.row}`) continue;
+      const start = starts.filter(header => header.row < rowNo).at(-1);
+      if (!start) continue;
+      const headers = sheet.cells.filter(c => c.row === start.row);
+      const end = headers.find(c => /^dia fin$/.test(norm(c.raw)));
+      if (!end) continue;
+      const months = headers.filter(c => /^mes\s*\d+$/.test(norm(c.raw)));
       const startDay = number(cells.find(c => c.column === start.column));
       const endDay = number(cells.find(c => c.column === end.column));
       if (startDay === null || endDay === null || startDay < 1 || endDay < startDay) { result.issues.push(`${sheet.sheetName}!${rowNo}: plazo relativo sin verificar.`); continue; }

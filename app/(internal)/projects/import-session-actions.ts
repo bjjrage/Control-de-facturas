@@ -55,6 +55,7 @@ export async function saveImportSessionSnapshot(
   const supabase = await createClient();
   const session = await loadImportSession(supabase, profile.empresa_id, sessionId);
   if (!session) return { error: "Sesión no encontrada.", structureChanged: false };
+  if (session.workspaceDraft?.rows) return { error: "La vinculación ya tiene un borrador de workspace. Editá allí el cómputo; la fuente se conserva sin modificaciones.", structureChanged: false };
   if (session.status === "CONFIRMED" || session.status === "DISCARDED") {
     return { error: "La sesión ya fue cerrada; la planilla no se puede editar acá.", structureChanged: false };
   }

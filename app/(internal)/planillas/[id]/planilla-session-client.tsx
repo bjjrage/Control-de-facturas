@@ -11,6 +11,10 @@ import type { PlanillaColumn } from "@/lib/planillas/types";
 import { DraftSaveQueue } from "@/lib/planillas/save-queue";
 import { WorkspaceApuPanel } from "@/components/planillas/WorkspaceApuPanel";
 import { draftSignature } from "@/lib/planillas/draft-signature";
+import { MaterialsWorkspaceView, ScheduleWorkspaceView } from "@/components/planillas/LinkedWorkspaceViews";
+import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
+import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { getWorkspaceMaterials } from "../../projects/import-workspace-actions";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type ConfirmStatus = "idle" | "confirming" | "conflict" | "error";
@@ -23,6 +27,8 @@ export function PlanillaSessionClient({
   initialVersion,
   projectId,
   referenceQuantities = false,
+  linkedCandidate,
+  initialMaterials = [],
   estado,
   columns,
   initialRows,
@@ -32,6 +38,8 @@ export function PlanillaSessionClient({
   initialVersion: string;
   projectId?: string;
   referenceQuantities?: boolean;
+  linkedCandidate?: CanonicalImportCandidate;
+  initialMaterials?: WorkspaceMaterial[];
   estado: "draft" | "confirmed" | "cancelled";
   columns: PlanillaColumn[];
   initialRows: PlanillaGridRow[];
@@ -47,6 +55,8 @@ export function PlanillaSessionClient({
   const [rows, setRows] = useState(initialRows);
   const [selectedId, setSelectedId] = useState<string | null>(initialRows[0]?._rowId ?? null);
   const [showApu, setShowApu] = useState(true);
+  const [tab, setTab] = useState("Partidas");
+  const [materials, setMaterials] = useState(initialMaterials);
   const signatureRef = useRef(draftSignature(initialRows, columns));
   const queueRef = useRef<DraftSaveQueue<PlanillaGridRow> | null>(null);
   if (queueRef.current === null) queueRef.current = new DraftSaveQueue(initialVersion, async (rows, expectedVersion) => {
@@ -174,15 +184,21 @@ export function PlanillaSessionClient({
         )}
       </div>
       <div className="flex items-center gap-4 px-4 py-2 border-b border-[var(--border)] text-sm">
-        <span>Cómputo · Presupuesto</span>
+        {linkedCandidate ? <nav aria-label="Vistas del workspace" className="flex gap-2">{["Partidas", "APU", "Materiales", "Cronograma"].map(name => <button role="tab" aria-selected={tab === name} key={name} className={`rounded px-3 py-2 ${tab === name ? "bg-sky-500/20 text-sky-200" : ""}`} onClick={async () => { try { await flushSave(); setTab(name); if (name === "Materiales" && projectId) setMaterials(await getWorkspaceMaterials(projectId)); } catch (cause) { setConfirmError(cause instanceof Error ? cause.message : "No se pudo abrir la vista."); } }}>{name}</button>)}</nav> : <span>Cómputo · Presupuesto</span>}
         {projectId ? <Button variant="secondary" onClick={() => setShowApu(v => !v)} aria-expanded={showApu}>APU y materiales</Button> : null}
         <span>{rows.filter(r => !r._deleted && String(r.description ?? "").trim()).length} partidas · Borrador</span>
       </div>
       {referenceQuantities ? <p role="status" className="px-4 py-2 text-xs text-amber-300">Cantidades referenciales del archivo: los importes y necesidades son una simulación hasta validar el cómputo definitivo. Editar el borrador no certifica esas cantidades automáticamente.</p> : null}
-      <div className="flex flex-1 min-h-0">
+      <div className={tab === "Partidas" ? "flex flex-1 min-h-0" : "hidden"}>
         <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} flushPendingRef={gridFlushRef} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
         {projectId && showApu ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} /></div> : null}
       </div>
+      {linkedCandidate && tab !== "Partidas" ? <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex gap-3 items-center border-b border-[var(--border)] p-3 text-xs"><label htmlFor="operational-partida">Partida activa</label><select id="operational-partida" aria-label="Partida activa" value={selectedId ?? ""} onChange={e => setSelectedId(e.target.value)} className="max-w-3xl flex-1 rounded border p-2">{rows.filter(row => !row._deleted && String(row.description ?? "").trim()).map(row => <option key={row._rowId} value={row._rowId}>{String(row.code)} · {String(row.description)}</option>)}</select></div>
+        {tab === "APU" && projectId ? <WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(row => row._rowId === selectedId)} editable={!isReadOnly && confirmStatus !== "confirming"} /> : null}
+        {tab === "Materiales" ? <MaterialsWorkspaceView materials={materials} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
+        {tab === "Cronograma" ? <ScheduleWorkspaceView candidate={linkedCandidate} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
+      </div> : null}
     </div>, document.body
   ) : null;
 }

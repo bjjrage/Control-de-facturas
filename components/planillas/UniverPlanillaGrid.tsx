@@ -9,7 +9,7 @@ import { fromWorkspaceBook, toWorkspaceBook, WORKSPACE_SHEET } from "@/lib/plani
 import { rawNumber } from "@/lib/workbook-interpretation/numbers";
 import { resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
 
-export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, initialRows, onChange, onSelectRow, readOnly = false, flushPendingRef }: PlanillaGridProps) {
+export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, initialRows, onChange, onSelectRow, readOnly = false, fixedRows = false, flushPendingRef }: PlanillaGridProps) {
   const host = useRef<HTMLDivElement>(null);
   const initial = useRef(initialRows);
   const callbacks = useRef({ onChange, onSelectRow });
@@ -74,6 +74,7 @@ export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, in
       return sheet.getRange(address.toUpperCase());
     };
     const typedValue = (value: string, col: number) => {
+      if (columns[col]?.readOnly || columns[col]?.type === "readonly-numeric") throw new Error("Esta columna conserva la identidad o el cálculo. Editá las columnas de trabajo habilitadas.");
       if (columns[col]?.type === "numeric") {
         if (value.startsWith("=")) return { f: value };
         if (value === "") return { v: null };
@@ -107,10 +108,13 @@ export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, in
     });
     const guard = univerAPI.addEvent(univerAPI.Event.BeforeCommandExecute, event => {
       if (event.type !== CommandType.COMMAND) return;
+      if (fixedRows && /(insert|remove|move).*(row)|move-range|sort/.test(event.id)) {
+        event.cancel = true; setError("Las partidas conservan sus vínculos durante la importación. Las altas y bajas se hacen en la obra creada."); return;
+      }
       if (event.id === "sheet.command.set-range-values") {
         const params = event.params as { range?: { startColumn: number; endColumn: number } } | undefined;
         const range = params?.range ?? sheet.getActiveRange()?.getRange();
-        if (range && range.endColumn >= columns.length - 1) {
+        if (range && columns.some((column, index) => index >= range.startColumn && index <= range.endColumn && (column.readOnly || column.type === "readonly-numeric"))) {
           event.cancel = true; setError("El subtotal se calcula automáticamente y la identidad de partida está protegida.");
         }
       }
@@ -121,7 +125,7 @@ export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, in
     const sheetGuard = univerAPI.addEvent(univerAPI.Event.BeforeSheetCreate, event => { event.cancel = true; });
     const onExit = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } }; window.addEventListener("beforeunload", onExit);
     return () => { disposed = true; if (timer) clearTimeout(timer); mutation.dispose(); selection.dispose(); guard.dispose(); sheetGuard.dispose(); window.removeEventListener("beforeunload", onExit); if (flushPendingRef) flushPendingRef.current = null; toolsRef.current = null; workbookRef.current = null; univer.dispose(); container.remove(); };
-  }, [columns, flushPendingRef]);
+  }, [columns, flushPendingRef, fixedRows]);
   const run = (action: () => Promise<unknown> | undefined) => { void Promise.resolve().then(action).catch(e => setError(e instanceof Error ? e.message : "No se pudo aplicar el cambio.")); };
   return <div className="h-full flex flex-col"><div className="text-xs p-2 text-[var(--muted)]">{columns.map((c, i) => `${String.fromCharCode(65 + i)}: ${c.label}`).join(" · ")}</div>
     <div role="toolbar" aria-label="Herramientas de cómputo" className="flex gap-2 p-2 text-xs"><input aria-label="Celda" value={address} onChange={e => setAddress(e.target.value)} className="w-16 border rounded p-1" /><input aria-label="Valor o fórmula" value={value} onChange={e => setValue(e.target.value)} className="min-w-0 flex-1 border rounded p-1" disabled={readOnly} /><button disabled={readOnly} onClick={() => run(() => toolsRef.current?.apply(address, value))}>Aplicar celda</button><button disabled={readOnly} onClick={() => run(() => toolsRef.current?.paste(address))}>Pegar rango</button><button disabled={readOnly} onClick={() => run(() => toolsRef.current?.undo())}>Deshacer</button><button disabled={readOnly} onClick={() => run(() => toolsRef.current?.redo())}>Rehacer</button></div>

@@ -28,6 +28,20 @@ function fixture() {
 }
 
 describe("linked workbook recipes",()=>{
+  it("uses each schedule section's own headers and rejects equipment IDs that merely equal item codes", () => {
+    const { workbook, plan } = fixture();
+    const cells = [
+      [1,1,"Ítem"], [1,3,"Día inicio"], [1,4,"Día fin"], [1,6,"Mes 1"],
+      [2,1,1], [2,3,1], [2,4,10], [2,6,99],
+      [4,1,"Ítem"], [4,4,"Día inicio"], [4,5,"Día fin"], [4,6,"Mes 1"],
+      [5,1,1], [5,4,31], [5,5,60], [5,6,400],
+    ].map(([row,column,raw]) => ({ row: Number(row), column: Number(column), raw: raw as string | number, address: XLSX.utils.encode_cell({ r: Number(row)-1,c: Number(column)-1 }), type: typeof raw === "number" ? "n" : "s", formatted: null, formula: Number(row) === 5 && Number(column) === 1 ? "Partidas!A2" : null }));
+    workbook.sheets.push({ ...workbook.sheets[0], sheetName: "Cronograma", cells });
+    plan.blocks.push({ ...plan.blocks[0], id:"schedule", sheet:"Cronograma", target:"SCHEDULE", sourceRange:"A1:F5", headerRowStart:1, headerRowEnd:1, dataRowStart:2,dataRowEnd:5 });
+    const linked = extractLinkedRecipes(workbook, plan, extractBudgetItems(workbook, plan).items);
+    expect(linked.relativeSchedule).toEqual([{ budgetCode:"1", startDay:31,endDay:60,source:{sheet:"Cronograma",row:5},monthlyValues:[{month:1,value:400,cell:"F5"}] }]);
+    expect(linked.issues).toEqual([]);
+  });
   it("respects an explicit budget and never imports an OTHER comparison as duplicate partidas",()=>{
     const {workbook,plan}=fixture();
     plan.blocks.push({...plan.blocks[0],id:"comparison",target:"OTHER"});

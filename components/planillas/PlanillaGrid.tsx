@@ -10,6 +10,7 @@ export type PlanillaGridProps = {
   onSelectRow?: (id: string | null) => void;
   flushPendingRef?: { current: (() => Promise<void>) | null };
   readOnly?: boolean;
+  fixedRows?: boolean;
 };
 
 // Keep the public grid interface while using the Apache-2.0 core already
