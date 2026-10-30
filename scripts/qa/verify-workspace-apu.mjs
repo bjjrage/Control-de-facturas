@@ -46,12 +46,15 @@ try{
  await page.screenshot({path:`audit-artifacts/workbook-linked-import/${mode}-apu-editing.png`,fullPage:true});
  await page.reload({waitUntil:'networkidle',timeout:180000});await selectApu();assert.equal(await page.locator(`form[data-apu-line="${material.id}"]`).getByRole('spinbutton',{name:/Consumo por unidad/}).inputValue(),String(nextConsumption));
  await saveMaterial(material.cantidad_por_unidad_ejecutada);materialApplied=false;
- await editQuantity(quantity,original._formulas?.quantity);await confirmQuantity(quantity);quantityApplied=false;
+ const literal=await editQuantity(quantity);assert.equal(literal.snapshot.rows[index]._formulas?.quantity,undefined,'A literal must clear the previous formula');
+ await page.reload({waitUntil:'networkidle',timeout:180000});const reopenedLiteral=await api(`/api/planillas/${current.id}`);assert.equal(reopenedLiteral.body.snapshot.rows[index].quantity,quantity);assert.equal(reopenedLiteral.body.snapshot.rows[index]._formulas?.quantity,undefined);
+ if(original._formulas?.quantity)await editQuantity(quantity,original._formulas.quantity);
+ await confirmQuantity(quantity);quantityApplied=false;
  const restoredParallel=await Promise.all([draft(),draft()]);assert.equal(restoredParallel[0].id,restoredParallel[1].id);current=restoredParallel[0];assert.equal(current.snapshot.rows[index].quantity,quantity);await page.goto(origin+`/planillas/${current.id}`,{waitUntil:'networkidle',timeout:180000});
  await page.getByRole('tab',{name:'APU',exact:true}).click();await page.getByLabel('Partida activa',{exact:true}).selectOption(material.budget_item_id);
  await page.getByRole('button',{name:'Editar APU',exact:true}).waitFor();
  assert.deepEqual(errors,[]);
- const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,browserErrors:errors,checks:['quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
+ const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,browserErrors:errors,checks:['literal replaces formula and persists after reload','quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
  fs.writeFileSync(`audit-artifacts/workbook-linked-import/${mode}-editing-result.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }catch(error){if(page){await page.screenshot({path:`audit-artifacts/workbook-linked-import/${mode}-editing-failure.png`,fullPage:true}).catch(()=>{});console.log(JSON.stringify({url:page.url(),alerts:await page.getByRole('alert').allTextContents().catch(()=>[])}));}throw error;}
 finally{

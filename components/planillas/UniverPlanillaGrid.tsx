@@ -76,12 +76,13 @@ export const UniverPlanillaGrid = memo(function UniverPlanillaGrid({ columns, in
     const typedValue = (value: string, col: number) => {
       if (columns[col]?.readOnly || columns[col]?.type === "readonly-numeric") throw new Error("Esta columna conserva la identidad o el cálculo. Editá las columnas de trabajo habilitadas.");
       if (columns[col]?.type === "numeric") {
-        if (value.startsWith("=")) return { f: value };
-        if (value === "") return { v: null };
+        if (value.startsWith("=")) return { f: value, v: null, p: null, si: null };
+        if (value === "") return { v: null, f: null, p: null, si: null };
         const number = rawNumber(value); if (number === null) throw new Error("Número inválido o ambiguo. Usá un decimal inequívoco.");
-        return { v: number, t: 2 as const };
+        // ICellData merges content fields. Explicitly replace any prior formula.
+        return { v: number, t: 2 as const, f: null, p: null, si: null };
       }
-      return { v: value, t: 1 as const };
+      return { v: value, t: 1 as const, f: null, p: null, si: null };
     };
     toolsRef.current = {
       apply: async (address, value) => { const range = parseAddress(address); range.setValue(typedValue(value, range.getColumn())); dirty = true; await emit(); },
