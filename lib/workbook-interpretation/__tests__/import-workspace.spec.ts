@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyImportDraft, importRows, materialNeed, sourceMaterials, validateImportDraft } from "../import-workspace";
+import { applyImportDraft, importBlockingIssues, importRows, materialNeed, sourceMaterials, validateImportDraft } from "../import-workspace";
 import type { CanonicalImportCandidate } from "../canonical-import";
 
 const candidate = {
@@ -10,6 +10,10 @@ const candidate = {
 const draft = () => ({ rows: importRows(candidate), name: "Obra", code: "O1", regime: "PUBLIC_WORK", referenceQuantities: true, applySchedule: true, applyCertificate: false, applyStaff: true, applyWeather: true, applyExecution: true });
 
 describe("linked import workspace", () => {
+  it("blocks a partial extraction whose lines do not reproduce the source total", () => {
+    const partial={...candidate,checks:[{id:"budget_declared_total",status:"WARNING",detail:"Las partidas no suman el total fuente."}]} as CanonicalImportCandidate;
+    expect(importBlockingIssues(partial)).toEqual(["Las partidas no suman el total fuente."]);
+  });
   it("keeps source data unchanged while reviewed measurements change budget and linked material needs", () => {
     const original = JSON.stringify(candidate);
     const raw = draft(); raw.rows[0].quantity = 6;

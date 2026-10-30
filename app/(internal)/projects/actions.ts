@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { refreshAfterSave } from "@/lib/refresh-after-save";
 import { ProjectStatus } from "@/lib/types";
 import { createHash } from "node:crypto";
-import { applyImportDraft, validateImportDraft } from "@/lib/workbook-interpretation/import-workspace";
+import { applyImportDraft, importBlockingIssues, validateImportDraft } from "@/lib/workbook-interpretation/import-workspace";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
@@ -171,6 +171,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
   if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
   if (session && formData.get("apply_recipes") === "1") {
+    const arithmeticIssues = importBlockingIssues(result.candidate);
+    if (arithmeticIssues.length) return { error: `El presupuesto fuente no está reconciliado. ${arithmeticIssues.join(" ")}` };
     if (result.candidate.budgetItems.some(item => item.quantity === null || item.unitPrice === null)) return { error: "Completá las cantidades y precios pendientes antes de crear la obra." };
     if (formData.get("apply_certificate") === "1") return { error: "Importá primero la obra con sus recetas; el certificado requiere su propia confirmación." };
     const quantityStatus = formData.get("quantity_status");

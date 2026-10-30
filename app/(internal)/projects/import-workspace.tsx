@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { UniverPlanillaGrid } from "@/components/planillas/UniverPlanillaGrid";
 import { SourceApuView, MaterialsWorkspaceView, ScheduleWorkspaceView, displayWorkspaceNumber as num } from "@/components/planillas/LinkedWorkspaceViews";
-import { importRows, sourceMaterials, validateImportDraft, type ImportWorkspaceDraft } from "@/lib/workbook-interpretation/import-workspace";
+import { importRows, importBlockingIssues, sourceMaterials, validateImportDraft, type ImportWorkspaceDraft } from "@/lib/workbook-interpretation/import-workspace";
 import { DraftSaveQueue } from "@/lib/planillas/save-queue";
 import { draftSignature } from "@/lib/planillas/draft-signature";
 import type { PlanillaColumn, PlanillaRow } from "@/lib/planillas/types";
@@ -128,7 +128,7 @@ function ReadyImportWorkspace({ session }: { session: ImportWorkspaceView }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo crear la obra."); }
     finally { setCreating(false); }
   }
-  const invalid = Boolean(error) || session.analysisStale || !draft.name.trim() || !draft.code.trim() || !draft.regime || candidate.linkedRecipes?.issues.length || !draft.rows.length || draft.rows.some(item => !item.code || item.quantity === null || item.unit_price === null) || new Set(candidate.budgetItems.map(item => item.code)).size !== candidate.budgetItems.length;
+  const invalid = importBlockingIssues(candidate).length > 0 || Boolean(error) || session.analysisStale || !draft.name.trim() || !draft.code.trim() || !draft.regime || candidate.linkedRecipes?.issues.length || !draft.rows.length || draft.rows.some(item => !item.code || item.quantity === null || item.unit_price === null) || new Set(candidate.budgetItems.map(item => item.code)).size !== candidate.budgetItems.length;
   return <main className="fixed inset-0 z-[35] flex flex-col bg-[var(--background)]" aria-label="Workspace de importación">
     <header className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] p-3">
       <Button variant="secondary" disabled={creating} onClick={() => { void save().then(() => router.push("/projects")).catch(() => {}); }}>Guardar y volver</Button>
@@ -173,5 +173,6 @@ function OriginalImportView({ id, fileName }: { id: string; fileName: string }) 
   if (!snapshot) return <p role="status" className="p-4">Abriendo la planilla conservada…</p>;
   return <section aria-label="Fuente Excel conservada"><div className="flex gap-3 items-center p-3"><p className="text-xs text-[var(--muted)]">Valores guardados en el documento, sin recalcular. Las fórmulas originales se conservan en el archivo descargable.</p><Button variant="secondary" onClick={() => { void getImportOriginalUrl(id).then(url => { window.location.href = url; }).catch(() => setError("No se pudo descargar el original.")); }}>Descargar Excel original</Button></div><SourceGrid workbookId={id} fileName={fileName} initialSnapshot={snapshot} readOnly cachedValuesOnly readOnlyLabel="Fuente conservada · valores del documento" onSave={async () => ({ error: "El original se conserva sin modificaciones." })} heightClassName="h-[65vh] min-h-[360px]" /></section>;
 }
+
 
 

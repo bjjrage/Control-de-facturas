@@ -15,6 +15,10 @@ export const importDraftSchema = z.object({
 });
 export type ImportWorkspaceDraft = z.infer<typeof importDraftSchema>;
 
+export function importBlockingIssues(candidate: CanonicalImportCandidate): string[] {
+  return candidate.checks.filter(check => check.status !== "OK" && ["budget_line_math", "budget_declared_total"].includes(check.id)).map(check => check.detail);
+}
+
 export function importRowId(item: CanonicalImportCandidate["budgetItems"][number]) {
   return JSON.stringify([item.source.sheet, item.source.row, item.code]);
 }
