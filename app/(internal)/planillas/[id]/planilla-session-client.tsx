@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlanillaGrid, type PlanillaGridRow } from "@/components/planillas/PlanillaGrid";
+import type { PlanillaGridRow } from "@/components/planillas/PlanillaGrid";
+import { UniverPlanillaGrid as PlanillaGrid } from "@/components/planillas/UniverPlanillaGrid";
 import type { PlanillaColumn } from "@/lib/planillas/types";
 import { DraftSaveQueue } from "@/lib/planillas/save-queue";
 import { WorkspaceApuPanel } from "@/components/planillas/WorkspaceApuPanel";
@@ -21,6 +22,7 @@ export function PlanillaSessionClient({
   planillaId,
   initialVersion,
   projectId,
+  referenceQuantities = false,
   estado,
   columns,
   initialRows,
@@ -29,6 +31,7 @@ export function PlanillaSessionClient({
   planillaId: string;
   initialVersion: string;
   projectId?: string;
+  referenceQuantities?: boolean;
   estado: "draft" | "confirmed" | "cancelled";
   columns: PlanillaColumn[];
   initialRows: PlanillaGridRow[];
@@ -40,6 +43,7 @@ export function PlanillaSessionClient({
   const [confirmStatus, setConfirmStatus] = useState<ConfirmStatus>("idle");
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gridFlushRef = useRef<(() => Promise<void>) | null>(null);
   const [rows, setRows] = useState(initialRows);
   const [selectedId, setSelectedId] = useState<string | null>(initialRows[0]?._rowId ?? null);
   const [showApu, setShowApu] = useState(true);
@@ -57,6 +61,7 @@ export function PlanillaSessionClient({
   const isReadOnly = estado !== "draft";
 
   const flushSave = useCallback(async () => {
+    await gridFlushRef.current?.();
     const queue = queueRef.current!;
     if (!queue.dirty) return;
     setSaveStatus("saving");
@@ -173,8 +178,9 @@ export function PlanillaSessionClient({
         {projectId ? <Button variant="secondary" onClick={() => setShowApu(v => !v)} aria-expanded={showApu}>APU y materiales</Button> : null}
         <span>{rows.filter(r => !r._deleted && String(r.description ?? "").trim()).length} partidas · Borrador</span>
       </div>
+      {referenceQuantities ? <p role="status" className="px-4 py-2 text-xs text-amber-300">Cantidades referenciales del archivo: los importes y necesidades son una simulación hasta validar el cómputo definitivo. Editar el borrador no certifica esas cantidades automáticamente.</p> : null}
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
+        <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} flushPendingRef={gridFlushRef} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
         {projectId && showApu ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} /></div> : null}
       </div>
     </div>, document.body

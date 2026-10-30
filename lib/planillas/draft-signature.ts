@@ -9,5 +9,5 @@ export function draftSignature(rows: PlanillaRow[], columns: PlanillaColumn[]): 
   const editable = columns.filter(c => !c.readOnly && c.type !== "readonly-numeric");
   return JSON.stringify(rows.filter(r => r._deleted || editable.some(c => r[c.key] != null && r[c.key] !== ""))
     .map(r => [r._rowId, !!r._deleted, r._style ?? null,
-      ...editable.map(c => [r[c.key] ?? null, r._formulas?.[c.key] ?? null])]));
+      ...editable.map(c => [r[c.key] ?? null, r._formulas?.[c.key] ?? null, (r._cellStyles as Record<string, unknown> | undefined)?.[c.key] ?? null])]));
 }

@@ -1,6 +1,6 @@
 # Primer lote: workspace de cómputo, presupuesto y APU
 
-Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre aplicación local conectada exclusivamente a la base QA `kyiihlkncatojvlasoag`. Publicación en IASA pendiente de cerrar la licencia del motor instalado y verificar el despliegue final.
+Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre aplicación local conectada exclusivamente a la base QA `kyiihlkncatojvlasoag`. Motor seleccionado: núcleo de Univer 1.0.2, Apache 2.0. Publicación en IASA pendiente de verificar el despliegue final.
 
 ## Cambios
 
@@ -12,6 +12,7 @@ Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre apli
 - Workspace con selección de partida, panel APU, costo unitario y necesidad bruta de materiales para la cantidad editada. Una modificación del APU refresca el panel.
 - Las filas vacías de reserva se excluyen de la aplicación; reabrir no produce un guardado fantasma. La grilla admite hasta 5.000 filas.
 - El workspace se presenta por encima de la navegación general y conserva los diálogos accesibles. El pegado no envía metadatos de identidad a columnas del motor de fórmulas.
+- Handsontable y HyperFormula fueron retirados de la grilla y de las dependencias. Univer conserva IDs en una columna interna y las revisiones fuera de los valores editables; el guardado espera a que se apliquen los resultados de cálculo.
 
 ## Evidencia
 
@@ -29,7 +30,7 @@ Pruebas comprobadas en navegador y API:
 8. Completar el recorrido sin errores JavaScript de página.
 9. Abrir el editor APU y comprobar 1,65 kg de necesidad bruta para 6 unidades, consumo 0,25 kg/u y merma 10 %.
 
-Las pruebas unitarias de importación/planillas pasaron: 81 casos, dos omitidos por sus condiciones preexistentes. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. Cualquier cambio posterior requiere sus verificaciones pertinentes.
+Las pruebas unitarias de importación/planillas pasaron: 84 casos, tres omitidos por sus condiciones preexistentes o por requerir el archivo privado. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. La prueba del archivo real se ejecutó por separado y pasó. Cualquier cambio posterior requiere sus verificaciones pertinentes.
 
 Una regresión independiente del modelo, ejecutada con el archivo real y su mapeo guardado, preservó 597 partidas, 597 recetas, 597 plazos relativos, el total de 738.462.025 y la huella del original. Se ejecuta con `WORKBOOK_REGRESSION_PATH` y `WORKBOOK_REGRESSION_MAPPING_PATH`; no incluye archivos privados ni requiere otra llamada a Luna.
 
@@ -43,6 +44,8 @@ La recuperación de trabajo confirmado usa el servidor. Los cambios todavía pen
 
 Las fórmulas del borrador se conservan, pero el cálculo editable sigue usando el motor instalado. La verificación independiente de todas las fórmulas en servidor y la cobertura completa de funciones no quedan certificadas por estas pruebas.
 
-Handsontable y HyperFormula siguen instalados como motor existente. La grilla declara una clave de evaluación. Antes de ampliar su uso en IASA hay que comprobar licencia comercial o completar el experimento y la migración a un motor compatible. No se modificó esa clave para simular una licencia.
+La selección de motor se resolvió con Univer después de confirmar que IASA no tiene licencia comercial de Handsontable/HyperFormula. Se usan los paquetes del núcleo Apache 2.0 ya presentes en el ERP. Los módulos comerciales de Univer no forman parte de esta entrega. El aviso y la licencia se distribuyen en `public/licenses/`.
+
+El alcance operativo conserva las seis columnas de cómputo/presupuesto. La creación de hojas auxiliares y los cambios de columnas pertenecen a P4. Las operaciones que podrían mover valores sin su identidad se bloquean; las filas completas mantienen sus vínculos. Esto no representa una certificación de compatibilidad con todas las funciones de Excel.
 
 La migración SQL de este lote fue aplicada sólo en QA. IASA requiere la misma función y una revisión de aplicación que haya pasado la verificación final.

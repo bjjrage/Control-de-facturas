@@ -21,7 +21,6 @@
     "dev:voice": "concurrently \"npm run dev\" \"npm run voice:proxy\""
   },
   "dependencies": {
-    "@handsontable/react-wrapper": "^18.1.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
@@ -34,9 +33,7 @@
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "frappe-gantt": "^1.2.2",
-    "handsontable": "^18.1.0",
     "htmlparser2": "12.0.0",
-    "hyperformula": "^3.4.0",
     "lucide-react": "^1.31.0",
     "next": "16.4.2",
     "pdf-parse": "^2.4.5",

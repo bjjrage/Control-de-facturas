@@ -2,6 +2,8 @@
 
 Fecha: 29 de octubre de 2026. Estado: plan de ejecución preparado; las etapas nuevas siguen pendientes. Base de código revisada: `1411e735`.
 
+Seguimiento del primer lote: [implementación y verificación del workspace](PRIMER_LOTE_WORKSPACE_VERIFICACION.md). Los hallazgos de este plan corresponden a la base revisada; ese informe registra las correcciones y la selección posterior de Univer.
+
 El objetivo es que el usuario prepare, planifique y gestione la obra dentro del ERP con la fluidez que necesita para trabajar, calcular y comparar alternativas. La migración desde Excel debe llevar la información anterior a ese mismo espacio. La adopción se medirá por tareas completas realizadas dentro del ERP.
 
 La estrategia es ampliar las piezas existentes mediante un workspace con grillas, hojas auxiliares y vistas conectadas. Los datos operativos mantendrán identidades, unidades, versiones y reglas explícitas. Luna ayudará a interpretar documentos y proponer cambios; la edición y los cálculos cotidianos funcionarán sin depender del modelo.

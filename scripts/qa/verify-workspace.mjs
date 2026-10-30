@@ -40,10 +40,16 @@ await page.getByTitle('APU / BOM de la partida',{exact:true}).click();
 await page.getByRole('dialog').waitFor();await page.getByRole('dialog').getByText('Cargando…',{exact:true}).waitFor({state:'hidden'});
 await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
 // The formula must reopen as an expression, not just its cached value.
-const cell=page.locator('.ht_master tbody tr').first().locator('td').nth(3);await cell.dblclick();
-await page.keyboard.press('Control+a');await page.keyboard.type('=3+3');await page.keyboard.press('Enter');
+await page.getByLabel('Celda',{exact:true}).fill('D1');await page.getByLabel('Valor o fórmula',{exact:true}).fill('=3+3');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?.quantity===6), page.getByRole('button',{name:'Aplicar celda',exact:true}).click()]);
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
-const afterEdit=await api(`/api/planillas/${session.id}`);assert.equal(afterEdit.body.snapshot.rows[0].quantity,6);assert.equal(afterEdit.body.snapshot.rows[0]._formulas.quantity,'=3+3');
+const canvases=await page.locator('[aria-label="Hoja de cómputo y presupuesto"] canvas').all();let gridCanvas;
+for(const candidate of canvases){const bounds=await candidate.boundingBox();if(bounds && bounds.width>650 && bounds.height>200){gridCanvas=candidate;break;}}
+assert(gridCanvas,'The open-source spreadsheet canvas must be mounted');
+await gridCanvas.dblclick({position:{x:585,y:33}});
+await page.keyboard.press('Control+a');await page.keyboard.type('=2*3');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?._formulas?.quantity==='=2*3'),page.keyboard.press('Enter')]);
+const afterEdit=await api(`/api/planillas/${session.id}`);assert.equal(afterEdit.body.snapshot.rows[0].quantity,6);assert.equal(afterEdit.body.snapshot.rows[0]._formulas.quantity,'=2*3');
 await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
 const materialRow=page.getByRole('row').filter({hasText:'Insumo QA workspace'});assert((await materialRow.innerText()).includes('1,65'));
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-qa.png',fullPage:true});
@@ -60,19 +66,24 @@ const bulkSession=await api('/api/planillas','POST',{modulo:'computo_presupuesto
 await page.goto(`${origin}/planillas/${bulkSession.body.id}`,{waitUntil:'networkidle'});
 await context.grantPermissions(['clipboard-read','clipboard-write']);
 const paste=Array.from({length:200},(_,i)=>[`QA${i+1}`,`Trabajo ${i+1}`,'m2','2','100'].join('\t')).join('\n');
-await page.locator('.ht_master tbody tr').first().locator('td').first().click();
-await page.evaluate(text=>navigator.clipboard.writeText(text),paste);await page.keyboard.press('Control+v');
+await page.getByLabel('Celda',{exact:true}).fill('A1');
+await page.evaluate(text=>navigator.clipboard.writeText(text),paste);await page.getByRole('toolbar',{name:'Herramientas de cómputo'}).getByRole('button',{name:'Pegar rango',exact:true}).click();
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
 const bulkSaved=await api(`/api/planillas/${bulkSession.body.id}`);assert.equal(bulkSaved.body.snapshot.rows.filter(r=>r.description).length,200);assert.equal(bulkSaved.body.snapshot.rows[199].code,'QA200');
 await Promise.all([
   page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${bulkSession.body.id}`) && r.request().method()==='PATCH'),
-  page.keyboard.press('Control+z'),
+  page.getByRole('toolbar',{name:'Herramientas de cómputo'}).getByRole('button',{name:'Deshacer',exact:true}).click(),
 ]);
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
 const undone=await api(`/api/planillas/${bulkSession.body.id}`);
 assert.equal(undone.body.snapshot.rows.filter(r=>r.description).length,1,'One undo must restore the pre-paste budget');
 assert.equal(undone.body.snapshot.rows[0].description,'Medición QA');
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-bulk-qa.png',fullPage:true});
+const imported=JSON.parse(fs.readFileSync('audit-artifacts/workbook-linked-import/qa-result.json','utf8'));
+const large=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:imported.projectId}});assert.equal(large.status,201);assert.equal(large.body.snapshot.rows.length,597);
+await page.goto(`${origin}/planillas/${large.body.id}`,{waitUntil:'networkidle',timeout:120000});
+await page.getByText('597 partidas · Borrador',{exact:true}).waitFor();await page.getByText('Cantidades referenciales del archivo:',{exact:false}).waitFor();
+await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-lote2-qa.png',fullPage:true});
 assert.deepEqual(errors,[]);await browser.close();
-const report={origin,projectId:project.id,sessionId:session.id,checks:['resume','CAS stale save','CAS stale confirm','formula roundtrip','grid edit/autosave/reopen','contextual APU','APU editor accessible','material need 1.65 kg','atomic confirm','idempotent retry','closed draft immutable','1000-cell paste','undo paste restored in database'],actual,browserErrors:errors};
+const report={origin,projectId:project.id,sessionId:session.id,largeSessionId:large.body.id,checks:['resume','CAS stale save','CAS stale confirm','formula roundtrip','native keyboard formula edit','grid edit/autosave/reopen','contextual APU','APU editor accessible','material need 1.65 kg','atomic confirm','idempotent retry','closed draft immutable','1000-cell paste','undo paste restored in database','597-item workbook','reference quantities visible'],actual,browserErrors:errors};
 fs.writeFileSync('audit-artifacts/workbook-linked-import/workspace-qa-result.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
