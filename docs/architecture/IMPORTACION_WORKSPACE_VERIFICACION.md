@@ -1,8 +1,18 @@
 # Importación directa al workspace
 
-## Estado vigente de IASA: restauración anterior al workspace — 30 de octubre de 2026
+## Estado vigente de IASA: versión estable anterior a la carga APU — 30 de octubre de 2026
 
-Por solicitud del usuario, IASA volvió al despliegue `dpl_BqCTtbtqrTvkJAMSZPKTvKpzBgja`, commit `0b5cbce157b465628b6bb75c707af83bf52da4ba`, anterior al primer lote del workspace. El despliegue reemplazado fue `dpl_DfqBDMTnQTKTT891swfgg79svydu` (`81c57d4c644e589f63bd18af74e158835e46f155`). Las entregas documentadas más abajo quedan como antecedentes y no describen la interfaz actualmente publicada en IASA.
+El usuario precisó que necesitaba la aplicación anterior a la carga APU, no solamente la anterior al workspace. La restauración intermedia a `0b5cbce1` quedó superada. Se recuperó el despliegue de producción del 24 de octubre documentado en `docs/operations/IASA-Y-QA.md`: `dpl_GnayEtbwrUs6VyqpHqXCvF2xc4ey`, commit `9dba47cec8658b0670f26834690f529f1c74b5e8`.
+
+- Se verificó el destino READY y su commit; se reasignó exclusivamente `control-de-facturas-iasa.vercel.app`. La consulta posterior del alias confirmó ese despliegue. Bay continúa en `dpl_HUAYx9WHRSfpdwAkYHMM387YsTnh`.
+- Este punto precede también la corrección de subida `c359fccc` y la incorporación de recetas vinculadas `0b5cbce1`. Se restauró el artefacto histórico completo, sin cambios de código ni reconstrucción.
+- Se conservaron la base y las cargas actuales. Las huellas de la obra y sus ocho conjuntos de datos comprobados coinciden antes y después; también el SHA-256 del Excel original. Restaurar la aplicación no elimina la obra importada ni sus 597 partidas.
+- Verificación autenticada y de lectura en Iasa: Obras, presupuesto, certificados, plan semanal y cronograma respondieron 200, sin errores JavaScript ni respuestas 5xx. En la captura nueva, Cronograma muestra su vista de programación/Gantt y calendario climático. Los componentes del plan semanal ya existían sin diferencias en `9dba47ce`; no constituyen por sí solos evidencia de que siga publicado el workspace.
+- Evidencias privadas: `iasa-pre-apu-rollback-before.json`, `iasa-pre-apu-rollback-after.json`, `iasa-pre-apu-rollback-presupuesto.png` e `iasa-pre-apu-rollback-cronograma.png`, en `audit-artifacts/workbook-linked-import/`. Para continuar, abrir `/projects` en IASA con una recarga completa.
+
+## Restauración intermedia anterior al workspace — superada
+
+Inicialmente IASA volvió al despliegue `dpl_BqCTtbtqrTvkJAMSZPKTvKpzBgja`, commit `0b5cbce157b465628b6bb75c707af83bf52da4ba`, anterior al primer lote del workspace. El despliegue reemplazado fue `dpl_DfqBDMTnQTKTT891swfgg79svydu` (`81c57d4c644e589f63bd18af74e158835e46f155`). Este punto fue demasiado reciente para el alcance solicitado y quedó reemplazado por el estado vigente documentado arriba. Las entregas siguientes son antecedentes, no la interfaz actualmente publicada en IASA.
 
 - Se reasignó únicamente `control-de-facturas-iasa.vercel.app` al artefacto de producción existente, sin reconstruirlo. Bay conserva `dpl_HUAYx9WHRSfpdwAkYHMM387YsTnh`. No se promovió globalmente el proyecto ni se modificó la configuración de build.
 - Se conserva la corrección de subida de archivos y el flujo anterior de Obras. Acceso a la obra existente: `/projects/91e6805f-eda9-4b39-90e5-9c514cc6c896?tab=presupuesto`. La ruta nueva `/projects/import/[id]` pertenece a la versión retirada; usar la ficha de la obra ya creada.
