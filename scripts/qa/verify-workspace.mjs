@@ -49,6 +49,8 @@ assert(gridCanvas,'The open-source spreadsheet canvas must be mounted');
 await gridCanvas.dblclick({position:{x:585,y:33}});
 await page.keyboard.press('Control+a');await page.keyboard.type('=2*3');
 await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?._formulas?.quantity==='=2*3'),page.keyboard.press('Enter')]);
+await gridCanvas.dblclick({position:{x:295,y:33}});await page.keyboard.press('Control+a');await page.keyboard.type('Medición QA editada');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?.description==='Medición QA editada'),page.keyboard.press('Enter')]);
 const afterEdit=await api(`/api/planillas/${session.id}`);assert.equal(afterEdit.body.snapshot.rows[0].quantity,6);assert.equal(afterEdit.body.snapshot.rows[0]._formulas.quantity,'=2*3');
 await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
 const materialRow=page.getByRole('row').filter({hasText:'Insumo QA workspace'});assert((await materialRow.innerText()).includes('1,65'));
@@ -63,7 +65,7 @@ const [confirmed]=await Promise.all([
 ]);assert.equal(confirmed.status(),200,JSON.stringify(await confirmed.json()));
 const again=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:reopened.body.updated_at});assert.equal(again.status,200);assert.equal(again.body.alreadyConfirmed,true);
 const late=await api(`/api/planillas/${session.id}`,'PATCH',{rows,expectedVersion:afterEdit.body.updated_at});assert.notEqual(late.status,200);
-const {data:actual}=await db.from('budget_items').select('quantity,unit_price,subtotal').eq('id',item.id).single();assert.equal(actual.quantity,6);assert.equal(actual.subtotal,600);
+const {data:actual}=await db.from('budget_items').select('description,quantity,unit_price,subtotal').eq('id',item.id).single();assert.equal(actual.description,'Medición QA editada');assert.equal(actual.quantity,6);assert.equal(actual.subtotal,600);
 const bulkSession=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:project.id}});assert.equal(bulkSession.status,201);
 await page.goto(`${origin}/planillas/${bulkSession.body.id}`,{waitUntil:'networkidle'});
 await context.grantPermissions(['clipboard-read','clipboard-write']);
@@ -79,7 +81,7 @@ await Promise.all([
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
 const undone=await api(`/api/planillas/${bulkSession.body.id}`);
 assert.equal(undone.body.snapshot.rows.filter(r=>r.description).length,1,'One undo must restore the pre-paste budget');
-assert.equal(undone.body.snapshot.rows[0].description,'Medición QA');
+assert.equal(undone.body.snapshot.rows[0].description,'Medición QA editada');
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-bulk-qa.png',fullPage:true});
 const imported=JSON.parse(fs.readFileSync('audit-artifacts/workbook-linked-import/qa-result.json','utf8'));
 const large=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:imported.projectId}});assert.equal(large.status,201);assert.equal(large.body.snapshot.rows.length,597);

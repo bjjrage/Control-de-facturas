@@ -2,6 +2,18 @@
 
 Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre aplicación local conectada exclusivamente a la base QA `kyiihlkncatojvlasoag`. Motor seleccionado: núcleo de Univer 1.0.2, Apache 2.0. Publicación en IASA pendiente de verificar el despliegue final.
 
+## Estado de entrega al 30 de octubre de 2026
+
+- Código de aplicación verificado: `148ab66f3c48605b507152908c9cb21a56b2bcad`.
+- Despliegue QA listo y probado: `dpl_Hrvy9e7pnbxk3BTWVtmWL9mrqqEj`.
+- [Abrir QA](https://control-de-facturas-git-main-marceloechauri-4623s-projects.vercel.app).
+- Pasaron 161 pruebas de regresión y, por separado, la prueba del archivo real. TypeScript y el build limpio pasaron.
+- El navegador desplegado en QA comprobó fórmula y descripción editadas por teclado, guardado/reapertura, APU, necesidad de 1,65 kg, pegado de 1.000 celdas, deshacer restaurado en base, confirmación idempotente, rechazo de revisiones viejas y libro de 597 partidas con estado referencial visible. No hubo errores JavaScript de página.
+- La función de confirmación está aplicada en QA y producción, con `SECURITY INVOKER`, acceso autenticado y sin permiso para `anon`.
+- **IASA sigue pendiente de publicar la aplicación.** La regla de producción cancela los builds automáticos con `IASA estable: publicacion manual`. La revisión automática rechazó el override `projectSettings.commandForIgnoringBuildStep: "exit 1"` por requerir autorización explícita de ese parámetro. Se solicitó esa autorización al usuario; los intentos cancelados o rechazados no se asignaron al dominio IASA.
+
+Una vez autorizado, ejecutar un build completo de producción del mismo código, comprobar/restaurar la regla manual original, asignar únicamente `control-de-facturas-iasa.vercel.app` y ejecutar el smoke test autenticado. No usar la promoción global de todos los dominios.
+
 ## Cambios
 
 - Conversión numérica compartida: conserva números nativos, decimales inequívocos y notación científica; rechaza texto inválido y escalas ambiguas con ubicación de la celda. El API legado de porcentajes conserva puntos porcentuales explícitos.
@@ -38,6 +50,8 @@ Una regresión independiente del modelo, ejecutada con el archivo real y su mape
 Las capturas y resultados con datos QA quedan fuera de Git en `audit-artifacts/workbook-linked-import/workspace-qa-result.json`, `workspace-qa.png` y `workspace-bulk-qa.png`.
 
 ## Alcance y pendientes
+
+El lint de las piezas nuevas pasa. `costeo-actions.ts` conserva 25 errores de `no-explicit-any` y dos advertencias preexistentes; la comparación contra la base anterior confirmó el mismo resultado antes y después de la paginación. Este lote no declara limpio el lint global del repositorio.
 
 El cómputo y el precio se editan como borrador y se aplican al confirmar. El panel identifica que muestra la receta vigente: editarla usa el circuito APU existente y afecta la obra directamente. Para vincular un APU a una partida nueva primero se confirma su creación. Un borrador único que apruebe simultáneamente todas las recetas queda pendiente; esta entrega no lo presenta como implementado.
 
