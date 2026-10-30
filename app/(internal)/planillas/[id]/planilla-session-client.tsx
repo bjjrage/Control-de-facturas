@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 type ConfirmStatus = "idle" | "confirming" | "conflict" | "error";
 
 const AUTOSAVE_DEBOUNCE_MS = 900;
+const subscribeHydration = () => () => {};
 
 export function PlanillaSessionClient({
   planillaId,
@@ -33,6 +35,7 @@ export function PlanillaSessionClient({
   volverUrl: string;
 }) {
   const router = useRouter();
+  const mounted = useSyncExternalStore(subscribeHydration, () => true, () => false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [confirmStatus, setConfirmStatus] = useState<ConfirmStatus>("idle");
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -136,8 +139,8 @@ export function PlanillaSessionClient({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)]">
+  return mounted ? createPortal(
+    <div className="fixed inset-0 z-[35] flex flex-col bg-[var(--background)]">
       <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b border-[var(--border)] bg-[var(--panel)]">
           <Button variant="ghost" onClick={async () => { try { await flushSave(); router.push(volverUrl); } catch {} }} title="Guardar y volver">
           <ArrowLeft size={15} />
@@ -174,8 +177,8 @@ export function PlanillaSessionClient({
         <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
         {projectId && showApu ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} /></div> : null}
       </div>
-    </div>
-  );
+    </div>, document.body
+  ) : null;
 }
 
 function SaveIndicator({ status, readOnly }: { status: SaveStatus; readOnly: boolean }) {

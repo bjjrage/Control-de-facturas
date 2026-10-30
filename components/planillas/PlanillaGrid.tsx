@@ -218,6 +218,10 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const sheetName = `planilla-${useId()}`;
   const formulasSettings = useMemo(() => ({ engine: HyperFormula, sheetName }), [sheetName]);
   const formulaColumns = useMemo(() => columns.filter((c) => c.formulaTemplate), [columns]);
+  const dataSchema = useCallback(() => ({
+    _rowId: newRowId(), _version: null,
+    ...Object.fromEntries(columns.map(c => [c.key, null])),
+  }), [columns]);
 
   function applyFormulaDefaults(row: PlanillaGridRow, rowIndex0: number) {
     for (const col of formulaColumns) {
@@ -447,8 +451,9 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           }
           continue;
         }
-        hot.setDataAtRowProp(rowIndex, "_rowId", newRowId(), "PlanillaGrid.afterCreateRow");
-        hot.setDataAtRowProp(rowIndex, "_version", null, "PlanillaGrid.afterCreateRow");
+        // Identity is metadata, not a formula column. Sending it through
+        // setDataAtRowProp makes HyperFormula write to column -1 on paste.
+        // dataSchema assigns metadata when the source row is created.
         for (const col of formulaColumns) {
           if (col.formulaTemplate) {
             hot.setDataAtRowProp(
@@ -1079,6 +1084,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           contextMenu={CONTEXT_MENU_ITEMS as unknown as string[]}
           fillHandle={FILL_HANDLE_SETTINGS}
           maxRows={MAX_ROWS}
+          dataSchema={dataSchema}
           // Handsontable rellena hasta 5 filas vacías al montar por defecto
           // (startRows), sin relación con nuestra propia lógica de fila
           // vacía final (ensureTrailingSpareRow) — en 0 acá porque esa fila

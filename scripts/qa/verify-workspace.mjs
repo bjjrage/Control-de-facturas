@@ -28,7 +28,8 @@ const current=await api(`/api/planillas/${session.id}`);assert.equal(current.bod
 const wrongConfirm=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:session.updated_at});assert.equal(wrongConfirm.status,409);
 const browser=await chromium.launch({headless:true});const context=await browser.newContext();
 await context.addCookies([...jar].map(([name,value])=>({name,value,domain:new URL(origin).hostname,path:'/'})));
-const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const page=await context.newPage();page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+page.on('console',m=>{ if(m.text().includes('Not possible to set cell data')) errors.push(m.text()); });
 await page.goto(`${origin}/planillas/${session.id}`,{waitUntil:'networkidle',timeout:120000});
 await page.getByText('Workspace de obra · Cómputo y presupuesto',{exact:true}).waitFor();
 await page.getByRole('heading',{name:'01 · Medición QA'}).waitFor();
@@ -42,7 +43,10 @@ await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-qa.png',fullPage:true});
 assert.deepEqual(errors,[]);
 const reopened=await api(`/api/planillas/${session.id}`);assert.equal(reopened.body.updated_at,afterEdit.body.updated_at,'Reopening must not save a phantom edit');
-const confirmed=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:reopened.body.updated_at});assert.equal(confirmed.status,200,JSON.stringify(confirmed.body));
+const [confirmed]=await Promise.all([
+  page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}/confirmar`) && r.request().method()==='POST'),
+  page.getByRole('button',{name:'Confirmar',exact:true}).click(),
+]);assert.equal(confirmed.status(),200,JSON.stringify(await confirmed.json()));
 const again=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:reopened.body.updated_at});assert.equal(again.status,200);assert.equal(again.body.alreadyConfirmed,true);
 const late=await api(`/api/planillas/${session.id}`,'PATCH',{rows,expectedVersion:afterEdit.body.updated_at});assert.notEqual(late.status,200);
 const {data:actual}=await db.from('budget_items').select('quantity,unit_price,subtotal').eq('id',item.id).single();assert.equal(actual.quantity,6);assert.equal(actual.subtotal,600);

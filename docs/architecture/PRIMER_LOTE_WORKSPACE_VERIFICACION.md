@@ -11,6 +11,7 @@ Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre apli
 - Reapertura del mismo borrador del usuario, fórmulas y valores guardados por separado, descarga de respaldo y advertencia de salida con cambios pendientes.
 - Workspace con selección de partida, panel APU, costo unitario y necesidad bruta de materiales para la cantidad editada. Una modificación del APU refresca el panel.
 - Las filas vacías de reserva se excluyen de la aplicación; reabrir no produce un guardado fantasma. La grilla admite hasta 5.000 filas.
+- El workspace se presenta por encima de la navegación general y conserva los diálogos accesibles. El pegado no envía metadatos de identidad a columnas del motor de fórmulas.
 
 ## Evidencia
 
@@ -28,6 +29,8 @@ Pruebas comprobadas en navegador y API:
 8. Completar el recorrido sin errores JavaScript de página.
 
 Las pruebas unitarias de importación/planillas pasaron: 81 casos, dos omitidos por sus condiciones preexistentes. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. Cualquier cambio posterior requiere sus verificaciones pertinentes.
+
+Una regresión independiente del modelo, ejecutada con el archivo real y su mapeo guardado, preservó 597 partidas, 597 recetas, 597 plazos relativos, el total de 738.462.025 y la huella del original. Se ejecuta con `WORKBOOK_REGRESSION_PATH` y `WORKBOOK_REGRESSION_MAPPING_PATH`; no incluye archivos privados ni requiere otra llamada a Luna.
 
 Las capturas y resultados con datos QA quedan fuera de Git en `audit-artifacts/workbook-linked-import/workspace-qa-result.json`, `workspace-qa.png` y `workspace-bulk-qa.png`.
 
