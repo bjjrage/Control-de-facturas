@@ -5,7 +5,7 @@ El archivo se guarda en una sesión y abre `/projects/import/[id]`, una página 
 ## Comportamiento
 
 - Partidas: grilla Univer, fórmulas propias, pegado, cantidades y precios adoptados. Identidad, descripción y unidad del archivo se conservan durante la vinculación; el workspace operativo permite su edición tras crear la obra.
-- APU: receta por partida, consumos, precios y celdas de procedencia. El editor operativo existente se habilita al crear la obra.
+- APU: receta por partida, consumos, precios y celdas de procedencia. Tras crear la obra, **Editar APU** permite guardar consumos, mermas, horas y tarifas de los componentes vinculados. Conserva sus identidades y los precios de origen del material; las categorías laborales conservan su tarifa vigente.
 - Materiales: necesidades por consumo de cada APU y cómputo del borrador; navegación a las partidas que las originan. Tras crear la obra se consultan las relaciones y mermas vigentes del ERP.
 - Cronograma: vínculos demostrados por fórmulas hacia las partidas fuente y encabezados de cada sección. Los códigos de equipos no se vinculan por mera igualdad numérica. La curva general se deriva de la distribución monetaria completa reconciliada con cada partida, conservando los valores del documento.
 - Original: copia de la fuente en consulta; archivo inmutable conservado en Storage. El borrador operativo vive en `workspace_draft`, separado de las celdas fuente.
@@ -48,3 +48,23 @@ Resultado local y desplegado en QA: 597 partidas, 597 APU, 597 plazos relativos,
 Acceso para archivos ya subidos: **Obras → Planillas en preparación → nombre del archivo**. No hace falta repetir la carga para las sesiones analizadas de la empresa autenticada. Una carga nueva abre directamente el workspace; la obra operativa se crea al confirmar la revisión guardada.
 
 La comprobación anterior de producción se ejecutó con una cuenta de niu.pack sobre el dominio IASA. No prueba datos de la empresa Iasa; el informe del primer lote se corrigió para explicitar esta diferencia.
+
+## Verificación posterior con la empresa Iasa — 30 de octubre de 2026
+
+Esta comprobación utiliza una sesión autenticada de la empresa **Iasa** (`c040ee03-2302-49d2-8082-b2a4ae5b62af`), con su administradora. Amplía la evidencia histórica anterior con creación y edición real de datos de negocio.
+
+- Se retomó la sesión ya cargada `a1f6d97f-ba60-4806-aabe-50ea771a107d`, sin volver a subir el archivo, y se creó la obra `91e6805f-eda9-4b39-90e5-9c514cc6c896`, código `492833`, Lote 2 (Central), Grupo 1.
+- Se comprobaron 597 partidas, 2.199 relaciones de materiales, 1.200 de mano de obra, 896 de equipos, 346 de servicios y un plan de cronograma, dentro de esa empresa.
+- La prueba detectó que el diálogo anterior de APU sólo permitía importar o borrar recursos. Se añadió la edición nativa de los componentes existentes con las acciones autenticadas del ERP.
+- También detectó borradores duplicados por aperturas simultáneas. La función `planilla_crear_o_retomar` usa un bloqueo transaccional por empresa, usuario, módulo y contexto. Conserva el historial; los borradores antiguos sin modificaciones posteriores a una confirmación ya no desplazan la revisión vigente.
+- Un caso de restauración detectó que escribir un número sobre una fórmula mediante la barra de celda dejaba la fórmula anterior en Univer. Ahora reemplaza explícitamente valor, fórmula y texto enriquecido. La regresión comprueba ausencia de fórmula, resultado persistente tras recargar y aplicación al presupuesto. El mismo reemplazo se aplica al pegado de rangos.
+- El panel contextual APU se consulta al volver a Partidas para evitar mostrar una receta anterior a la edición realizada en la vista APU.
+- Migración efectiva de producción: `20261030112130_planilla_resume_atomic.sql`. Función `SECURITY INVOKER`, ejecución anónima revocada, validación de empresa y rol y RLS existentes; no elimina borradores ni datos históricos.
+- Código final: `ebeb8e99f297dd846586b297292644712a58b85b`. QA desplegado: `dpl_2bZnHXwMxPUqwxhpns3ZPLYAiYTw`, `READY`.
+- `node scripts/qa/verify-workspace-apu.mjs <origen-QA>` pasó localmente y en QA desplegado: cantidad `1 → 2 → 1`, consumo de material `1 → 1.125 → 1`, necesidad recalculada `2.25`, precio de origen conservado, guardado/reapertura, confirmación operativa y aperturas simultáneas con el mismo borrador vigente. Cero errores JavaScript. TypeScript y lint de los archivos modificados pasaron.
+- Publicación final de IASA: `dpl_ABAq8sSvXHraYVmY7WAakEoSA6H7`, `READY`, mismo SHA que QA. Sólo se reasignó el dominio IASA. Se restauró la regla manual original de build y se mantuvo desactivada la asignación automática de dominios; Bay conserva su despliegue y SHA anteriores.
+- El circuito anterior se repitió con éxito en **la empresa Iasa de producción**: partida `4 · CARTEL DE OBRA`, cantidad `1 → 2 → 1`, consumo del material Cartel de obra `1 → 1.125 → 1`, necesidad calculada `2.25` y precio documental `1818181.8181818181` conservado. Se confirmó la cantidad en el presupuesto y se reabrió el APU guardado. La sustitución de fórmula por número también pasó. Cero errores JavaScript.
+- Los valores de prueba quedaron restaurados. El presupuesto total volvió a `738462025`; las cantidades continúan identificadas como referenciales y `contract_amount` permanece nulo. El borrador vigente preparado para continuar es `00944c00-4469-4484-b550-4a18962ab256`.
+- Se reabrió la URL original de la importación después de editar: redirigió a ese mismo borrador vigente, con 597 partidas y sin recrear la obra. [Retomar el workspace de Iasa](https://control-de-facturas-iasa.vercel.app/projects/import/a1f6d97f-ba60-4806-aabe-50ea771a107d).
+- Se descargó el original con la sesión autenticada de esa empresa y se calculó su SHA-256: `6c481dd5f9aa1ce1b3df565ea6b6f2b996f4d26d5dddcf670e946098e3d0a33e`, idéntico a la fuente inicial. La sesión importadora está `CONFIRMED`, revisión 2. Las ediciones operativas no modificaron el archivo.
+- Evidencias privadas, fuera de Git: `iasa-business-result.json`, `iasa-editing-result.json`, `iasa-created-workspace.png` e `iasa-apu-editing.png`, en `audit-artifacts/workbook-linked-import/`. Los scripts de producción comprobaron empresa y cuenta antes de escribir y guardaron respaldo de los valores probados.
