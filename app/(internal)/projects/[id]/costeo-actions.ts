@@ -74,12 +74,12 @@ export async function createCostRfqsFromProject(
     if (!project) return { data: null, error: "Obra no encontrada." };
 
     const [itemsRes, materialsRes] = await Promise.all([
-      supabase.from("budget_items").select("id, quantity").eq("project_id", projectId),
-      supabase
+      allRowsResult(supabase.from("budget_items").select("id, quantity").eq("project_id", projectId).order("id")),
+      allRowsResult(supabase
         .from("budget_item_materials")
         .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct")
         .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
+        .eq("empresa_id", empresaId).order("id")),
     ]);
     if (itemsRes.error) return { data: null, error: itemsRes.error.message };
     if (materialsRes.error) return { data: null, error: materialsRes.error.message };

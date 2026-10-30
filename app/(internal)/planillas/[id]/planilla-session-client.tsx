@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
@@ -14,7 +14,9 @@ import { draftSignature } from "@/lib/planillas/draft-signature";
 import { MaterialsWorkspaceView, ScheduleWorkspaceView } from "@/components/planillas/LinkedWorkspaceViews";
 import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
-import { getWorkspaceMaterials } from "../../projects/import-workspace-actions";
+import { getWorkspaceOperationalData } from "../../projects/import-workspace-actions";
+import { projectOperations, type OperationalInputs } from "@/lib/planillas/operational-projection";
+import { OperationalScheduleView } from "@/components/planillas/OperationalScheduleView";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type ConfirmStatus = "idle" | "confirming" | "conflict" | "error";
@@ -29,6 +31,7 @@ export function PlanillaSessionClient({
   referenceQuantities = false,
   linkedCandidate,
   initialMaterials = [],
+  initialOperationalInputs,
   estado,
   columns,
   initialRows,
@@ -40,6 +43,7 @@ export function PlanillaSessionClient({
   referenceQuantities?: boolean;
   linkedCandidate?: CanonicalImportCandidate;
   initialMaterials?: WorkspaceMaterial[];
+  initialOperationalInputs?: OperationalInputs;
   estado: "draft" | "confirmed" | "cancelled";
   columns: PlanillaColumn[];
   initialRows: PlanillaGridRow[];
@@ -57,6 +61,16 @@ export function PlanillaSessionClient({
   const [showApu, setShowApu] = useState(true);
   const [tab, setTab] = useState("Partidas");
   const [materials, setMaterials] = useState(initialMaterials);
+  const [operationalInputs, setOperationalInputs] = useState(initialOperationalInputs);
+  const [projectionError, setProjectionError] = useState<string | null>(null);
+  const projection = useMemo(() => operationalInputs ? projectOperations(rows, operationalInputs) : undefined, [rows, operationalInputs]);
+  const refreshOperationalInputs = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await getWorkspaceOperationalData(projectId);
+      setOperationalInputs(data); setMaterials(data.materials); setProjectionError(null);
+    } catch (error) { setProjectionError(error instanceof Error ? error.message : "No se pudo actualizar la proyección."); }
+  }, [projectId]);
   const signatureRef = useRef(draftSignature(initialRows, columns));
   const queueRef = useRef<DraftSaveQueue<PlanillaGridRow> | null>(null);
   if (queueRef.current === null) queueRef.current = new DraftSaveQueue(initialVersion, async (rows, expectedVersion) => {
@@ -184,20 +198,22 @@ export function PlanillaSessionClient({
         )}
       </div>
       <div className="flex items-center gap-4 px-4 py-2 border-b border-[var(--border)] text-sm">
-        {linkedCandidate ? <nav aria-label="Vistas del workspace" className="flex gap-2">{["Partidas", "APU", "Materiales", "Cronograma"].map(name => <button role="tab" aria-selected={tab === name} key={name} className={`rounded px-3 py-2 ${tab === name ? "bg-sky-500/20 text-sky-200" : ""}`} onClick={async () => { try { await flushSave(); setTab(name); if (name === "Materiales" && projectId) setMaterials(await getWorkspaceMaterials(projectId)); } catch (cause) { setConfirmError(cause instanceof Error ? cause.message : "No se pudo abrir la vista."); } }}>{name}</button>)}</nav> : <span>Cómputo · Presupuesto</span>}
+        {linkedCandidate ? <nav aria-label="Vistas del workspace" className="flex gap-2">{["Partidas", "APU", "Materiales", "Cronograma"].map(name => <button role="tab" aria-selected={tab === name} key={name} className={`rounded px-3 py-2 ${tab === name ? "bg-sky-500/20 text-sky-200" : ""}`} onClick={async () => { try { await flushSave(); setTab(name); if (["Materiales", "Cronograma"].includes(name) && projectId) await refreshOperationalInputs(); } catch (cause) { setConfirmError(cause instanceof Error ? cause.message : "No se pudo abrir la vista."); } }}>{name}</button>)}</nav> : <span>Cómputo · Presupuesto</span>}
         {projectId ? <Button variant="secondary" onClick={() => setShowApu(v => !v)} aria-expanded={showApu}>APU y materiales</Button> : null}
         <span>{rows.filter(r => !r._deleted && String(r.description ?? "").trim()).length} partidas · Borrador</span>
       </div>
+      {projectionError ? <p role="alert" className="p-3 text-[var(--error)]">{projectionError} <button className="underline" onClick={() => { void refreshOperationalInputs(); }}>Reintentar actualizaci?n</button></p> : null}
+      {projection ? <div className="flex gap-6 px-4 py-2 text-xs border-b border-[var(--border)]"><span>Presupuesto de venta: <strong data-workspace-sale>{projection.sale?.toLocaleString("es-PY") ?? "Pendiente"} Gs</strong></span><span>Costo directo APU: <strong data-workspace-cost>{projection.cost?.toLocaleString("es-PY") ?? "Pendiente"} Gs</strong></span></div> : null}
       {referenceQuantities ? <p role="status" className="px-4 py-2 text-xs text-amber-300">Cantidades referenciales del archivo: los importes y necesidades son una simulación hasta validar el cómputo definitivo. Editar el borrador no certifica esas cantidades automáticamente.</p> : null}
       <div className={tab === "Partidas" ? "flex flex-1 min-h-0" : "hidden"}>
         <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} flushPendingRef={gridFlushRef} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
-        {projectId && showApu && tab === "Partidas" ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} /></div> : null}
+        {projectId && showApu && tab === "Partidas" ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} onSaved={() => { void refreshOperationalInputs(); }} /></div> : null}
       </div>
       {linkedCandidate && tab !== "Partidas" ? <div className="min-h-0 flex-1 overflow-auto">
         <div className="flex gap-3 items-center border-b border-[var(--border)] p-3 text-xs"><label htmlFor="operational-partida">Partida activa</label><select id="operational-partida" aria-label="Partida activa" value={selectedId ?? ""} onChange={e => setSelectedId(e.target.value)} className="max-w-3xl flex-1 rounded border p-2">{rows.filter(row => !row._deleted && String(row.description ?? "").trim()).map(row => <option key={row._rowId} value={row._rowId}>{String(row.code)} · {String(row.description)}</option>)}</select></div>
-        {tab === "APU" && projectId ? <WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(row => row._rowId === selectedId)} editable={!isReadOnly && confirmStatus !== "confirming"} /> : null}
+        {tab === "APU" && projectId ? <WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(row => row._rowId === selectedId)} editable={!isReadOnly && confirmStatus !== "confirming"} onSaved={() => { void refreshOperationalInputs(); }} /> : null}
         {tab === "Materiales" ? <MaterialsWorkspaceView materials={materials} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
-        {tab === "Cronograma" ? <ScheduleWorkspaceView candidate={linkedCandidate} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
+        {tab === "Cronograma" ? projection ? <OperationalScheduleView projection={projection} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : <ScheduleWorkspaceView candidate={linkedCandidate} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
       </div> : null}
     </div>, document.body
   ) : null;

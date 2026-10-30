@@ -3,10 +3,11 @@ import { obtenerPlanilla, PlanillaNotFoundError } from "@/lib/planillas/service"
 import { getPlanillaAdapter } from "@/lib/planillas/registry";
 import { PlanillaSessionClient } from "./planilla-session-client";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceMaterials } from "../../projects/import-workspace-actions";
+import { getWorkspaceOperationalData } from "../../projects/import-workspace-actions";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
 import { getCurrentProfile } from "@/lib/auth";
+import type { OperationalInputs } from "@/lib/planillas/operational-projection";
 
 export default async function PlanillaSessionPage({
   params,
@@ -31,6 +32,7 @@ export default async function PlanillaSessionPage({
   let referenceQuantities = false;
   let linkedCandidate: CanonicalImportCandidate | undefined;
   let materials: WorkspaceMaterial[] = [];
+  let operationalInputs: OperationalInputs | undefined;
   if (projectId) {
     const db = await createClient();
     const { data, error } = await db.from("workbook_import_sessions").select("candidate")
@@ -40,7 +42,8 @@ export default async function PlanillaSessionPage({
     const profile = await getCurrentProfile();
     if (data?.candidate && profile && ["admin", "administracion"].includes(profile.role)) {
       linkedCandidate = data.candidate as CanonicalImportCandidate;
-      materials = await getWorkspaceMaterials(projectId);
+      operationalInputs = await getWorkspaceOperationalData(projectId);
+      materials = operationalInputs.materials;
     }
   }
 
@@ -53,6 +56,7 @@ export default async function PlanillaSessionPage({
       referenceQuantities={referenceQuantities}
       linkedCandidate={linkedCandidate}
       initialMaterials={materials}
+      initialOperationalInputs={operationalInputs}
       estado={planilla.estado}
       columns={adapter.columns}
       initialRows={planilla.snapshot.rows}

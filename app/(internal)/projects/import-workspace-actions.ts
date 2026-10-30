@@ -13,6 +13,8 @@ import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/can
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { encodeSnapshot, type StoredWorkingSnapshot } from "@/lib/certificates/snapshot-storage";
 import { CERTIFICATE_WORKBOOKS_BUCKET } from "@/lib/certificates/workbook-store";
+import { getCostBudgetAction } from "./[id]/costeo-actions";
+import type { OperationalInputs, RelativeSchedule } from "@/lib/planillas/operational-projection";
 
 export async function getImportWorkspace(id: string) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -118,4 +120,23 @@ export async function getWorkspaceMaterials(projectId: string): Promise<Workspac
     materials.set(line.producto_id, material);
   }
   return [...materials.values()];
+}
+
+/** All projections read the same operational APU and item identities used by
+ * costing, procurement and execution. The source distribution stays immutable. */
+export async function getWorkspaceOperationalData(projectId: string): Promise<OperationalInputs & { rows: PlanillaRow[] }> {
+  await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const [budget, materials, schedules] = await Promise.all([
+    getCostBudgetAction(projectId), getWorkspaceMaterials(projectId),
+    allRowsResult<{ id: string; workbook_schedule: RelativeSchedule | null }>(db.from("budget_items").select("id,workbook_schedule").eq("project_id", projectId).order("id")),
+  ]);
+  if (budget.error || !budget.data || schedules.error) throw new Error(budget.error ?? "No se pudo calcular la proyección vigente.");
+  // getCostBudgetAction/getWorkspaceMaterials both validate project ownership.
+  return {
+    rows: budget.data.partidas.map(item => ({ _rowId: item.id, _version: null, code: item.code, description: item.description, unit: item.unit, quantity: item.quantity, unit_price: item.unitPrice })),
+    materials,
+    unitCosts: Object.fromEntries(budget.data.partidas.map(item => [item.id, item.cost?.costoUnitario ?? null])),
+    schedules: Object.fromEntries((schedules.data ?? []).filter(item => item.workbook_schedule).map(item => [item.id, item.workbook_schedule!])),
+  };
 }

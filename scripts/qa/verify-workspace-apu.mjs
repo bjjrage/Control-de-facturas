@@ -1,4 +1,5 @@
 ﻿import fs from 'node:fs';
+import {setupPropagationChecks} from './workspace-propagation-checks.mjs';
 import assert from 'node:assert/strict';
 import {parse} from 'dotenv';
 import {createClient} from '@supabase/supabase-js';
@@ -26,7 +27,7 @@ const original=structuredClone(sourceRows[index]), quantity=Number(original.quan
 assert(Number.isFinite(quantity));
 const backup={mode,origin,companyId:fixture.empresaId,projectId,original,material,nextQuantity,nextConsumption};
 fs.writeFileSync(`audit-artifacts/workbook-linked-import/${mode}-editing-backup.json`,JSON.stringify(backup,null,2));
-let browser,page,quantityApplied=false,materialApplied=false;
+let browser,page,propagation,quantityApplied=false,materialApplied=false;
 const errors=[];
 async function selectApu(){await page.getByRole('tab',{name:'APU',exact:true}).click();await page.getByLabel('Partida activa',{exact:true}).selectOption(material.budget_item_id);await page.getByRole('button',{name:'Editar APU',exact:true}).click();const form=page.locator(`form[data-apu-line="${material.id}"]`);await form.waitFor();return form;}
 async function saveMaterial(value){const form=page.locator(`form[data-apu-line="${material.id}"]`);await form.getByRole('spinbutton',{name:/Consumo por unidad/}).fill(String(value));await form.getByRole('button',{name:'Guardar componente',exact:true}).click();await form.getByRole('status').filter({hasText:/^Guardado$/}).waitFor();const {data,error}=await db.from('budget_item_materials').select('cantidad_por_unidad_ejecutada,desperdicio_pct,precio_unitario_origen').eq('id',material.id).single();if(error)throw error;assert.equal(data.cantidad_por_unidad_ejecutada,value);assert.equal(data.desperdicio_pct,material.desperdicio_pct);assert.equal(data.precio_unitario_origen,material.precio_unitario_origen);}
@@ -36,10 +37,11 @@ try{
  browser=await chromium.launch({headless:true});const ctx=await browser.newContext({viewport:{width:1500,height:1000}});await ctx.addCookies([...jar].map(([name,value])=>({name,value,domain:new URL(origin).hostname,path:'/'})));page=await ctx.newPage();page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));
  await page.goto(origin+`/planillas/${current.id}?volver=${encodeURIComponent(`/projects/${projectId}?tab=presupuesto`)}`,{waitUntil:'networkidle',timeout:180000});
  await page.locator('[aria-label="Hoja de cómputo y presupuesto"] canvas').first().waitFor();
+ propagation=await setupPropagationChecks({db,api,page,projectId,material,original,origin,errors,mode});
  await editQuantity(nextQuantity,`=${quantity}+1`);await page.reload({waitUntil:'networkidle',timeout:180000});assert.equal((await api(`/api/planillas/${current.id}`)).body.snapshot.rows[index].quantity,nextQuantity);
- quantityApplied=true;await confirmQuantity(nextQuantity);
+ quantityApplied=true;await confirmQuantity(nextQuantity);await propagation.verify(nextQuantity,material.cantidad_por_unidad_ejecutada);
  const parallel=await Promise.all([draft(),draft()]);assert.equal(parallel[0].id,parallel[1].id);current=parallel[0];assert.equal(current.snapshot.rows[index].quantity,nextQuantity);await page.goto(origin+`/planillas/${current.id}`,{waitUntil:'networkidle',timeout:180000});
- await selectApu();materialApplied=true;await saveMaterial(nextConsumption);
+ await selectApu();materialApplied=true;await saveMaterial(nextConsumption);await propagation.verify(nextQuantity,nextConsumption,{ui:true});
  const expected=nextQuantity*nextConsumption*(1+material.desperdicio_pct/100);
  const panel=page.getByRole('complementary',{name:'APU y materiales de la partida'});
  await panel.getByRole('row').filter({hasText:material.productos.nombre}).getByRole('cell').last().getByText(expected.toLocaleString('es-PY',{maximumFractionDigits:6}),{exact:true}).waitFor();
@@ -54,7 +56,7 @@ try{
  await page.getByRole('tab',{name:'APU',exact:true}).click();await page.getByLabel('Partida activa',{exact:true}).selectOption(material.budget_item_id);
  await page.getByRole('button',{name:'Editar APU',exact:true}).waitFor();
  assert.deepEqual(errors,[]);
- const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,browserErrors:errors,checks:['literal replaces formula and persists after reload','quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
+ const report={mode,origin,companyId:fixture.empresaId,authenticatedAccount:fixture.email,projectId,planillaId:current.id,partida:original.code,materialId:material.id,originalQuantity:quantity,testQuantity:nextQuantity,originalConsumption:material.cantidad_por_unidad_ejecutada,testConsumption:nextConsumption,restored:true,...(await propagation.restored()),browserErrors:errors,checks:['literal replaces formula and persists after reload','quantity formula saved/reopened','quantity applied to budget','native APU consumption saved/reopened','material need recalculated','source material price preserved','original quantity and APU restored']};
  fs.writeFileSync(`audit-artifacts/workbook-linked-import/${mode}-editing-result.json`,JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }catch(error){if(page){await page.screenshot({path:`audit-artifacts/workbook-linked-import/${mode}-editing-failure.png`,fullPage:true}).catch(()=>{});console.log(JSON.stringify({url:page.url(),alerts:await page.getByRole('alert').allTextContents().catch(()=>[])}));}throw error;}
 finally{
