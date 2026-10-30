@@ -17,6 +17,8 @@ const {data:profile,error:pe}=await db.from('profiles').select('empresa_id').eq(
 const {data:project,error:pje}=await admin.from('projects').insert({empresa_id:profile.empresa_id,created_by:auth.user.id,name:'QA Workspace primer lote',code:`QA-WS-${Date.now()}`,budget_total:0,status:'ACTIVO'}).select('id').single();if(pje)throw pje;
 const {data:item,error:ie}=await db.from('budget_items').insert({project_id:project.id,code:'01',description:'Medición QA',unit:'m2',quantity:2,unit_price:100,sort_order:1}).select('id').single();if(ie)throw ie;
 const {error:lab}=await db.from('budget_item_labor').insert({empresa_id:profile.empresa_id,project_id:project.id,budget_item_id:item.id,rol:'Oficial QA',horas_por_unidad_ejecutada:0.125,costo_hora:200});if(lab)throw lab;
+const {data:product,error:productError}=await admin.from('productos').insert({empresa_id:profile.empresa_id,sku:`QA-WS-${Date.now()}`,nombre:'Insumo QA workspace',unidad:'kg',activo:true,costo_promedio:1000}).select('id').single();if(productError)throw productError;
+const {error:materialError}=await db.from('budget_item_materials').insert({empresa_id:profile.empresa_id,project_id:project.id,budget_item_id:item.id,producto_id:product.id,cantidad_por_unidad_ejecutada:0.25,desperdicio_pct:10,precio_unitario_origen:1000});if(materialError)throw materialError;
 const cookie=()=>[...jar].map(([n,v])=>`${n}=${v}`).join('; ');
 async function api(path,method='GET',body){const res=await fetch(origin+path,{method,headers:{cookie:cookie(),'Content-Type':'application/json',Origin:origin},body:body?JSON.stringify(body):undefined});const json=await res.json();return {status:res.status,body:json};}
 const created=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:project.id}});assert.equal(created.status,201,JSON.stringify(created.body));const session=created.body;
@@ -34,12 +36,16 @@ await page.goto(`${origin}/planillas/${session.id}`,{waitUntil:'networkidle',tim
 await page.getByText('Workspace de obra · Cómputo y presupuesto',{exact:true}).waitFor();
 await page.getByRole('heading',{name:'01 · Medición QA'}).waitFor();
 await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
+await page.getByTitle('APU / BOM de la partida',{exact:true}).click();
+await page.getByRole('dialog').waitFor();await page.getByRole('dialog').getByText('Cargando…',{exact:true}).waitFor({state:'hidden'});
+await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
 // The formula must reopen as an expression, not just its cached value.
 const cell=page.locator('.ht_master tbody tr').first().locator('td').nth(3);await cell.dblclick();
 await page.keyboard.press('Control+a');await page.keyboard.type('=3+3');await page.keyboard.press('Enter');
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
 const afterEdit=await api(`/api/planillas/${session.id}`);assert.equal(afterEdit.body.snapshot.rows[0].quantity,6);assert.equal(afterEdit.body.snapshot.rows[0]._formulas.quantity,'=3+3');
 await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
+const materialRow=page.getByRole('row').filter({hasText:'Insumo QA workspace'});assert((await materialRow.innerText()).includes('1,65'));
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-qa.png',fullPage:true});
 assert.deepEqual(errors,[]);
 const reopened=await api(`/api/planillas/${session.id}`);assert.equal(reopened.body.updated_at,afterEdit.body.updated_at,'Reopening must not save a phantom edit');
@@ -58,8 +64,15 @@ await page.locator('.ht_master tbody tr').first().locator('td').first().click();
 await page.evaluate(text=>navigator.clipboard.writeText(text),paste);await page.keyboard.press('Control+v');
 await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
 const bulkSaved=await api(`/api/planillas/${bulkSession.body.id}`);assert.equal(bulkSaved.body.snapshot.rows.filter(r=>r.description).length,200);assert.equal(bulkSaved.body.snapshot.rows[199].code,'QA200');
-await page.keyboard.press('Control+z');await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
+await Promise.all([
+  page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${bulkSession.body.id}`) && r.request().method()==='PATCH'),
+  page.keyboard.press('Control+z'),
+]);
+await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
+const undone=await api(`/api/planillas/${bulkSession.body.id}`);
+assert.equal(undone.body.snapshot.rows.filter(r=>r.description).length,1,'One undo must restore the pre-paste budget');
+assert.equal(undone.body.snapshot.rows[0].description,'Medición QA');
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-bulk-qa.png',fullPage:true});
 assert.deepEqual(errors,[]);await browser.close();
-const report={projectId:project.id,sessionId:session.id,checks:['resume','CAS stale save','CAS stale confirm','formula roundtrip','grid edit/autosave/reopen','contextual APU','atomic confirm','idempotent retry','closed draft immutable','1000-cell paste','undo paste'],actual,browserErrors:errors};
+const report={origin,projectId:project.id,sessionId:session.id,checks:['resume','CAS stale save','CAS stale confirm','formula roundtrip','grid edit/autosave/reopen','contextual APU','APU editor accessible','material need 1.65 kg','atomic confirm','idempotent retry','closed draft immutable','1000-cell paste','undo paste restored in database'],actual,browserErrors:errors};
 fs.writeFileSync('audit-artifacts/workbook-linked-import/workspace-qa-result.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

@@ -25,8 +25,9 @@ Pruebas comprobadas en navegador y API:
 4. Consultar APU con consumo horario `0,125`, sin cambiar su escala.
 5. Confirmar cantidad `6`, precio `100` y subtotal `600` en las tablas operativas.
 6. Reintentar confirmación sin duplicar y rechazar ediciones posteriores al cierre.
-7. Pegar 1.000 celdas, comprobar las 200 filas persistidas y deshacer el pegado.
+7. Pegar 1.000 celdas, comprobar las 200 filas persistidas y deshacer el pegado en una sola acción, comprobando restauración en base de datos.
 8. Completar el recorrido sin errores JavaScript de página.
+9. Abrir el editor APU y comprobar 1,65 kg de necesidad bruta para 6 unidades, consumo 0,25 kg/u y merma 10 %.
 
 Las pruebas unitarias de importación/planillas pasaron: 81 casos, dos omitidos por sus condiciones preexistentes. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. Cualquier cambio posterior requiere sus verificaciones pertinentes.
 

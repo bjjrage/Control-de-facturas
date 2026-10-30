@@ -86,8 +86,6 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onUpdated 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
     Promise.all([
       listApuAction({ projectId, budgetItemId }),
       getApuImportCatalogsAction(projectId),
@@ -121,7 +119,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onUpdated 
         setSubcontracts(res.data.subcontracts);
       }
     });
-    router.refresh();
+    if (!onUpdated) router.refresh();
   }
 
   async function handleDeleteSubcontract(id: string) {
@@ -168,7 +166,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onUpdated 
   const costoTotal = costoMaterial === null ? null : costoMaterial + costoManoObra + costoEquipo + costoSubcontrato;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (next) { setLoading(true); setLoadError(null); } }}>
       <DialogTrigger asChild>
         <Button variant="ghost" title="APU / BOM de la partida" className="h-6 w-6 p-0">
           <Calculator size={13} />

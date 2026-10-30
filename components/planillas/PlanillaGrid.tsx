@@ -393,7 +393,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     // fila vacía para poder seguir escribiendo, no solo cuando la ÚLTIMA
     // tiene datos.
     if (lastRow < 0) {
-      hot.alter("insert_row_below", null as unknown as number, 1);
+      hot.alter("insert_row_below", null as unknown as number, 1, "auto");
       return;
     }
     const rowData = hot.getSourceDataAtRow(lastRow) as PlanillaGridRow | undefined;
@@ -403,7 +403,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
       const v = rowData[col.key];
       return v === null || v === undefined || v === "";
     });
-    if (!isBlank) hot.alter("insert_row_below", lastRow, 1);
+    if (!isBlank) hot.alter("insert_row_below", lastRow, 1, "auto");
   }, [columns, readOnly]);
 
   const handleAfterChange = useCallback(
@@ -460,7 +460,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
               rowIndex,
               col.key,
               resolveFormulaTemplate(col.formulaTemplate, rowIndex + 1),
-              "PlanillaGrid.afterCreateRow"
+              "auto"
             );
           }
         }
