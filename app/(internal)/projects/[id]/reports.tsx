@@ -120,14 +120,14 @@ export function ProjectReports({
   // acumulado de avance.
   const DAY_MS = 86400000;
   const sCurve = useMemo(() => {
-    if (hasLinkedSchedule) {
+    const withDates = scheduleLeafBudgetItems(budgetItems).filter((i) => i.start_date && i.end_date && !validateScheduleDates(i.start_date,i.end_date));
+    if (hasLinkedSchedule && (withDates.length === 0 || withDates.some(item => item.unit_price == null || !Number.isFinite(item.unit_price)))) {
       if (!operationalProjection || operationalProjection.issues.length || operationalProjection.months.some(month => month.sale === null)) return { series: [], summary: null };
       const frozen = certificates.filter(certificate => ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"].includes(certificate.status)).sort((a, b) => a.numero - b.numero);
       const series = projectMonthlyCurve(operationalProjection, frozen.map(certificate => certificate.monto_presente));
       const last = [...series].reverse().find(point => point.real !== null);
       return { series, summary: last ? { planificado: last.planificado, real: last.real!, diff: last.real! - last.planificado, pct: last.planificado > 0 ? (last.real! - last.planificado) / last.planificado * 100 : 0 } : null };
     }
-    const withDates = scheduleLeafBudgetItems(budgetItems).filter((i) => i.start_date && i.end_date && !validateScheduleDates(i.start_date,i.end_date));
     if (withDates.some((i) => i.unit_price == null || !Number.isFinite(i.unit_price))) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
     if (withDates.length === 0) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
 
