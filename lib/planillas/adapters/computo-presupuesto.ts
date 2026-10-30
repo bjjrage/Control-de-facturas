@@ -4,6 +4,7 @@ import type { PlanillaAdapter, PlanillaChanges, PlanillaColumn, PlanillaRowMeta,
 import { PlanillaConcurrencyError, PlanillaUncertainError } from "../types";
 import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
 import { ownerColumn, type WorkspaceContext, workspaceContextSchema } from "@/lib/workspace/context";
+import { allRowsResult } from "@/lib/supabase/all-rows-result";
 
 export type ComputoRow = PlanillaRowMeta & {
   code: string;
@@ -74,12 +75,11 @@ export const computoPresupuestoAdapter: PlanillaAdapter<ComputoRow, ComputoConte
   },
 
   async obtenerFilasIniciales(supabase: SupabaseClient, contexto: ComputoContexto): Promise<ComputoRow[]> {
-    const { data, error } = await supabase
+    const { data, error } = await allRowsResult<Pick<BudgetItem, "id" | "code" | "description" | "unit" | "quantity" | "unit_price" | "subtotal"> & { updated_at: string; style: Record<string, unknown> | null }>(supabase
       .from("budget_items")
       .select("id, code, description, unit, quantity, unit_price, subtotal, updated_at, style")
       .eq("kind" in contexto ? ownerColumn(contexto) : "project_id", "kind" in contexto ? contexto.id : contexto.projectId)
-      .order("sort_order")
-      .returns<(BudgetItem & { updated_at: string; style: Record<string, unknown> | null })[]>();
+      .order("sort_order"));
     if (error) throw new Error(error.message);
     return (data ?? []).map((b) => ({
       _rowId: b.id,

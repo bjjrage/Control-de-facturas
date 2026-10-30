@@ -207,7 +207,7 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
     if (!project) return { data: null, error: "Obra no encontrada." };
 
     const [itemsRes, materialsRes, laborRes, equipmentRes, subcontractsRes, rfqsRes] = await Promise.all([
-      supabase.from("budget_items").select("id, code, description, unit, quantity, unit_price, sort_order").eq("project_id", projectId).order("sort_order"),
+      allRowsResult(supabase.from("budget_items").select("id, code, description, unit, quantity, unit_price, sort_order").eq("project_id", projectId).order("sort_order")),
       allRowsResult(supabase
         .from("budget_item_materials")
         .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(nombre, unidad, categoria_id, categorias_producto(nombre))")
@@ -218,8 +218,8 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
         .select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rates(categoria)")
         .eq("project_id", projectId)
         .eq("empresa_id", empresaId)),
-      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
-      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+      allRowsResult(supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId)),
+      allRowsResult(supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId)),
       admin
         .from("rfqs")
         .select("id, code, product, status, expires_at, rfq_providers(status), rfq_items(id)")

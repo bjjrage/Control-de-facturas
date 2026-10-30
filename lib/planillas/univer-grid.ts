@@ -6,11 +6,12 @@ export const WORKSPACE_SHEET = "computo";
 
 export function toWorkspaceBook(rows: PlanillaRow[], columns: PlanillaColumn[], id: string): IWorkbookData {
   const active = rows.filter(r => !r._deleted);
+  if (active.length > 5000) throw new Error("La hoja supera las 5.000 filas disponibles; no se puede recortar el presupuesto.");
   const cellData: Record<number, Record<number, ICellData>> = {};
   const rowCount = Math.min(5000, Math.max(1000, active.length + 100));
   for (let index = 0; index < rowCount; index++) {
     const row = active[index]; const cells: Record<number, ICellData> = {};
-    const legacy = row?._style;
+    const legacy = row?._style && Object.keys(row._style).length ? row._style : undefined;
     const colors: Record<string, string> = { red: "#f2685c", amber: "#f5a524", green: "#2dd4bf", blue: "#60a5fa", yellow: "#f5d66d" };
     const legacyStyle = legacy ? { ...(legacy.bold ? { bl: 1 as const } : {}), ...(legacy.align ? { ht: { left: 1 as const, center: 2 as const, right: 3 as const }[legacy.align] } : {}), ...(legacy.color ? { cl: { rgb: colors[legacy.color] ?? legacy.color } } : {}), ...(legacy.bg ? { bg: { rgb: colors[legacy.bg] ?? legacy.bg } } : {}) } : undefined;
     columns.forEach((column, col) => {
@@ -49,7 +50,8 @@ export function fromWorkspaceBook(data: IWorkbookData, columns: PlanillaColumn[]
       const cell = cells[i]; const column = columns[i];
       row[column.key] = cell?.v ?? null;
       if (cell?.f) row._formulas![column.key] = cell.f;
-      if (cell?.s) (row._cellStyles as Record<string, unknown>)[column.key] = typeof cell.s === "string" ? data.styles[cell.s] : cell.s;
+      const style = cell?.s ? (typeof cell.s === "string" ? data.styles[cell.s] : cell.s) : null;
+      if (style && Object.keys(style).length) (row._cellStyles as Record<string, unknown>)[column.key] = style;
     }
     rows.push(row);
     if (!Number.isInteger(Number(key))) throw new Error("Fila inválida.");

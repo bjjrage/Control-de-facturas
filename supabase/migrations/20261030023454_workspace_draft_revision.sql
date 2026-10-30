@@ -1,4 +1,5 @@
--- Lock the reviewed revision and its confirmation in the same transaction.
+-- Production migration version assigned by Supabase; QA applied the same
+-- definition as 20261030011748. Lock review and confirmation atomically.
 create or replace function public.planilla_confirmar_revision(p_planilla_id uuid, p_expected_updated_at timestamptz)
 returns jsonb language plpgsql security invoker set search_path = public as $$
 declare v public.planillas;

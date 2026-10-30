@@ -54,7 +54,9 @@ await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',
 const materialRow=page.getByRole('row').filter({hasText:'Insumo QA workspace'});assert((await materialRow.innerText()).includes('1,65'));
 await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-qa.png',fullPage:true});
 assert.deepEqual(errors,[]);
-const reopened=await api(`/api/planillas/${session.id}`);assert.equal(reopened.body.updated_at,afterEdit.body.updated_at,'Reopening must not save a phantom edit');
+const reopened=await api(`/api/planillas/${session.id}`);
+if(reopened.body.updated_at!==afterEdit.body.updated_at) fs.writeFileSync('audit-artifacts/workbook-linked-import/workspace-reopen-diff.json',JSON.stringify({before:afterEdit.body.snapshot.rows,after:reopened.body.snapshot.rows},null,2));
+assert.equal(reopened.body.updated_at,afterEdit.body.updated_at,'Reopening must not save a phantom edit');
 const [confirmed]=await Promise.all([
   page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}/confirmar`) && r.request().method()==='POST'),
   page.getByRole('button',{name:'Confirmar',exact:true}).click(),

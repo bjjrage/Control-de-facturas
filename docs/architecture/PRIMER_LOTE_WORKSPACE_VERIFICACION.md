@@ -13,6 +13,7 @@ Fecha: 29 de octubre de 2026. Implementación y verificación inicial sobre apli
 - Las filas vacías de reserva se excluyen de la aplicación; reabrir no produce un guardado fantasma. La grilla admite hasta 5.000 filas.
 - El workspace se presenta por encima de la navegación general y conserva los diálogos accesibles. El pegado no envía metadatos de identidad a columnas del motor de fórmulas.
 - Handsontable y HyperFormula fueron retirados de la grilla y de las dependencias. Univer conserva IDs en una columna interna y las revisiones fuera de los valores editables; el guardado espera a que se apliquen los resultados de cálculo.
+- La lectura de partidas y componentes de costeo se pagina; una prueba de 1.201 partidas comprueba que no se recorta al límite de transporte. El formato vacío del motor no genera una revisión nueva al reabrir.
 
 ## Evidencia
 
@@ -30,7 +31,7 @@ Pruebas comprobadas en navegador y API:
 8. Completar el recorrido sin errores JavaScript de página.
 9. Abrir el editor APU y comprobar 1,65 kg de necesidad bruta para 6 unidades, consumo 0,25 kg/u y merma 10 %.
 
-Las pruebas unitarias de importación/planillas pasaron: 84 casos, tres omitidos por sus condiciones preexistentes o por requerir el archivo privado. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. La prueba del archivo real se ejecutó por separado y pasó. Cualquier cambio posterior requiere sus verificaciones pertinentes.
+Las pruebas unitarias de importación/planillas pasaron: 86 casos, tres omitidos por sus condiciones preexistentes o por requerir el archivo privado. También pasaron 75 casos de workspace/costeo, TypeScript y el build inicial. La prueba del archivo real se ejecutó por separado y pasó. Cualquier cambio posterior requiere sus verificaciones pertinentes.
 
 Una regresión independiente del modelo, ejecutada con el archivo real y su mapeo guardado, preservó 597 partidas, 597 recetas, 597 plazos relativos, el total de 738.462.025 y la huella del original. Se ejecuta con `WORKBOOK_REGRESSION_PATH` y `WORKBOOK_REGRESSION_MAPPING_PATH`; no incluye archivos privados ni requiere otra llamada a Luna.
 
@@ -48,4 +49,6 @@ La selección de motor se resolvió con Univer después de confirmar que IASA no
 
 El alcance operativo conserva las seis columnas de cómputo/presupuesto. La creación de hojas auxiliares y los cambios de columnas pertenecen a P4. Las operaciones que podrían mover valores sin su identidad se bloquean; las filas completas mantienen sus vínculos. Esto no representa una certificación de compatibilidad con todas las funciones de Excel.
 
-La migración SQL de este lote fue aplicada sólo en QA. IASA requiere la misma función y una revisión de aplicación que haya pasado la verificación final.
+La función SQL fue aplicada en QA como `20261030011748` y en producción como `20261030023454`, después de pasar el circuito desplegado de QA. El archivo del repositorio usa la versión de producción. La aplicación de producción todavía requiere la verificación final y la asignación explícita del dominio IASA.
+
+La autoasignación de dominios de Vercel se desactivó para realizar publicaciones selectivas por alias. El proyecto comparte IASA y Bay; esta entrega asigna únicamente IASA una vez verificada la revisión.

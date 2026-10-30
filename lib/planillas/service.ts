@@ -57,6 +57,7 @@ export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promi
   if (draftError) throw new Error(draftError.message);
   if (draft) return draft as PlanillaSessionRow;
   const filas = await adapter.obtenerFilasIniciales(supabase, contexto);
+  if (filas.length > 5000) throw new Error("Esta obra supera las 5.000 filas disponibles en el workspace. No se creó un borrador parcial.");
 
   const baseVersions: Record<string, string> = {};
   for (const f of filas) {

@@ -12,3 +12,7 @@ it("retains editable formulas, deletions and stable identities in the change sig
   expect(draftSignature([row], columns)).not.toBe(draftSignature([{ ...row, _formulas: {} }], columns));
   expect(draftSignature([row], columns)).not.toBe(draftSignature([{ ...row, _deleted: true }], columns));
 });
+it("does not save a phantom edit when the engine materializes an empty style", () => {
+  const row = { _rowId: "existing", code: "01", quantity: 6 };
+  expect(draftSignature([row], columns)).toBe(draftSignature([{ ...row, _style: {}, _cellStyles: { quantity: {} } }], columns));
+});
