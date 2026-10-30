@@ -3,8 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseWorkbook, WorkbookInputError } from "@/lib/workbook-interpretation/parser";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
+import type { ImportWorkspaceDraft } from "@/lib/workbook-interpretation/import-workspace";
 import { CERTIFICATE_WORKBOOKS_BUCKET, computeStructureHash, toStoredSheets, type WorkingSnapshot } from "./workbook-store";
 import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-formatting";
+import { decodeSnapshot, encodeSnapshot, type StoredWorkingSnapshot } from "./snapshot-storage";
 
 /**
  * Fase 4 de "Certificados Excel-first": sesión de importación de OBRA NUEVA.
@@ -35,20 +37,22 @@ export type ImportSession = {
   suggestedRegime: ContractRegime | null;
   confirmedProjectId: string | null;
   createdAt: string;
+  workspaceDraft?: ImportWorkspaceDraft;
 };
 
 type SessionRow = {
   id: string; status: ImportSessionStatus; original_file_name: string; original_file_size: number;
-  original_storage_path: string; original_file_hash: string; working_snapshot: WorkingSnapshot; working_revision: number;
+  original_storage_path: string; original_file_hash: string; working_snapshot: StoredWorkingSnapshot; working_revision: number;
   structure_hash: string; interpretation: WorkbookInterpretationResult | null; candidate: CanonicalImportCandidate | null;
   analyzed_structure_hash: string | null; analysis_started_at: string | null; analyzed_at: string | null; analysis_error: string | null;
   suggested_regime: ContractRegime | null; confirmed_project_id: string | null; created_at: string;
+  workspace_draft?: ImportWorkspaceDraft;
 };
 
 const SESSION_COLUMNS =
   "id, status, original_file_name, original_file_size, original_storage_path, original_file_hash, working_snapshot, " +
   "working_revision, structure_hash, interpretation, candidate, analyzed_structure_hash, analysis_started_at, analyzed_at, analysis_error, " +
-  "suggested_regime, confirmed_project_id, created_at";
+  "suggested_regime, confirmed_project_id, created_at, workspace_draft";
 
 function fromRow(row: SessionRow): ImportSession {
   return {
@@ -58,7 +62,7 @@ function fromRow(row: SessionRow): ImportSession {
     originalFileSize: row.original_file_size,
     originalStoragePath: row.original_storage_path,
     originalFileHash: row.original_file_hash,
-    workingSnapshot: row.working_snapshot,
+    workingSnapshot: decodeSnapshot(row.working_snapshot),
     workingRevision: row.working_revision,
     structureHash: row.structure_hash,
     interpretation: row.interpretation,
@@ -70,6 +74,7 @@ function fromRow(row: SessionRow): ImportSession {
     suggestedRegime: row.suggested_regime,
     confirmedProjectId: row.confirmed_project_id,
     createdAt: row.created_at,
+    workspaceDraft: row.workspace_draft,
   };
 }
 
@@ -102,10 +107,15 @@ export async function createImportSession(
     original_file_size: input.bytes.byteLength,
     original_storage_path: storagePath,
     original_file_hash: createHash("sha256").update(input.bytes).digest("hex"),
-    working_snapshot: snapshot,
+    working_snapshot: encodeSnapshot(snapshot),
     structure_hash: computeStructureHash(snapshot),
   });
-  if (error) return { id: null, error: error.message };
+  if (error) {
+    console.error("[import-session] save failed", { sessionId: id, code: error.code, message: error.message });
+    return { id: null, error: error.code === "57014"
+      ? "La base de datos tardó demasiado en guardar la planilla. Intentá subirla nuevamente."
+      : "No se pudo guardar la copia editable de la planilla. Intentá nuevamente." };
+  }
   return { id, error: null };
 }
 

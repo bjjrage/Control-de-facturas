@@ -1,0 +1,142 @@
+"use server";
+
+import { requirePlan } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { loadImportSession } from "@/lib/certificates/import-session-store";
+import { validateImportDraft } from "@/lib/workbook-interpretation/import-workspace";
+import { crearPlanilla } from "@/lib/planillas/service";
+import { actualizarSnapshot } from "@/lib/planillas/service";
+import { allRowsResult } from "@/lib/supabase/all-rows-result";
+import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
+import { PlanillaConcurrencyError, type PlanillaRow } from "@/lib/planillas/types";
+import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
+import { encodeSnapshot, type StoredWorkingSnapshot } from "@/lib/certificates/snapshot-storage";
+import { CERTIFICATE_WORKBOOKS_BUCKET } from "@/lib/certificates/workbook-store";
+import { getCostBudgetAction } from "./[id]/costeo-actions";
+import type { OperationalInputs, RelativeSchedule } from "@/lib/planillas/operational-projection";
+
+export async function getImportWorkspace(id: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const session = await loadImportSession(await createClient(), profile.empresa_id, id);
+  if (!session || session.status === "DISCARDED") return null;
+  // The large source workbook is fetched only when its tab is opened.
+  const { workingSnapshot: _snapshot, originalStoragePath: _path, ...view } = session;
+  void _snapshot; void _path;
+  const candidate = session.status === "ANALYZED" && session.interpretation
+    ? buildCanonicalImportCandidate(workbookFromSnapshot(session.workingSnapshot), session.interpretation) : session.candidate;
+  return { ...view, candidate, analysisStale: session.analyzedStructureHash !== session.structureHash };
+}
+export type ImportWorkspaceView = NonNullable<Awaited<ReturnType<typeof getImportWorkspace>>>;
+
+export async function getImportSourceSnapshot(id: string): Promise<StoredWorkingSnapshot> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data, error } = await db.from("workbook_import_sessions").select("working_snapshot")
+    .eq("id", id).eq("empresa_id", profile.empresa_id).neq("status", "DISCARDED").maybeSingle();
+  if (error || !data) throw new Error("No se pudo consultar la fuente de esta empresa.");
+  const stored = data.working_snapshot as StoredWorkingSnapshot;
+  // The real workbook is 10.7 MB decoded, beyond a function response's limit.
+  return "encoding" in stored ? stored : encodeSnapshot(stored);
+}
+
+export async function getImportOriginalUrl(id: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: source } = await db.from("workbook_import_sessions").select("original_storage_path")
+    .eq("id", id).eq("empresa_id", profile.empresa_id).neq("status", "DISCARDED").maybeSingle();
+  if (!source) throw new Error("Fuente no encontrada.");
+  const { data, error } = await db.storage.from(CERTIFICATE_WORKBOOKS_BUCKET).createSignedUrl(source.original_storage_path, 60, { download: true });
+  if (error || !data) throw new Error("No se pudo descargar el archivo original.");
+  return data.signedUrl;
+}
+
+export async function listPendingImportWorkspaces() {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data, error } = await db.from("workbook_import_sessions")
+    .select("id,original_file_name,status,created_at").eq("empresa_id", profile.empresa_id)
+    .in("status", ["UPLOADED", "ANALYZING", "ANALYZED", "ANALYSIS_FAILED"]).order("created_at", { ascending: false }).limit(20);
+  if (error) throw new Error("No se pudieron consultar los borradores de importación.");
+  return data ?? [];
+}
+
+export async function saveImportWorkspace(id: string, expectedRevision: number, raw: unknown) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const session = await loadImportSession(db, profile.empresa_id, id);
+  if (!session?.candidate || session.status !== "ANALYZED") return { error: "El análisis no está listo o la importación ya fue confirmada." };
+  if (!Number.isInteger(expectedRevision) || expectedRevision !== session.workingRevision) return { error: "Otra sesión modificó este borrador. Descargá tus cambios y volvé a abrirlo." };
+  try {
+    const draft = validateImportDraft(raw, session.candidate);
+    const { data, error } = await db.from("workbook_import_sessions")
+      .update({ workspace_draft: draft, working_revision: expectedRevision + 1 })
+      .eq("id", id).eq("empresa_id", profile.empresa_id).eq("working_revision", expectedRevision).eq("status", "ANALYZED")
+      .select("working_revision").maybeSingle();
+    if (error || !data) return { error: "El borrador cambió o no se pudo guardar. Conservá tus cambios y reintentá." };
+    return { error: null, revision: data.working_revision as number };
+  } catch (cause) { return { error: cause instanceof Error ? cause.message : "Borrador inválido." }; }
+}
+
+export async function openImportedProjectWorkspace(projectId: string) {
+  // crearPlanilla checks role, plan and project company, and resumes an existing draft.
+  const planilla = await crearPlanilla("computo_presupuesto", { projectId });
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: source } = await db.from("workbook_import_sessions").select("workspace_draft")
+    .eq("empresa_id", profile.empresa_id).eq("confirmed_project_id", projectId).eq("status", "CONFIRMED").maybeSingle();
+  // Seed reviewed expressions only into a just-created, untouched draft.
+  // Later reopenings retain the operational workspace's own revisions.
+  if (source?.workspace_draft?.rows && planilla.created_at === planilla.updated_at) {
+    const sourceRows = source.workspace_draft.rows as { code: string; quantity: number | null; unit_price: number | null; _formulas?: Record<string, string> }[];
+    const rows = planilla.snapshot.rows as PlanillaRow[];
+    if (sourceRows.some(row => row._formulas?.quantity || row._formulas?.unit_price) && sourceRows.length === rows.length && sourceRows.every((row, index) => row.code === rows[index].code && row.quantity === rows[index].quantity && row.unit_price === rows[index].unit_price)) {
+      try {
+        await actualizarSnapshot(planilla.id, rows.map((row, index) => ({ ...row, _formulas: sourceRows[index]._formulas ?? {} })), planilla.updated_at);
+      } catch (error) {
+        // Another opener can seed the same draft first; preserve that revision.
+        if (!(error instanceof PlanillaConcurrencyError)) throw error;
+      }
+    }
+  }
+  return `/planillas/${planilla.id}?volver=${encodeURIComponent(`/projects/${projectId}?tab=presupuesto`)}`;
+}
+
+export async function getWorkspaceMaterials(projectId: string): Promise<WorkspaceMaterial[]> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: project } = await db.from("projects").select("id").eq("id", projectId).eq("empresa_id", profile.empresa_id).maybeSingle();
+  if (!project) throw new Error("Obra no encontrada.");
+  type Line = { budget_item_id: string; producto_id: string; cantidad_por_unidad_ejecutada: number; desperdicio_pct: number; productos: { nombre: string; unidad: string } | null; budget_items: { code: string } | null };
+  const query = db.from("budget_item_materials")
+    .select("budget_item_id,producto_id,cantidad_por_unidad_ejecutada,desperdicio_pct,productos(nombre,unidad),budget_items(code)")
+    .eq("empresa_id", profile.empresa_id).eq("project_id", projectId);
+  const { data, error } = await allRowsResult<Line>({ order: column => ({ range: (from, to) => query.order(column).range(from, to).overrideTypes<Line[], { merge: false }>() }) });
+  if (error) throw new Error("No se pudieron consultar los materiales de la obra.");
+  const materials = new Map<string, WorkspaceMaterial>();
+  for (const line of data ?? []) {
+    const material = materials.get(line.producto_id) ?? { key: line.producto_id, description: line.productos?.nombre ?? "Material", unit: line.productos?.unidad ?? "", links: [] };
+    material.links.push({ rowId: line.budget_item_id, code: line.budget_items?.code ?? "", consumption: line.cantidad_por_unidad_ejecutada * (1 + line.desperdicio_pct / 100) });
+    materials.set(line.producto_id, material);
+  }
+  return [...materials.values()];
+}
+
+/** All projections read the same operational APU and item identities used by
+ * costing, procurement and execution. The source distribution stays immutable. */
+export async function getWorkspaceOperationalData(projectId: string): Promise<OperationalInputs & { rows: PlanillaRow[] }> {
+  await requirePlan("pro", ["administracion", "admin"]);
+  const db = await createClient();
+  const [budget, materials, schedules] = await Promise.all([
+    getCostBudgetAction(projectId), getWorkspaceMaterials(projectId),
+    allRowsResult<{ id: string; workbook_schedule: RelativeSchedule | null }>(db.from("budget_items").select("id,workbook_schedule").eq("project_id", projectId).order("id")),
+  ]);
+  if (budget.error || !budget.data || schedules.error) throw new Error(budget.error ?? "No se pudo calcular la proyección vigente.");
+  // getCostBudgetAction/getWorkspaceMaterials both validate project ownership.
+  return {
+    rows: budget.data.partidas.map(item => ({ _rowId: item.id, _version: null, code: item.code, description: item.description, unit: item.unit, quantity: item.quantity, unit_price: item.unitPrice })),
+    materials,
+    unitCosts: Object.fromEntries(budget.data.partidas.map(item => [item.id, item.cost?.costoUnitario ?? null])),
+    schedules: Object.fromEntries((schedules.data ?? []).filter(item => item.workbook_schedule).map(item => [item.id, item.workbook_schedule!])),
+  };
+}

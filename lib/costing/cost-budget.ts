@@ -12,6 +12,8 @@
 // partida es null (con la lista de faltantes). Nunca se suma como 0.
 // ---------------------------------------------------------------------------
 
+import { calcLineSubtotal } from "@/lib/format";
+
 export type CostPriceSource = "COTIZACION" | "ESTIMACION" | "HISTORICO" | "MANUAL" | "FACTURA" | "RECEPCION" | "CPP";
 
 export interface ResolvedPrice {
@@ -31,6 +33,7 @@ export interface CostMaterialLine {
   productoId: string;
   cantidadPorUnidad: number;
   desperdicioPct: number;
+  precioUnitarioOrigen?: number | null;
 }
 
 export interface CostHourLine {
@@ -97,7 +100,7 @@ export function computePartidaCosts(
   for (const m of lines.materials) {
     const c = ensure(m.budgetItemId);
     c.tieneApu = true;
-    const price = prices.get(m.productoId);
+    const price = prices.get(m.productoId) ?? (m.precioUnitarioOrigen != null && Number.isFinite(m.precioUnitarioOrigen) && m.precioUnitarioOrigen >= 0 ? { precio: m.precioUnitarioOrigen, fuente: "MANUAL" as const } : undefined);
     if (!price) {
       if (!c.faltantes.includes(m.productoId)) c.faltantes.push(m.productoId);
       continue;
@@ -166,7 +169,7 @@ export function computeProjectCostTotals(
   let partidasIncompletas = 0;
   for (const p of partidas) {
     if (!p.quantity) continue;
-    ventaTotal += p.quantity * (p.unitPrice ?? 0);
+    ventaTotal += calcLineSubtotal(p.quantity, p.unitPrice ?? 0);
     const c = costs[p.id];
     if (!c || !c.tieneApu) {
       partidasSinApu++;

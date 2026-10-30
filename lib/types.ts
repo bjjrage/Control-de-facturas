@@ -1119,6 +1119,7 @@ export interface BudgetItem {
   depends_on: string | null;
   quantity_per_unit: number | null;
   material_requirement?: "REQUIRES_BOM" | "NO_MATERIAL" | "UNKNOWN" | null;
+  workbook_schedule?: import("@/lib/planillas/operational-projection").RelativeSchedule | null;
   created_at: string;
 }
 

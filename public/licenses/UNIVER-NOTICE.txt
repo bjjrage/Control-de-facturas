@@ -1,0 +1,7 @@
+This application uses Univer open-source core packages, version 1.0.2.
+Copyright 2023-present DreamNum Co., Ltd.
+https://github.com/dream-num/univer
+
+Licensed under the Apache License, Version 2.0.
+The accompanying univer-apache-2.0.txt contains the license text.
+No Univer commercial/Pro packages are included by this workspace.

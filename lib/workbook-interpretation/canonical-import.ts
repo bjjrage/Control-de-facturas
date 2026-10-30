@@ -1,5 +1,8 @@
 import * as XLSX from "xlsx";
-import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { numericCellRaw } from "./numbers";
+import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
+import { aggregateLinkedSchedule } from "./linked-schedule";
+import { extractBudgetItems, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
   ImportBlock,
@@ -112,6 +115,7 @@ export type BudgetContractCheck = {
 };
 
 export type CanonicalImportCandidate = {
+  linkedRecipes?: LinkedRecipes;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
@@ -215,6 +219,7 @@ function verifiedKeyValue(workbook: WorkbookRepresentation, blocks: ImportBlock[
     const address = cellPart.replace(/\$/g, "").toUpperCase();
     const cell = workbook.sheets.find((sheet) => sheet.sheetName === sheetPart)?.cells.find((item) => item.address === address);
     const cellText = cell ? String(cell.formatted ?? cell.raw ?? "") : "";
+    if (cell?.type === "e" || cell?.type === "b" || cell?.type === "d") return { value: String(entry.value), cell: `${sheetPart}!${address}`, verified: false, cellText };
     if (DATE_KEYS.includes(key)) {
       const expected = String(entry.value).slice(0, 10);
       const candidates = typeof cell?.raw === "number" ? [excelSerialToIso(cell.raw)] : datesInText(String(cell?.raw ?? ""));
@@ -260,7 +265,7 @@ function readCertificateBlock(workbook: WorkbookRepresentation, block: ImportBlo
     return [];
   }
   const cells = cellIndex(sheet);
-  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const raw = (row: number, column: string | null) => (column ? numericCellRaw(cells.get(`${column}${row}`)) : null);
   const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
   const num = (row: number, column: string | null) => (column ? rawNumber(raw(row, column)) : null);
   const excluded = excludedRows(block);
@@ -338,7 +343,7 @@ function readExecutionBlock(workbook: WorkbookRepresentation, block: ImportBlock
     return [];
   }
   const cells = cellIndex(sheet);
-  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const raw = (row: number, column: string | null) => (column ? numericCellRaw(cells.get(`${column}${row}`)) : null);
   const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
   const excluded = excludedRows(block);
   const result: CanonicalExecutionEntry[] = [];
@@ -465,7 +470,7 @@ function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock):
 
 function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
   const cell = cells.get(`${columnName(column)}${row}`);
-  const value = rawNumber(cell?.raw ?? null);
+  const value = rawNumber(numericCellRaw(cell));
   if (value === null) return null;
   // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
   // own column is 0-100, so only fraction-formatted cells get rescaled.
@@ -584,7 +589,7 @@ export function buildCanonicalImportCandidate(
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
+  const budgetBlocks = selectBudgetBlocks(plan);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
@@ -845,7 +850,14 @@ export function buildCanonicalImportCandidate(
     domains.set(block.target, domain);
   }
 
+  const linkedRecipes = extractLinkedRecipes(workbook, plan, canonicalBudgetItems);
+  const linkedSchedule = linkedRecipes.recipes.length ? aggregateLinkedSchedule(canonicalBudgetItems, linkedRecipes) : null;
+  if (linkedSchedule) {
+    for (let i = schedulePlans.length - 1; i >= 0; i--) if (schedulePlans[i].sheet === linkedSchedule.sheet) schedulePlans.splice(i, 1);
+    schedulePlans.push(linkedSchedule);
+  }
   return {
+    linkedRecipes,
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,

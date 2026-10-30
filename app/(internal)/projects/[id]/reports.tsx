@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "./chart-card";
 import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder, ProjectCertificate, ProjectSchedulePlan, ProjectSchedulePlanMonth } from "@/lib/types";
 import { scheduleLeafBudgetItems, validateScheduleDates } from "@/lib/projects/schedule";
+import { ProjectOperationalProjection } from "@/components/planillas/ProjectOperationalProjection";
+import { projectMonthlyCurve, type OperationalProjection } from "@/lib/planillas/operational-projection";
 import { formatMoney, formatDate } from "@/lib/format";
 
 // Paleta con más contraste entre sí (evita dos tonos de azul o dos de rojo
@@ -94,6 +96,8 @@ export function ProjectReports({
   planMonths: Record<string, ProjectSchedulePlanMonth[]>;
 }) {
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [operationalProjection, setOperationalProjection] = useState<OperationalProjection | null>(null);
+  const hasLinkedSchedule = budgetItems.some(item => item.workbook_schedule);
 
   // "El mayor" entre el presupuesto estimado al crear el proyecto y la suma
   // real de ítems cargados — mismo criterio que el dashboard general, para
@@ -117,6 +121,13 @@ export function ProjectReports({
   const DAY_MS = 86400000;
   const sCurve = useMemo(() => {
     const withDates = scheduleLeafBudgetItems(budgetItems).filter((i) => i.start_date && i.end_date && !validateScheduleDates(i.start_date,i.end_date));
+    if (hasLinkedSchedule && (withDates.length === 0 || withDates.some(item => item.unit_price == null || !Number.isFinite(item.unit_price)))) {
+      if (!operationalProjection || operationalProjection.issues.length || operationalProjection.months.some(month => month.sale === null)) return { series: [], summary: null };
+      const frozen = certificates.filter(certificate => ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"].includes(certificate.status)).sort((a, b) => a.numero - b.numero);
+      const series = projectMonthlyCurve(operationalProjection, frozen.map(certificate => certificate.monto_presente));
+      const last = [...series].reverse().find(point => point.real !== null);
+      return { series, summary: last ? { planificado: last.planificado, real: last.real!, diff: last.real! - last.planificado, pct: last.planificado > 0 ? (last.real! - last.planificado) / last.planificado * 100 : 0 } : null };
+    }
     if (withDates.some((i) => i.unit_price == null || !Number.isFinite(i.unit_price))) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
     if (withDates.length === 0) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
 
@@ -191,7 +202,7 @@ export function ProjectReports({
       : null;
 
     return { series, summary };
-  }, [budgetItems, execEntries, project, certificates, schedulePlans, planMonths, presupuestoTotal]);
+  }, [budgetItems, execEntries, project, certificates, schedulePlans, planMonths, presupuestoTotal, hasLinkedSchedule, operationalProjection]);
 
   // Agrupa por código raíz ("1.1", "1.2" → rubro "1"), igual que el Gantt
   // (project-gantt.tsx) — el importador de Excel no siempre completa
@@ -286,6 +297,7 @@ export function ProjectReports({
 
   return (
     <div className="space-y-4">
+      {hasLinkedSchedule ? <ProjectOperationalProjection projectId={project.id} onLoaded={setOperationalProjection} /> : null}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={exportExcel}>Exportar Excel</Button>
         <Button variant="secondary" onClick={exportPdf} disabled={exportingPdf}>

@@ -38,6 +38,7 @@ import {
 } from "@/lib/projects/project-features";
 import { ProjectTabsClient } from "./project-tabs-client";
 import { ProjectReceiptsSection } from "./project-receipts-section";
+import { WorkbookSource } from "./workbook-source";
 
 const ALL_TABS = PROJECT_FEATURE_KEYS;
 
@@ -724,6 +725,7 @@ export default async function ProjectDetailPage({
       <p>Adjudicación confirmada: {formatMoney(Number(baselineResult.data.awarded_amount), "PYG")} · Snapshot SHA-256: {baselineResult.data.snapshot_sha256}</p>
       {[project.anticipo_pct,project.devolucion_anticipo_pct,project.retencion_pct,project.iva_pct].some(value=>value==null) && <p>Confirmá los porcentajes contractuales antes de certificar. Los valores pendientes no se infieren de defaults.</p>}
     </section>}
+    <WorkbookSource db={supabase} projectId={id} empresaId={empresaId} />
     <ProjectTabsClient
       project={project}
       initialTab={initialTab}

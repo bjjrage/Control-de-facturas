@@ -1,0 +1,93 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { parse } from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { chromium } from '@playwright/test';
+const env=parse(fs.readFileSync('.env.local'));
+assert.equal(new URL(env.NEXT_PUBLIC_SUPABASE_URL).hostname,'kyiihlkncatojvlasoag.supabase.co');
+const origin=process.argv[2]??'http://localhost:3011';
+assert(['localhost','control-de-facturas-git-main-marceloechauri-4623s-projects.vercel.app'].includes(new URL(origin).hostname));
+const admin=createClient(env.NEXT_PUBLIC_SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY);
+const jar=new Map();
+const db=createServerClient(env.NEXT_PUBLIC_SUPABASE_URL,env.NEXT_PUBLIC_SUPABASE_ANON_KEY,{cookies:{getAll:()=>[...jar].map(([name,value])=>({name,value})),setAll:rows=>rows.forEach(({name,value})=>jar.set(name,value))}});
+const {data:link,error:le}=await admin.auth.admin.generateLink({type:'magiclink',email:'marceloechauri@gmail.com'});if(le)throw le;
+const {data:auth,error:ae}=await db.auth.verifyOtp({type:'magiclink',token_hash:link.properties.hashed_token});if(ae)throw ae;
+const {data:profile,error:pe}=await db.from('profiles').select('empresa_id').eq('id',auth.user.id).single();if(pe)throw pe;
+const {data:project,error:pje}=await admin.from('projects').insert({empresa_id:profile.empresa_id,created_by:auth.user.id,name:'QA Workspace primer lote',code:`QA-WS-${Date.now()}`,budget_total:0,status:'ACTIVO'}).select('id').single();if(pje)throw pje;
+const {data:item,error:ie}=await db.from('budget_items').insert({project_id:project.id,code:'01',description:'Medición QA',unit:'m2',quantity:2,unit_price:100,sort_order:1}).select('id').single();if(ie)throw ie;
+const {error:lab}=await db.from('budget_item_labor').insert({empresa_id:profile.empresa_id,project_id:project.id,budget_item_id:item.id,rol:'Oficial QA',horas_por_unidad_ejecutada:0.125,costo_hora:200});if(lab)throw lab;
+const {data:product,error:productError}=await admin.from('productos').insert({empresa_id:profile.empresa_id,sku:`QA-WS-${Date.now()}`,nombre:'Insumo QA workspace',unidad:'kg',activo:true,costo_promedio:1000}).select('id').single();if(productError)throw productError;
+const {error:materialError}=await db.from('budget_item_materials').insert({empresa_id:profile.empresa_id,project_id:project.id,budget_item_id:item.id,producto_id:product.id,cantidad_por_unidad_ejecutada:0.25,desperdicio_pct:10,precio_unitario_origen:1000});if(materialError)throw materialError;
+const cookie=()=>[...jar].map(([n,v])=>`${n}=${v}`).join('; ');
+async function api(path,method='GET',body){const res=await fetch(origin+path,{method,headers:{cookie:cookie(),'Content-Type':'application/json',Origin:origin},body:body?JSON.stringify(body):undefined});const json=await res.json();return {status:res.status,body:json};}
+const created=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:project.id}});assert.equal(created.status,201,JSON.stringify(created.body));const session=created.body;
+const resume=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:project.id}});assert.equal(resume.body.id,session.id);
+const rows=session.snapshot.rows;rows[0].quantity=4;rows[0]._formulas={quantity:'=2+2'};
+const saved=await api(`/api/planillas/${session.id}`,'PATCH',{rows,expectedVersion:session.updated_at});assert.equal(saved.status,200,JSON.stringify(saved.body));
+const stale=await api(`/api/planillas/${session.id}`,'PATCH',{rows:[{...rows[0],quantity:99}],expectedVersion:session.updated_at});assert.equal(stale.status,409);
+const current=await api(`/api/planillas/${session.id}`);assert.equal(current.body.snapshot.rows[0].quantity,4);assert.equal(current.body.snapshot.rows[0]._formulas.quantity,'=2+2');
+const wrongConfirm=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:session.updated_at});assert.equal(wrongConfirm.status,409);
+const browser=await chromium.launch({headless:true});const context=await browser.newContext();
+await context.addCookies([...jar].map(([name,value])=>({name,value,domain:new URL(origin).hostname,path:'/'})));
+const page=await context.newPage();page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+page.on('console',m=>{ if(m.text().includes('Not possible to set cell data')) errors.push(m.text()); });
+await page.goto(`${origin}/planillas/${session.id}`,{waitUntil:'networkidle',timeout:120000});
+await page.getByText('Workspace de obra · Cómputo y presupuesto',{exact:true}).waitFor();
+await page.getByRole('heading',{name:'01 · Medición QA'}).waitFor();
+await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
+await page.getByTitle('APU / BOM de la partida',{exact:true}).click();
+await page.getByRole('dialog').waitFor();await page.getByRole('dialog').getByText('Cargando…',{exact:true}).waitFor({state:'hidden'});
+await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+// The formula must reopen as an expression, not just its cached value.
+await page.getByLabel('Celda',{exact:true}).fill('D1');await page.getByLabel('Valor o fórmula',{exact:true}).fill('=3+3');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?.quantity===6), page.getByRole('button',{name:'Aplicar celda',exact:true}).click()]);
+await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
+const canvases=await page.locator('[aria-label="Hoja de cómputo y presupuesto"] canvas').all();let gridCanvas;
+for(const candidate of canvases){const bounds=await candidate.boundingBox();if(bounds && bounds.width>650 && bounds.height>200){gridCanvas=candidate;break;}}
+assert(gridCanvas,'The open-source spreadsheet canvas must be mounted');
+await gridCanvas.dblclick({position:{x:585,y:33}});
+await page.keyboard.press('Control+a');await page.keyboard.type('=2*3');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?._formulas?.quantity==='=2*3'),page.keyboard.press('Enter')]);
+await gridCanvas.dblclick({position:{x:295,y:33}});await page.keyboard.press('Control+a');await page.keyboard.type('Medición QA editada');
+await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}`) && r.request().method()==='PATCH' && r.request().postDataJSON().rows[0]?.description==='Medición QA editada'),page.keyboard.press('Enter')]);
+const afterEdit=await api(`/api/planillas/${session.id}`);assert.equal(afterEdit.body.snapshot.rows[0].quantity,6);assert.equal(afterEdit.body.snapshot.rows[0]._formulas.quantity,'=2*3');
+await page.reload({waitUntil:'networkidle'});await page.getByText('Oficial QA:',{exact:false}).waitFor({timeout:60000});
+const materialRow=page.getByRole('row').filter({hasText:'Insumo QA workspace'});assert((await materialRow.innerText()).includes('1,65'));
+await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-qa.png',fullPage:true});
+assert.deepEqual(errors,[]);
+const reopened=await api(`/api/planillas/${session.id}`);
+if(reopened.body.updated_at!==afterEdit.body.updated_at) fs.writeFileSync('audit-artifacts/workbook-linked-import/workspace-reopen-diff.json',JSON.stringify({before:afterEdit.body.snapshot.rows,after:reopened.body.snapshot.rows},null,2));
+assert.equal(reopened.body.updated_at,afterEdit.body.updated_at,'Reopening must not save a phantom edit');
+const [confirmed]=await Promise.all([
+  page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${session.id}/confirmar`) && r.request().method()==='POST'),
+  page.getByRole('button',{name:'Confirmar',exact:true}).click(),
+]);assert.equal(confirmed.status(),200,JSON.stringify(await confirmed.json()));
+const again=await api(`/api/planillas/${session.id}/confirmar`,'POST',{expectedVersion:reopened.body.updated_at});assert.equal(again.status,200);assert.equal(again.body.alreadyConfirmed,true);
+const late=await api(`/api/planillas/${session.id}`,'PATCH',{rows,expectedVersion:afterEdit.body.updated_at});assert.notEqual(late.status,200);
+const {data:actual}=await db.from('budget_items').select('description,quantity,unit_price,subtotal').eq('id',item.id).single();assert.equal(actual.description,'Medición QA editada');assert.equal(actual.quantity,6);assert.equal(actual.subtotal,600);
+const bulkSession=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:project.id}});assert.equal(bulkSession.status,201);
+await page.goto(`${origin}/planillas/${bulkSession.body.id}`,{waitUntil:'networkidle'});
+await context.grantPermissions(['clipboard-read','clipboard-write']);
+const paste=Array.from({length:200},(_,i)=>[`QA${i+1}`,`Trabajo ${i+1}`,'m2','2','100'].join('\t')).join('\n');
+await page.getByLabel('Celda',{exact:true}).fill('A1');
+await page.evaluate(text=>navigator.clipboard.writeText(text),paste);await page.getByRole('toolbar',{name:'Herramientas de cómputo'}).getByRole('button',{name:'Pegar rango',exact:true}).click();
+await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
+const bulkSaved=await api(`/api/planillas/${bulkSession.body.id}`);assert.equal(bulkSaved.body.snapshot.rows.filter(r=>r.description).length,200);assert.equal(bulkSaved.body.snapshot.rows[199].code,'QA200');
+await Promise.all([
+  page.waitForResponse(r=>r.url().endsWith(`/api/planillas/${bulkSession.body.id}`) && r.request().method()==='PATCH'),
+  page.getByRole('toolbar',{name:'Herramientas de cómputo'}).getByRole('button',{name:'Deshacer',exact:true}).click(),
+]);
+await page.getByText('Guardado',{exact:true}).waitFor({timeout:30000});
+const undone=await api(`/api/planillas/${bulkSession.body.id}`);
+assert.equal(undone.body.snapshot.rows.filter(r=>r.description).length,1,'One undo must restore the pre-paste budget');
+assert.equal(undone.body.snapshot.rows[0].description,'Medición QA editada');
+await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-bulk-qa.png',fullPage:true});
+const imported=JSON.parse(fs.readFileSync('audit-artifacts/workbook-linked-import/qa-result.json','utf8'));
+const large=await api('/api/planillas','POST',{modulo:'computo_presupuesto',contexto:{projectId:imported.projectId}});assert.equal(large.status,201);assert.equal(large.body.snapshot.rows.length,597);
+await page.goto(`${origin}/planillas/${large.body.id}`,{waitUntil:'networkidle',timeout:120000});
+await page.getByText('597 partidas · Borrador',{exact:true}).waitFor();await page.getByText('Cantidades referenciales del archivo:',{exact:false}).waitFor();
+await page.screenshot({path:'audit-artifacts/workbook-linked-import/workspace-lote2-qa.png',fullPage:true});
+assert.deepEqual(errors,[]);await browser.close();
+const report={origin,projectId:project.id,sessionId:session.id,largeSessionId:large.body.id,checks:['resume','CAS stale save','CAS stale confirm','formula roundtrip','native keyboard formula edit','grid edit/autosave/reopen','contextual APU','APU editor accessible','material need 1.65 kg','atomic confirm','idempotent retry','closed draft immutable','1000-cell paste','undo paste restored in database','597-item workbook','reference quantities visible'],actual,browserErrors:errors};
+fs.writeFileSync('audit-artifacts/workbook-linked-import/workspace-qa-result.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

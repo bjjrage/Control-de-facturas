@@ -1,3 +1,4 @@
+import { rawNumber } from "./numbers";
 import * as XLSX from "xlsx";
 import { isRangeWithinSheet } from "./parser";
 import {
@@ -356,22 +357,7 @@ export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentatio
   return { plan: normalizedPlan, warnings: [...new Set(warnings)], coverage };
 }
 
-export function rawNumber(value: unknown): number | null {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value !== "string" || !value.trim()) return null;
-  let normalized = value.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
-  const lastComma = normalized.lastIndexOf(",");
-  const lastDot = normalized.lastIndexOf(".");
-  if (lastComma >= 0 && lastDot >= 0) {
-    normalized = lastComma > lastDot ? normalized.replace(/\./g, "").replace(",", ".") : normalized.replace(/,/g, "");
-  } else if (lastComma >= 0) {
-    normalized = normalized.length - lastComma - 1 === 3 ? normalized.replace(/,/g, "") : normalized.replace(",", ".");
-  } else {
-    normalized = normalized.replace(/\.(?=\d{3}(?:\.|$))/g, "");
-  }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+export { rawNumber } from "./numbers";
 
 /**
  * Luna asigna UN target por bloque, pero puede acertar el mapeo de columnas
@@ -393,6 +379,13 @@ export function isBudgetShapedBlock(block: ImportBlock): boolean {
   return roles.has("description") && roles.has("quantity") && roles.has("unitPrice");
 }
 
+/** An explicit budget is authoritative. Shape recovery is only for legacy
+ * plans with no budget classification; it must never absorb comparisons. */
+export function selectBudgetBlocks(plan: ImportPlan): ImportBlock[] {
+  const explicit = plan.blocks.filter(block => block.mainProject !== false && block.target === "BUDGET");
+  return explicit.length ? explicit : plan.blocks.filter(isBudgetShapedBlock);
+}
+
 /**
  * Copies the rows of every budget-shaped block (see isBudgetShapedBlock)
  * exactly as the model mapped them. It does not judge whether a row "looks
@@ -408,8 +401,9 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let processedRows = 0;
   let excludedRows = 0;
   let pendingRows = 0;
+  const budgetBlocks = new Set(selectBudgetBlocks(plan).map(block => block.id));
   for (const block of plan.blocks) {
-    if (!isBudgetShapedBlock(block)) continue;
+    if (!budgetBlocks.has(block.id)) continue;
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));
@@ -418,14 +412,26 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
     for (const row of block.subtotalRows) excluded.set(row, "subtotal/total");
     for (const row of block.footerRows) excluded.set(row, "pie de tabla");
     const mapping = firstMappingByRole(block.columnMappings);
-    const valueAt = (row: number, column: string) => byAddress.get(`${column.replace(/[0-9$]/g, "").toUpperCase()}${row}`)?.raw ?? null;
+    const valueAt = (row: number, column: string) => {
+      const cell = byAddress.get(`${column.replace(/[0-9$]/g, "").toUpperCase()}${row}`);
+      return cell && cell.type !== "e" && cell.type !== "b" && cell.type !== "d" ? cell.raw : null;
+    };
     const textFor = (row: number, role: "code" | "description" | "unit") => {
       const roleMapping = mapping.get(role);
       return roleMapping ? String(valueAt(row, roleMapping.column) ?? "").trim() : "";
     };
     const numberFor = (row: number, role: "quantity" | "unitPrice" | "subtotal") => {
       const roleMapping = mapping.get(role);
-      return roleMapping ? rawNumber(valueAt(row, roleMapping.column)) : null;
+      if (!roleMapping) return null;
+      const address = `${roleMapping.column.replace(/[0-9$]/g, "").toUpperCase()}${row}`;
+      if (block.columnMappings.filter(m => m.role === role).length > 1) {
+        warnings.push(`${block.sheet}!${address}: varias columnas para ${role}; resolvé el mapeo.`);
+        return null;
+      }
+      const cell = byAddress.get(address);
+      const value = rawNumber(valueAt(row, roleMapping.column));
+      if (value === null && cell && (cell.raw !== null || cell.formula)) warnings.push(`${block.sheet}!${address}: valor ${role} inválido, ambiguo o con error; requiere revisión.`);
+      return value;
     };
     const blockCoverage = coverageById.get(block.id);
     let blockProcessed = 0;

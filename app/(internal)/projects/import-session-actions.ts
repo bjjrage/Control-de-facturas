@@ -5,6 +5,7 @@ import { requirePlan } from "@/lib/auth";
 import { buildCanonicalImportCandidate, type CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { computeStructureHash, ensureSnapshotFormatting, workbookFromSnapshot, type WorkingSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession, suggestContractRegime, type ImportSession } from "@/lib/certificates/import-session-store";
+import { encodeSnapshot } from "@/lib/certificates/snapshot-storage";
 
 /**
  * Fase 4 de "Certificados Excel-first" — sesión de importación de obra nueva
@@ -34,9 +35,10 @@ export async function getImportSession(sessionId: string): Promise<{ error: stri
   if (!session) return { error: "Sesión no encontrada.", session: null };
   const formatted = await ensureSnapshotFormatting(supabase, session.workingSnapshot, session.originalStoragePath);
   if (formatted.changed && session.status !== "CONFIRMED" && session.status !== "DISCARDED") {
-    await supabase.from("workbook_import_sessions").update({ working_snapshot: formatted.snapshot }).eq("id", sessionId).eq("empresa_id", profile.empresa_id);
+    await supabase.from("workbook_import_sessions").update({ working_snapshot: encodeSnapshot(formatted.snapshot) }).eq("id", sessionId).eq("empresa_id", profile.empresa_id);
   }
-  return { error: null, session: toView({ ...session, workingSnapshot: formatted.snapshot }) };
+  const candidate = session.interpretation ? buildCanonicalImportCandidate(workbookFromSnapshot(formatted.snapshot), session.interpretation) : session.candidate;
+  return { error: null, session: toView({ ...session, candidate, workingSnapshot: formatted.snapshot }) };
 }
 
 /**
@@ -53,6 +55,7 @@ export async function saveImportSessionSnapshot(
   const supabase = await createClient();
   const session = await loadImportSession(supabase, profile.empresa_id, sessionId);
   if (!session) return { error: "Sesión no encontrada.", structureChanged: false };
+  if (session.workspaceDraft?.rows) return { error: "La vinculación ya tiene un borrador de workspace. Editá allí el cómputo; la fuente se conserva sin modificaciones.", structureChanged: false };
   if (session.status === "CONFIRMED" || session.status === "DISCARDED") {
     return { error: "La sesión ya fue cerrada; la planilla no se puede editar acá.", structureChanged: false };
   }
@@ -67,7 +70,7 @@ export async function saveImportSessionSnapshot(
   const { error } = await supabase
     .from("workbook_import_sessions")
     .update({
-      working_snapshot: snapshot,
+      working_snapshot: encodeSnapshot(snapshot),
       structure_hash: structureHash,
       working_revision: session.workingRevision + 1,
       candidate,

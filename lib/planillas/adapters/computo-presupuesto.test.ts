@@ -87,7 +87,7 @@ describe("COMPUTO_PRESUPUESTO_COLUMNS — única fuente de verdad de columnas", 
     const quantityIdx = COMPUTO_PRESUPUESTO_COLUMNS.findIndex((c) => c.key === "quantity");
     const priceIdx = COMPUTO_PRESUPUESTO_COLUMNS.findIndex((c) => c.key === "unit_price");
     const letter = (i: number) => String.fromCharCode(65 + i);
-    expect(subtotal?.formulaTemplate).toBe(`=${letter(quantityIdx)}{row}*${letter(priceIdx)}{row}`);
+    expect(subtotal?.formulaTemplate).toBe(`=ROUND(${letter(quantityIdx)}{row}*${letter(priceIdx)}{row},2)`);
   });
 
   it("no persiste dos veces el mismo dato: ninguna columna editable duplica a `subtotal`", () => {

@@ -70,7 +70,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-erp-cost-total={totals.completo ? totals.costoTotal : undefined} data-erp-sale-total={totals.ventaTotal}>
         <Kpi label="Costo total" value={gs(totals.costoTotal)} note={totals.completo ? "Presupuesto de costo completo" : "Parcial: ver avisos abajo"} warn={!totals.completo} />
         <Kpi label="Venta total" value={gs(totals.ventaTotal)} note="Presupuesto al cliente" />
         <Kpi
@@ -125,7 +125,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
         ) : (
           <Table head={["Insumo", "Rubro", "Cantidad", "Precio unitario", "Fuente / señales", "Subtotal", ""]}>
             {data.insumos.map((i) => (
-              <tr key={i.productoId}>
+              <tr key={i.productoId} data-erp-material={i.productoId} data-erp-need={i.cantidad}>
                 <td>{i.nombre}</td>
                 <td className="text-[var(--muted)]">{i.rubro ?? "Sin rubro"}</td>
                 <td className="num whitespace-nowrap">

@@ -11,6 +11,6 @@ import {POST} from "@/app/api/planillas/[id]/confirmar/route";
 import {NextRequest} from "next/server";
 it.each(["08006",null])("unknown planilla confirmation %s returns 503 rather than a definite 400",async code=>{
  state.data=null;state.error=code?{code,message:"private connection error"}:null;
- const result=await POST(new NextRequest("http://localhost/api/planillas/p/confirmar"),{params:Promise.resolve({id:"p"})});
+ const result=await POST(new NextRequest("http://localhost/api/planillas/p/confirmar",{method:"POST",body:JSON.stringify({expectedVersion:"2026-10-29T00:00:00Z"})}),{params:Promise.resolve({id:"p"})});
  expect(result.status).toBe(503);expect(JSON.stringify(await result.json())).not.toContain("private connection");
 });

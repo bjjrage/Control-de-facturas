@@ -30,21 +30,11 @@ import {
   resolveApuSubcontractImportMapping,
 } from "@/lib/procurement/apu-import";
 import { matchLaborRate } from "@/lib/procurement/apu-templates";
+import { rawNumber } from "@/lib/workbook-interpretation/numbers";
 
 // Mismo parser PY que import-recipe-dialog.tsx / import-budget-dialog.
 function parsePyNumber(raw: unknown): number | null {
-  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  if (typeof raw !== "string") return null;
-  let s = raw.trim();
-  if (!s) return null;
-  s = s.replace(/gs\.?/gi, "").replace(/\s/g, "");
-  if (s.includes(",")) {
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else {
-    s = s.replace(/\./g, "");
-  }
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
+  return rawNumber(raw);
 }
 
 function normHeader(h: unknown): string {
@@ -71,12 +61,13 @@ function money(n: number | null): string {
 }
 
 interface ApuDialogProps {
+  onUpdated?: () => void;
   projectId: string;
   budgetItemId: string;
   budgetItemLabel: string;
 }
 
-export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialogProps) {
+export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onUpdated }: ApuDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -95,8 +86,6 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
     Promise.all([
       listApuAction({ projectId, budgetItemId }),
       getApuImportCatalogsAction(projectId),
@@ -121,6 +110,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   }, [open, projectId, budgetItemId]);
 
   function refresh() {
+    onUpdated?.();
     listApuAction({ projectId, budgetItemId }).then((res) => {
       if (res.data) {
         setMaterials(res.data.materials);
@@ -129,7 +119,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
         setSubcontracts(res.data.subcontracts);
       }
     });
-    router.refresh();
+    if (!onUpdated) router.refresh();
   }
 
   async function handleDeleteSubcontract(id: string) {
@@ -176,7 +166,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   const costoTotal = costoMaterial === null ? null : costoMaterial + costoManoObra + costoEquipo + costoSubcontrato;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (next) { setLoading(true); setLoadError(null); } }}>
       <DialogTrigger asChild>
         <Button variant="ghost" title="APU / BOM de la partida" className="h-6 w-6 p-0">
           <Calculator size={13} />

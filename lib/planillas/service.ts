@@ -3,6 +3,10 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanillaAdapter, isPlanillaModulo } from "./registry";
 import type { PlanillaChanges, PlanillaRowMeta } from "./types";
+import { PlanillaConcurrencyError, PlanillaUncertainError } from "./types";
+import { isDefiniteRpcRejection } from "@/lib/inventory/portal-rpc-error";
+import { meaningfulDraftRows } from "./draft-signature";
+import type { PlanillaRow } from "./types";
 
 export type PlanillaSessionRow = {
   id: string;
@@ -45,25 +49,16 @@ export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promi
   // de leer una sola fila.
   const contexto = await adapter.resolverContexto(supabase, profile.empresa_id, contextoRaw);
   const filas = await adapter.obtenerFilasIniciales(supabase, contexto);
+  if (filas.length > 5000) throw new Error("Esta obra supera las 5.000 filas disponibles en el workspace. No se creó un borrador parcial.");
 
   const baseVersions: Record<string, string> = {};
   for (const f of filas) {
     if (f._version) baseVersions[f._rowId] = f._version;
   }
 
-  const { data, error } = await supabase
-    .from("planillas")
-    .insert({
-      empresa_id: profile.empresa_id,
-      usuario_id: profile.id,
-      modulo,
-      contexto: contexto as Record<string, unknown>,
-      snapshot: { rows: filas },
-      base_versions: baseVersions,
-      estado: "draft",
-    })
-    .select(SELECT_COLS)
-    .single();
+  const { data, error } = await supabase.rpc("planilla_crear_o_retomar", {
+    p_modulo: modulo, p_contexto: contexto, p_rows: filas, p_base_versions: baseVersions,
+  });
 
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear la planilla.");
   return data as PlanillaSessionRow;
@@ -107,29 +102,32 @@ async function obtenerPlanillaWithClient(
 
 /** PATCH: solo actualiza el borrador (snapshot). Nunca toca las tablas del
  * módulo — ver REGLA #10. Rechaza si la planilla ya no está en draft. */
-export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): Promise<{ updated_at: string }>;
+export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[], expectedVersion?: string): Promise<{ updated_at: string }>;
 export async function actualizarSnapshot(
   supabase: SupabaseClient,
   empresaId: string,
   id: string,
-  rows: PlanillaRowMeta[]
+  rows: PlanillaRowMeta[],
+  expectedVersion?: string
 ): Promise<{ updated_at: string }>;
 export async function actualizarSnapshot(
   idOrSupabase: string | SupabaseClient,
   rowsOrEmpresaId: PlanillaRowMeta[] | string,
   idMaybe?: string,
-  rowsMaybe?: PlanillaRowMeta[]
+  rowsMaybe?: PlanillaRowMeta[],
+  expectedVersion?: string
 ): Promise<{ updated_at: string }> {
   if (typeof idOrSupabase === "string") {
     const profile = await requireProfile(["comercial", "administracion", "admin"]);
     const supabase = await createClient();
-    return actualizarSnapshotWithClient(supabase, profile.empresa_id, idOrSupabase, rowsOrEmpresaId as PlanillaRowMeta[]);
+    return actualizarSnapshotWithClient(supabase, profile.empresa_id, idOrSupabase, rowsOrEmpresaId as PlanillaRowMeta[], idMaybe);
   }
   return actualizarSnapshotWithClient(
     idOrSupabase,
     rowsOrEmpresaId as string,
     idMaybe as string,
-    rowsMaybe as PlanillaRowMeta[]
+    rowsMaybe as PlanillaRowMeta[],
+    expectedVersion
   );
 }
 
@@ -137,11 +135,12 @@ async function actualizarSnapshotWithClient(
   supabase: SupabaseClient,
   empresaId: string,
   id: string,
-  rows: PlanillaRowMeta[]
+  rows: PlanillaRowMeta[],
+  expectedVersion?: string
 ): Promise<{ updated_at: string }> {
   const { data: current } = await supabase
     .from("planillas")
-    .select("estado")
+    .select("estado,updated_at,modulo")
     .eq("id", id)
     .eq("empresa_id", empresaId)
     .maybeSingle();
@@ -152,18 +151,21 @@ async function actualizarSnapshotWithClient(
 
   const { data, error } = await supabase
     .from("planillas")
-    .update({ snapshot: { rows } })
+    .update({ snapshot: { rows: meaningfulDraftRows(rows as PlanillaRow[], getPlanillaAdapter(current.modulo).columns) } })
     .eq("id", id)
     .eq("empresa_id", empresaId)
+    .eq("estado", "draft")
+    .eq("updated_at", expectedVersion ?? current.updated_at)
     .select("updated_at")
-    .single();
-  if (error || !data) throw new Error(error?.message ?? "No se pudo guardar el borrador.");
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new PlanillaConcurrencyError("El borrador cambió en otra sesión. Tus cambios siguen pendientes; descargalos antes de recargar.");
   return data as { updated_at: string };
 }
 
 export type ConfirmarResultado = { alreadyConfirmed: boolean; result: { inserted: number; updated: number; deleted: number } };
 
-export async function confirmarPlanilla(id: string): Promise<ConfirmarResultado>;
+export async function confirmarPlanilla(id: string, expectedVersion?: string): Promise<ConfirmarResultado>;
 export async function confirmarPlanilla(
   supabase: SupabaseClient,
   empresaId: string,
@@ -177,7 +179,7 @@ export async function confirmarPlanilla(
   if (typeof idOrSupabase === "string") {
     const profile = await requireProfile(["comercial", "administracion", "admin"]);
     const supabase: SupabaseClient = await createClient();
-    return confirmarPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase);
+    return confirmarPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase, empresaIdMaybe);
   }
   return confirmarPlanillaWithClient(idOrSupabase, empresaIdMaybe as string, idMaybe as string);
 }
@@ -185,8 +187,17 @@ export async function confirmarPlanilla(
 async function confirmarPlanillaWithClient(
   supabase: SupabaseClient,
   empresaId: string,
-  id: string
+  id: string,
+  expectedVersion?: string
 ): Promise<ConfirmarResultado> {
+  if (expectedVersion) {
+    const { data, error } = await supabase.rpc("planilla_confirmar_revision", { p_planilla_id: id, p_expected_updated_at: expectedVersion });
+    if (error?.code === "P0409") throw new PlanillaConcurrencyError(error.message);
+    if (error && !isDefiniteRpcRejection(error)) throw new PlanillaUncertainError();
+    if (error) throw new Error(error.message);
+    if (!data?.result) throw new PlanillaUncertainError();
+    return { alreadyConfirmed: Boolean(data.already_confirmed), result: data.result };
+  }
   const { data: planilla, error: fetchError } = await supabase
     .from("planillas")
     .select(SELECT_COLS)

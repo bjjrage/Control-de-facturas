@@ -2,6 +2,7 @@
 
 import { createCanonicalRfq } from "@/lib/rfq/service";
 import { createClient } from "@/lib/supabase/server";
+import { allRowsResult } from "@/lib/supabase/all-rows-result";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -73,12 +74,12 @@ export async function createCostRfqsFromProject(
     if (!project) return { data: null, error: "Obra no encontrada." };
 
     const [itemsRes, materialsRes] = await Promise.all([
-      supabase.from("budget_items").select("id, quantity").eq("project_id", projectId),
-      supabase
+      allRowsResult(supabase.from("budget_items").select("id, quantity").eq("project_id", projectId).order("id")),
+      allRowsResult(supabase
         .from("budget_item_materials")
         .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct")
         .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
+        .eq("empresa_id", empresaId).order("id")),
     ]);
     if (itemsRes.error) return { data: null, error: itemsRes.error.message };
     if (materialsRes.error) return { data: null, error: materialsRes.error.message };
@@ -206,19 +207,19 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
     if (!project) return { data: null, error: "Obra no encontrada." };
 
     const [itemsRes, materialsRes, laborRes, equipmentRes, subcontractsRes, rfqsRes] = await Promise.all([
-      supabase.from("budget_items").select("id, code, description, unit, quantity, unit_price, sort_order").eq("project_id", projectId).order("sort_order"),
-      supabase
+      allRowsResult(supabase.from("budget_items").select("id, code, description, unit, quantity, unit_price, sort_order").eq("project_id", projectId).order("sort_order")),
+      allRowsResult(supabase
         .from("budget_item_materials")
-        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(nombre, unidad, categoria_id, categorias_producto(nombre))")
+        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(nombre, unidad, categoria_id, categorias_producto(nombre))")
         .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
-      supabase
+        .eq("empresa_id", empresaId)),
+      allRowsResult(supabase
         .from("budget_item_labor")
         .select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rates(categoria)")
         .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
-      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
-      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+        .eq("empresa_id", empresaId)),
+      allRowsResult(supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId)),
+      allRowsResult(supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId)),
       admin
         .from("rfqs")
         .select("id, code, product, status, expires_at, rfq_providers(status), rfq_items(id)")
@@ -252,6 +253,7 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
       budgetItemId: m.budget_item_id as string,
       productoId: m.producto_id as string,
       cantidadPorUnidad: Number(m.cantidad_por_unidad_ejecutada),
+      precioUnitarioOrigen: m.precio_unitario_origen == null ? null : Number(m.precio_unitario_origen),
       desperdicioPct: Number(m.desperdicio_pct),
     }));
     const costs = computePartidaCosts(

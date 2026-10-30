@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { IWorkbookData } from "@univerjs/presets";
 import type { WorkingSnapshot } from "../workbook-store";
 import { univerToWorkingSnapshot, workingSnapshotToUniver } from "../univer-adapter";
+import { decodeBrowserSnapshot } from "../browser-snapshot";
+import { encodeSnapshot } from "../snapshot-storage";
 
 /**
  * Fase 3 de "Certificados Excel-first" — ida y vuelta entre la copia de
@@ -49,6 +51,21 @@ function sample(): WorkingSnapshot {
 }
 
 describe("copia de trabajo ↔ snapshot de Univer", () => {
+  it("shows cached source values and errors without recalculating or changing archived formulas", () => {
+    const original = sample();
+    original.sheets[0].cells.push([3,1,23,"#REF!","BAD!A1","e"]);
+    const before = JSON.stringify(original);
+    const data = workingSnapshotToUniver(original, "source", { cachedValuesOnly:true });
+    expect(data.sheets.CERTIFICADO.cellData![1]![4]).toEqual({v:10878185});
+    expect(data.sheets.CERTIFICADO.cellData![2]![0]).toEqual({v:"#REF!"});
+    expect(JSON.stringify(original)).toBe(before);
+  });
+  it("decodes large compact snapshots in the browser with original formulas intact", async () => {
+    const original=sample(); original.fileName="x".repeat(300000);
+    const compact=encodeSnapshot(original);
+    expect("encoding" in compact).toBe(true);
+    expect(await decodeBrowserSnapshot(compact)).toEqual(original);
+  });
   it("conserva valores, fórmulas, merges, hojas ocultas y anchos al ir a Univer", () => {
     const univerData = workingSnapshotToUniver(sample(), "cert-1");
     expect(univerData.sheetOrder).toEqual(["CERTIFICADO", "Julio"]);

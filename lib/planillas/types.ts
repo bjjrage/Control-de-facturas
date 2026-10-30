@@ -31,6 +31,7 @@ export type PlanillaRowMeta = {
   _version?: string | null;
   _deleted?: boolean;
   _style?: PlanillaRowStyle;
+  _formulas?: Record<string, string>;
 };
 
 export type PlanillaRow = PlanillaRowMeta & Record<string, unknown>;

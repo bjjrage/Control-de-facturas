@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { confirmarPlanilla, PlanillaNotFoundError } from "@/lib/planillas/service";
 import { PlanillaConcurrencyError, PlanillaUncertainError } from "@/lib/planillas/types";
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const { alreadyConfirmed, result } = await confirmarPlanilla(id);
+    const body = await request.json().catch(() => null);
+    if (typeof body?.expectedVersion !== "string" || !Number.isFinite(Date.parse(body.expectedVersion))) {
+      return NextResponse.json({ error: "Se requiere la revisión guardada para confirmar." }, { status: 400 });
+    }
+    const { alreadyConfirmed, result } = await confirmarPlanilla(id, body.expectedVersion);
     return NextResponse.json({ alreadyConfirmed, result });
   } catch (e) {
     if (e instanceof PlanillaUncertainError) {

@@ -1,82 +1,109 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlanillaGrid, type PlanillaGridRow } from "@/components/planillas/PlanillaGrid";
+import type { PlanillaGridRow } from "@/components/planillas/PlanillaGrid";
+import { UniverPlanillaGrid as PlanillaGrid } from "@/components/planillas/UniverPlanillaGrid";
 import type { PlanillaColumn } from "@/lib/planillas/types";
+import { DraftSaveQueue } from "@/lib/planillas/save-queue";
+import { WorkspaceApuPanel } from "@/components/planillas/WorkspaceApuPanel";
+import { draftSignature } from "@/lib/planillas/draft-signature";
+import { MaterialsWorkspaceView, ScheduleWorkspaceView } from "@/components/planillas/LinkedWorkspaceViews";
+import type { WorkspaceMaterial } from "@/lib/workbook-interpretation/import-workspace";
+import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { getWorkspaceOperationalData } from "../../projects/import-workspace-actions";
+import { projectOperations, type OperationalInputs } from "@/lib/planillas/operational-projection";
+import { OperationalScheduleView } from "@/components/planillas/OperationalScheduleView";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type ConfirmStatus = "idle" | "confirming" | "conflict" | "error";
 
 const AUTOSAVE_DEBOUNCE_MS = 900;
+const subscribeHydration = () => () => {};
 
 export function PlanillaSessionClient({
   planillaId,
+  initialVersion,
+  projectId,
+  referenceQuantities = false,
+  linkedCandidate,
+  initialMaterials = [],
+  initialOperationalInputs,
   estado,
   columns,
   initialRows,
   volverUrl,
 }: {
   planillaId: string;
+  initialVersion: string;
+  projectId?: string;
+  referenceQuantities?: boolean;
+  linkedCandidate?: CanonicalImportCandidate;
+  initialMaterials?: WorkspaceMaterial[];
+  initialOperationalInputs?: OperationalInputs;
   estado: "draft" | "confirmed" | "cancelled";
   columns: PlanillaColumn[];
   initialRows: PlanillaGridRow[];
   volverUrl: string;
 }) {
   const router = useRouter();
+  const mounted = useSyncExternalStore(subscribeHydration, () => true, () => false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [confirmStatus, setConfirmStatus] = useState<ConfirmStatus>("idle");
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRowsRef = useRef<PlanillaGridRow[] | null>(null);
-  const inFlightRef = useRef(false);
+  const gridFlushRef = useRef<(() => Promise<void>) | null>(null);
+  const [rows, setRows] = useState(initialRows);
+  const [selectedId, setSelectedId] = useState<string | null>(initialRows[0]?._rowId ?? null);
+  const [showApu, setShowApu] = useState(true);
+  const [tab, setTab] = useState("Partidas");
+  const [materials, setMaterials] = useState(initialMaterials);
+  const [operationalInputs, setOperationalInputs] = useState(initialOperationalInputs);
+  const [projectionError, setProjectionError] = useState<string | null>(null);
+  const projection = useMemo(() => operationalInputs ? projectOperations(rows, operationalInputs) : undefined, [rows, operationalInputs]);
+  const refreshOperationalInputs = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await getWorkspaceOperationalData(projectId);
+      setOperationalInputs(data); setMaterials(data.materials); setProjectionError(null);
+    } catch (error) { setProjectionError(error instanceof Error ? error.message : "No se pudo actualizar la proyección."); }
+  }, [projectId]);
+  const signatureRef = useRef(draftSignature(initialRows, columns));
+  const queueRef = useRef<DraftSaveQueue<PlanillaGridRow> | null>(null);
+  if (queueRef.current === null) queueRef.current = new DraftSaveQueue(initialVersion, async (rows, expectedVersion) => {
+    const res = await fetch(`/api/planillas/${planillaId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows, expectedVersion }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? "No se pudo guardar. Reintentá antes de confirmar.");
+    return body.updated_at;
+  });
 
   const isReadOnly = estado !== "draft";
 
-  // Ref indirecta para romper la dependencia circular flushSave↔scheduleFlush
-  // sin sacrificar la estabilidad de referencia de ninguna de las dos (ver
-  // comentario en handleGridChange más abajo sobre por qué esa estabilidad
-  // importa).
-  const scheduleFlushRef = useRef<() => void>(() => {});
-
   const flushSave = useCallback(async () => {
-    if (inFlightRef.current) return; // el próximo debounce reintentará con el snapshot más nuevo
-    const rows = pendingRowsRef.current;
-    if (rows === null) return;
-    pendingRowsRef.current = null;
-    inFlightRef.current = true;
+    await gridFlushRef.current?.();
+    const queue = queueRef.current!;
+    if (!queue.dirty) return;
     setSaveStatus("saving");
     try {
-      const res = await fetch(`/api/planillas/${planillaId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
-      });
-      if (!res.ok) throw new Error("save failed");
+      await queue.flush();
+      setConfirmError(null);
       setSaveStatus("saved");
-    } catch {
+    } catch (error) {
       setSaveStatus("error");
-      // No se pierde el cambio: vuelve a la cola para el próximo intento.
-      pendingRowsRef.current = rows;
-    } finally {
-      inFlightRef.current = false;
-      if (pendingRowsRef.current !== null) {
-        // Llegaron cambios (o falló) mientras guardábamos — programar otro flush.
-        scheduleFlushRef.current();
-      }
+      setConfirmError(error instanceof Error ? error.message : "Error al guardar.");
+      throw error;
     }
-  }, [planillaId]);
+  }, []);
 
   const scheduleFlush = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(flushSave, AUTOSAVE_DEBOUNCE_MS);
+    debounceRef.current = setTimeout(() => { void flushSave().catch(() => {}); }, AUTOSAVE_DEBOUNCE_MS);
   }, [flushSave]);
-
-  useEffect(() => {
-    scheduleFlushRef.current = scheduleFlush;
-  }, [scheduleFlush]);
 
   // useCallback con referencia estable a propósito: PlanillaGrid está
   // memoizado (React.memo) precisamente para NO re-renderizar — y por lo
@@ -92,24 +119,26 @@ export function PlanillaSessionClient({
   const handleGridChange = useCallback(
     (rows: PlanillaGridRow[]) => {
       if (isReadOnly) return;
-      pendingRowsRef.current = rows;
+      const signature = draftSignature(rows, columns);
+      if (signature === signatureRef.current) return;
+      signatureRef.current = signature;
+      queueRef.current!.enqueue(rows);
+      setRows(rows);
+      setSaveStatus("idle");
       scheduleFlush();
     },
-    [isReadOnly, scheduleFlush]
+    [isReadOnly, scheduleFlush, columns]
   );
 
   // Autosave al cerrar/navegar fuera con cambios pendientes sin confirmar aún
   // (best-effort — sendBeacon no espera respuesta, pero evita perder el
   // último tramo de edición si el debounce todavía no disparó).
   useEffect(() => {
-    function onBeforeUnload() {
-      if (pendingRowsRef.current !== null && navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify({ rows: pendingRowsRef.current })], { type: "application/json" });
-        navigator.sendBeacon(`/api/planillas/${planillaId}`, blob);
-      }
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (queueRef.current?.dirty) { event.preventDefault(); event.returnValue = ""; }
     }
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    return () => { window.removeEventListener("beforeunload", onBeforeUnload); if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [planillaId]);
 
   async function handleConfirmar() {
@@ -117,10 +146,9 @@ export function PlanillaSessionClient({
     setConfirmError(null);
     // Asegura que el último tramo editado ya esté guardado antes de confirmar.
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (pendingRowsRef.current !== null) await flushSave();
-
     try {
-      const res = await fetch(`/api/planillas/${planillaId}/confirmar`, { method: "POST" });
+      await flushSave();
+      const res = await fetch(`/api/planillas/${planillaId}/confirmar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedVersion: queueRef.current!.version }) });
       const body = await res.json().catch(() => ({}));
       if (res.status === 409) {
         setConfirmStatus("conflict");
@@ -140,15 +168,20 @@ export function PlanillaSessionClient({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)]">
+  return mounted ? createPortal(
+    <div className="fixed inset-0 z-[35] flex flex-col bg-[var(--background)]">
       <div className="h-12 shrink-0 flex items-center gap-3 px-4 border-b border-[var(--border)] bg-[var(--panel)]">
-        <Button variant="ghost" onClick={() => router.push(volverUrl)} title="Volver sin confirmar">
+          <Button variant="ghost" onClick={async () => { try { await flushSave(); router.push(volverUrl); } catch {} }} title="Guardar y volver">
           <ArrowLeft size={15} />
         </Button>
-        <span className="text-[13px] font-semibold">Planilla de trabajo</span>
+        <span className="text-[13px] font-semibold">Workspace de obra · Cómputo y presupuesto</span>
         <SaveIndicator status={saveStatus} readOnly={isReadOnly} />
         <div className="flex-1" />
+        {saveStatus === "error" ? <Button onClick={() => { void flushSave().catch(() => {}); }}>Reintentar guardado</Button> : null}
+        <Button variant="ghost" onClick={() => {
+          const url = URL.createObjectURL(new Blob([JSON.stringify({ planillaId, revision: queueRef.current!.version, rows }, null, 2)], { type: "application/json" }));
+          const a = document.createElement("a"); a.href = url; a.download = `borrador-${planillaId}.json`; a.click(); URL.revokeObjectURL(url);
+        }}>Descargar borrador</Button>
         {confirmError ? (
           <span className="text-[12px] text-[var(--error)] flex items-center gap-1 max-w-md truncate">
             <AlertTriangle size={13} className="shrink-0" /> {confirmError}
@@ -164,11 +197,26 @@ export function PlanillaSessionClient({
           </span>
         )}
       </div>
-      <div className="flex-1 min-h-0 p-3">
-        <PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} readOnly={isReadOnly} />
+      <div className="flex items-center gap-4 px-4 py-2 border-b border-[var(--border)] text-sm">
+        {linkedCandidate ? <nav aria-label="Vistas del workspace" className="flex gap-2">{["Partidas", "APU", "Materiales", "Cronograma"].map(name => <button role="tab" aria-selected={tab === name} key={name} className={`rounded px-3 py-2 ${tab === name ? "bg-sky-500/20 text-sky-200" : ""}`} onClick={async () => { try { await flushSave(); setTab(name); if (["Materiales", "Cronograma"].includes(name) && projectId) await refreshOperationalInputs(); } catch (cause) { setConfirmError(cause instanceof Error ? cause.message : "No se pudo abrir la vista."); } }}>{name}</button>)}</nav> : <span>Cómputo · Presupuesto</span>}
+        {projectId ? <Button variant="secondary" onClick={() => setShowApu(v => !v)} aria-expanded={showApu}>APU y materiales</Button> : null}
+        <span>{rows.filter(r => !r._deleted && String(r.description ?? "").trim()).length} partidas · Borrador</span>
       </div>
-    </div>
-  );
+      {projectionError ? <p role="alert" className="p-3 text-[var(--error)]">{projectionError} <button className="underline" onClick={() => { void refreshOperationalInputs(); }}>Reintentar actualizaci?n</button></p> : null}
+      {projection ? <div className="flex gap-6 px-4 py-2 text-xs border-b border-[var(--border)]"><span>Presupuesto de venta: <strong data-workspace-sale>{projection.sale?.toLocaleString("es-PY") ?? "Pendiente"} Gs</strong></span><span>Costo directo APU: <strong data-workspace-cost>{projection.cost?.toLocaleString("es-PY") ?? "Pendiente"} Gs</strong></span></div> : null}
+      {referenceQuantities ? <p role="status" className="px-4 py-2 text-xs text-amber-300">Cantidades referenciales del archivo: los importes y necesidades son una simulación hasta validar el cómputo definitivo. Editar el borrador no certifica esas cantidades automáticamente.</p> : null}
+      <div className={tab === "Partidas" ? "flex flex-1 min-h-0" : "hidden"}>
+        <div className="flex-1 min-w-0 p-3"><PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} onSelectRow={setSelectedId} flushPendingRef={gridFlushRef} readOnly={isReadOnly || confirmStatus === "confirming"} /></div>
+        {projectId && showApu && tab === "Partidas" ? <div className="w-[420px] max-w-[45vw] border-l border-[var(--border)] overflow-auto"><WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(r => r._rowId === selectedId && !r._deleted)} editable={!isReadOnly && confirmStatus !== "confirming"} onSaved={() => { void refreshOperationalInputs(); }} /></div> : null}
+      </div>
+      {linkedCandidate && tab !== "Partidas" ? <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex gap-3 items-center border-b border-[var(--border)] p-3 text-xs"><label htmlFor="operational-partida">Partida activa</label><select id="operational-partida" aria-label="Partida activa" value={selectedId ?? ""} onChange={e => setSelectedId(e.target.value)} className="max-w-3xl flex-1 rounded border p-2">{rows.filter(row => !row._deleted && String(row.description ?? "").trim()).map(row => <option key={row._rowId} value={row._rowId}>{String(row.code)} · {String(row.description)}</option>)}</select></div>
+        {tab === "APU" && projectId ? <WorkspaceApuPanel key={selectedId} projectId={projectId} row={rows.find(row => row._rowId === selectedId)} editable={!isReadOnly && confirmStatus !== "confirming"} onSaved={() => { void refreshOperationalInputs(); }} /> : null}
+        {tab === "Materiales" ? <MaterialsWorkspaceView materials={materials} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
+        {tab === "Cronograma" ? projection ? <OperationalScheduleView projection={projection} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : <ScheduleWorkspaceView candidate={linkedCandidate} rows={rows} onSelect={id => { setSelectedId(id); setTab("APU"); }} /> : null}
+      </div> : null}
+    </div>, document.body
+  ) : null;
 }
 
 function SaveIndicator({ status, readOnly }: { status: SaveStatus; readOnly: boolean }) {
@@ -184,7 +232,7 @@ function SaveIndicator({ status, readOnly }: { status: SaveStatus; readOnly: boo
   if (status === "error") {
     return (
       <span className="text-[11px] text-[var(--error)] flex items-center gap-1">
-        <AlertTriangle size={12} /> Error al guardar — reintentando
+        <AlertTriangle size={12} /> Cambios pendientes · Revisá el error y reintentá
       </span>
     );
   }

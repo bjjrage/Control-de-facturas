@@ -10,11 +10,14 @@ import { revalidatePath } from "next/cache";
 import { refreshAfterSave } from "@/lib/refresh-after-save";
 import { ProjectStatus } from "@/lib/types";
 import { createHash } from "node:crypto";
+import { applyImportDraft, importBlockingIssues, validateImportDraft } from "@/lib/workbook-interpretation/import-workspace";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession } from "@/lib/certificates/import-session-store";
+import { encodeSnapshot } from "@/lib/certificates/snapshot-storage";
+import { createLinkedWorkbookProject } from "@/lib/certificates/linked-workbook-import";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import { validateScheduleDates } from "@/lib/projects/schedule";
@@ -127,12 +130,16 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   // — en vez de un archivo re-subido con el resultado del preview.
   const session = sessionId ? await loadImportSession(await createClient(), profile.empresa_id, sessionId) : null;
   if (sessionId && !session) return { error: "La sesión de importación ya no existe." };
+  if (session?.status === "CONFIRMED" && session.confirmedProjectId) return { error: null, projectId: session.confirmedProjectId };
   if (session && session.status !== "ANALYZED") return { error: "La planilla todavía no terminó de analizarse (o la sesión ya fue cerrada)." };
   if (session && session.analyzedStructureHash !== session.structureHash) return { error: "La estructura de la planilla cambió desde el análisis. Reanalizá antes de crear la obra." };
+  if (session?.workspaceDraft?.rows && Number(formData.get("expected_revision")) !== session.workingRevision) {
+    return { error: "El borrador cambió desde la revisión. Guardá y actualizá antes de crear la obra." };
+  }
   const rawResult = session ? JSON.stringify(session.interpretation) : formData.get("result_json");
   if ((!session && !(file instanceof File)) || typeof rawResult !== "string") return { error: "El preview de la planilla ya no es válido." };
   const uploaded = { name: session?.originalFileName ?? (file as File).name };
-  const regime = (formData.get("contract_regime") as string | null) || null;
+  const regime = session?.workspaceDraft?.regime || (formData.get("contract_regime") as string | null) || null;
   if (session && !(["PUBLIC_WORK", "PRIVATE_WORK", "OTHER"] as const).some((value) => value === regime)) {
     return { error: "Confirmá el régimen contractual de la obra (pública, privada u otro)." };
   }
@@ -144,8 +151,17 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       : parseWorkbook(new Uint8Array(await (file as File).arrayBuffer()), (file as File).name);
     const parsedResult = JSON.parse(rawResult);
     const validated = validateWorkbookInterpretation(parsedResult, workbook);
-    const candidate = buildCanonicalImportCandidate(workbook, validated);
+    const sourceCandidate = buildCanonicalImportCandidate(workbook, validated);
+    const candidate = applyImportDraft(sourceCandidate, session?.workspaceDraft);
+    if (session?.workspaceDraft?.rows) {
+      const draft = validateImportDraft(session.workspaceDraft, sourceCandidate);
+      formData.set("name_override", draft.name); formData.set("code_override", draft.code); formData.set("contract_regime", draft.regime);
+      formData.set("quantity_status", draft.referenceQuantities ? "REFERENCE" : "CONFIRMED");
+      formData.set("apply_recipes", sourceCandidate.linkedRecipes?.recipes.length ? "1" : "0");
+      for (const [key, value] of Object.entries({ apply_schedule: draft.applySchedule, apply_certificate: draft.applyCertificate, apply_staff: draft.applyStaff, apply_weather: draft.applyWeather, apply_execution: draft.applyExecution })) formData.set(key, value ? "1" : "0");
+    }
     result = { workbook, validated, candidate };
+    if (session?.workspaceDraft?.rows && (!candidate.budgetItems.length || candidate.budgetItems.some(item => item.quantity === null || item.unitPrice === null))) throw new Error("Completá las cantidades y precios pendientes antes de crear la obra.");
   } catch (cause) {
     return { error: cause instanceof Error ? cause.message : "No se pudo validar nuevamente la planilla." };
   }
@@ -154,6 +170,20 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   const code = ((formData.get("code_override") as string | null) || importedText(result.validated.project.code) || "").trim();
   if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
   if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
+  if (session && formData.get("apply_recipes") === "1") {
+    const arithmeticIssues = importBlockingIssues(result.candidate);
+    if (arithmeticIssues.length) return { error: `El presupuesto fuente no está reconciliado. ${arithmeticIssues.join(" ")}` };
+    if (result.candidate.budgetItems.some(item => item.quantity === null || item.unitPrice === null)) return { error: "Completá las cantidades y precios pendientes antes de crear la obra." };
+    if (formData.get("apply_certificate") === "1") return { error: "Importá primero la obra con sus recetas; el certificado requiere su propia confirmación." };
+    const quantityStatus = formData.get("quantity_status");
+    if (quantityStatus !== "REFERENCE" && quantityStatus !== "CONFIRMED") return { error: "Confirmá el estado de las cantidades del archivo." };
+    const linked = await createLinkedWorkbookProject(await createClient(), {
+      session, candidate: result.candidate, name, code, regime: regime!, quantityStatus,
+      applySchedule: formData.get("apply_schedule") === "1",
+    });
+    if (!linked.error) revalidatePath("/projects");
+    return linked;
+  }
 
   // Una obra con el presupuesto a otra escala que su contrato arrastra mal
   // todo lo demás (avance, anticipo, compras). Mejor no crearla.
@@ -437,7 +467,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         original_file_size: session.originalFileSize,
         original_storage_path: session.originalStoragePath,
         original_file_hash: session.originalFileHash,
-        working_snapshot: session.workingSnapshot,
+        working_snapshot: encodeSnapshot(session.workingSnapshot),
         structure_hash: session.structureHash,
         mapping: session.interpretation?.importPlan ?? null,
         mapping_structure_hash: session.analyzedStructureHash,
