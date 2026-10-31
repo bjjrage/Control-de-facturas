@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { rawNumber } from "../import-plan";
-import { selectedImportIssues } from "../import-integrity";
+import { availableImportSelection, selectedImportIssues } from "../import-integrity";
 import { block, budgetFixture, certificateFixture } from "./contract-fixtures";
 
 const errors = (f: ReturnType<typeof budgetFixture>) => f.candidate().integrity!.issues.filter(i => i.severity === "ERROR");
 describe("operational input contract across workbook layouts", () => {
+  it("does not send hidden default selections for a budget-only workbook", () => {
+    expect(availableImportSelection(budgetFixture().candidate(), { certificate: false, staff: true, execution: true, schedule: true, weather: true })).toEqual({ certificate: false, staff: false, execution: false, schedule: false, weather: false });
+  });
+  it("requires an accepted certificate before selecting its staff or execution", () => {
+    const candidate = certificateFixture().candidate();
+    candidate.staff = [{ name: "QA", role: "Residente", sheet: "Personal", row: 2 }];
+    expect(availableImportSelection(candidate, { certificate: false, staff: true, execution: true, schedule: false, weather: false }).staff).toBe(false);
+    expect(availableImportSelection(candidate, { certificate: true, staff: true, execution: true, schedule: false, weather: false }).staff).toBe(true);
+  });
   it.each([
     { columns: ["code", "description", "unit", "quantity", "unitPrice", "subtotal"] as const, top: 0 },
     { columns: ["unitPrice", "unit", "description", "subtotal", "code", "quantity"] as const, top: 7 },

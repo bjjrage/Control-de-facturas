@@ -12,7 +12,7 @@ import { CertificateWorkbookGrid } from "@/components/certificates/CertificateWo
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
 import type { ContractRegime } from "@/lib/certificates/import-session-store";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
-import { selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
+import { availableImportSelection, selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
 import type { DetectedField, WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 
 function formatMoney(value: number | null) {
@@ -187,6 +187,7 @@ function ResultActions({
   onCodeOverride,
   onCreate,
   creating,
+  creationAllowed,
   error,
   onBack,
   acceptObservations,
@@ -210,6 +211,7 @@ function ResultActions({
   onCodeOverride: (value: string) => void;
   onCreate: () => void;
   creating: boolean;
+  creationAllowed: boolean;
   error: string | null;
   onBack: () => void;
   acceptObservations: boolean;
@@ -220,7 +222,8 @@ function ResultActions({
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
   const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
-  const integrityIssues = candidate?.integrity ? selectedImportIssues(candidate.integrity, { schedule: applySchedule, weather: applyWeather, certificate: applyCertificate, staff: applyStaff, execution: applyExecution }) : [];
+  const selection = candidate ? availableImportSelection(candidate, { schedule: applySchedule, weather: applyWeather, certificate: applyCertificate, staff: applyStaff, execution: applyExecution }) : null;
+  const integrityIssues = candidate?.integrity && selection ? selectedImportIssues(candidate.integrity, selection) : [];
   const integrityBlocked = integrityIssues.some(i => i.severity === "ERROR") || (integrityIssues.some(i => i.severity === "REVIEW") && !acceptObservations);
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
@@ -267,8 +270,8 @@ function ResultActions({
               {candidate.staff.map((person) => <li key={`${person.sheet}-${person.row}`}>· {person.name} — {person.role}</li>)}
             </ul>
             <label className="mt-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={applyStaff} onChange={(event) => onApplyStaff(event.target.checked)} />
-              Importar personal al certificado
+              <input type="checkbox" checked={applyStaff && applyCertificate} disabled={!applyCertificate} onChange={(event) => onApplyStaff(event.target.checked)} />
+              Importar personal al certificado {!applyCertificate ? "(requiere importar el certificado)" : ""}
             </label>
           </div>
         ) : null}
@@ -313,7 +316,7 @@ function ResultActions({
             </p>
             <p className="mt-1 text-[11px] text-[var(--muted)]">Se carga con fecha de cierre del certificado ({candidate.certificate.periodEnd ?? "—"}).</p>
             <label className="mt-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={applyExecution} onChange={(event) => onApplyExecution(event.target.checked)} disabled={!applyCertificate} />
+              <input type="checkbox" checked={applyExecution && applyCertificate} onChange={(event) => onApplyExecution(event.target.checked)} disabled={!applyCertificate} />
               Importar avance físico {!applyCertificate ? "(requiere importar el certificado)" : ""}
             </label>
           </div>
@@ -363,7 +366,7 @@ function ResultActions({
       </div> : null}
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
-        <Button type="button" onClick={onCreate} disabled={creating || integrityBlocked || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+        <Button type="button" onClick={onCreate} disabled={creating || !creationAllowed || integrityBlocked || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
           {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>
@@ -504,20 +507,21 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   }
 
   async function createImportedProject() {
-    if (!session?.interpretation || !regime) return;
+    if (!session?.interpretation || !session.candidate || !regime) return;
     setCreating(true);
     setError(null);
     const formData = new FormData();
+    const selection = availableImportSelection(session.candidate, { certificate: applyCertificate, staff: applyStaff, schedule: applySchedule, weather: applyWeather, execution: applyExecution });
     formData.set("session_id", session.id);
     formData.set("name_override", nameOverride);
     formData.set("code_override", codeOverride);
     formData.set("contract_regime", regime);
-    formData.set("apply_certificate", applyCertificate ? "1" : "0");
-    formData.set("apply_staff", applyStaff ? "1" : "0");
-    formData.set("apply_schedule", applySchedule ? "1" : "0");
-    formData.set("apply_weather", applyWeather ? "1" : "0");
+    formData.set("apply_certificate", selection.certificate ? "1" : "0");
+    formData.set("apply_staff", selection.staff ? "1" : "0");
+    formData.set("apply_schedule", selection.schedule ? "1" : "0");
+    formData.set("apply_weather", selection.weather ? "1" : "0");
     formData.set("accept_import_observations", acceptObservations ? "1" : "0");
-    formData.set("apply_execution", applyExecution ? "1" : "0");
+    formData.set("apply_execution", selection.execution ? "1" : "0");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -662,7 +666,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             onNameOverride={setNameOverride}
             onCodeOverride={setCodeOverride}
             onCreate={() => void createImportedProject()}
-            creating={creating || !regime}
+            creating={creating}
+            creationAllowed={Boolean(regime) && session.status === "ANALYZED" && !session.analysisStale}
             error={error ?? (!regime ? "Confirmá el régimen contractual antes de crear la obra." : null)}
             onBack={() => void handleDiscard()}
           />

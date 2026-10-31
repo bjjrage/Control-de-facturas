@@ -124,6 +124,12 @@ export function inspectImportIntegrity(workbook: WorkbookRepresentation, result:
 }
 
 export type ImportSelection = { schedule: boolean; weather: boolean; certificate?: boolean; staff?: boolean; execution?: boolean };
+/** UI defaults are not a request to import absent sections. Dependents
+ * become applicable only with an accepted, importable certificate. */
+export function availableImportSelection(candidate: Pick<CanonicalImportCandidate, "certificate" | "staff" | "executionEntries" | "schedulePlans" | "weatherDays">, requested: ImportSelection): Required<ImportSelection> {
+  const certificate = Boolean(requested.certificate && ["SAFE_TO_APPLY", "APPLY_WITH_WARNINGS"].includes(candidate.certificate.status));
+  return { certificate, staff: Boolean(certificate && requested.staff && candidate.staff.length), execution: Boolean(certificate && requested.execution && candidate.executionEntries.length), schedule: Boolean(requested.schedule && candidate.schedulePlans.length), weather: Boolean(requested.weather && candidate.weatherDays.length) };
+}
 export function selectedImportIssues(integrity: ImportIntegrity, selection: ImportSelection) {
   return integrity.issues.filter(i => i.domain === "PROJECT" || i.domain === "BUDGET" || i.domain === "COVERAGE"
     || (i.domain === "SCHEDULE" && selection.schedule) || (i.domain === "WEATHER" && selection.weather)
