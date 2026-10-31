@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { inspectImportIntegrity, type ImportIntegrity } from "./import-integrity";
+import { inspectOperationalIntegrity } from "./operational-integrity";
 import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
@@ -623,10 +624,6 @@ export function buildCanonicalImportCandidate(
   }
   const budgetSum = budgetLines.reduce((sum, item) => sum + (item.subtotal ?? (item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
   const declaredBudgetTotal = verifiedKeyValue(workbook, budgetBlocks, "declaredTotal");
-  if (declaredBudgetTotal) {
-    const declared = Number(declaredBudgetTotal.value);
-    check("budget_declared_total", "Presupuesto: suma de partidas = total declarado", declaredBudgetTotal.verified && close(budgetSum, declared), `Suma ${formatNumber(budgetSum)} · total declarado ${formatNumber(declared)} (${declaredBudgetTotal.cell}${declaredBudgetTotal.verified ? "" : ", no verificado en la celda"}).`);
-  }
 
   // Certificate lines.
   const certificateIssues: string[] = [];
@@ -782,6 +779,12 @@ export function buildCanonicalImportCandidate(
     })
     : budgetLines;
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
+  if (declaredBudgetTotal) {
+    const declared = Number(declaredBudgetTotal.value);
+    const verifiedScale = scaled && scale && scale.comparedLines > 0 && scale.consistentLines === scale.comparedLines;
+    const matches = close(budgetSum, declared) || (verifiedScale && close(budgetTotal, declared));
+    check("budget_declared_total", "Presupuesto: suma de partidas = total declarado", declaredBudgetTotal.verified && Boolean(matches), `Suma en origen ${formatNumber(budgetSum)}${scaled ? ` · contrato ${formatNumber(budgetTotal)}` : ""} · total declarado ${formatNumber(declared)} (${declaredBudgetTotal.cell}${declaredBudgetTotal.verified ? "" : ", no verificado en la celda"}).`);
+  }
 
   // Presupuesto vs. contrato del propio documento. Referencia: el monto de
   // contrato declarado y verificado en su celda; si no hay, el total
@@ -861,7 +864,7 @@ export function buildCanonicalImportCandidate(
   // their own dedicated sections below; the rest (extraction found nothing
   // usable) still show up as a generic detected-but-unresolved domain.
   const domains = new Map<string, CanonicalDomainSummary>();
-  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
+  for (const block of mainBlocks.filter((item) => !isBudgetShapedBlock(item) && item.target !== "PROJECT_METADATA" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -898,6 +901,7 @@ export function buildCanonicalImportCandidate(
     ])],
   };
   candidate.integrity = inspectImportIntegrity(workbook, result, candidate);
+  candidate.integrity.issues.push(...inspectOperationalIntegrity(workbook, result, candidate, { ...planCheck, coverage: extracted.coverage }));
   return candidate;
 }
 

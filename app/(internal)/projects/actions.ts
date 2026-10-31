@@ -108,9 +108,9 @@ function importedNumber(field: { status: string; value: string | number | null }
 
 /**
  * Confirma un preview semántico contra el XLSX original y materializa la
- * obra, su presupuesto y (si el usuario lo aceptó) el certificado. Los demás
- * dominios detectados (curva, clima, personal, mediciones) se informan como
- * pendientes: su persistencia todavía no está conectada.
+ * obra, presupuesto y secciones aceptadas. Las secciones sin integración
+ * operativa quedan explícitamente pendientes. Los mismos controles se
+ * vuelven a ejecutar aquí: el preview no es una frontera de confianza.
  */
 export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -160,10 +160,14 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
 
   const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
   const integrity = result.candidate.integrity!;
-  const issues = selectedImportIssues(integrity, { schedule: formData.get("apply_schedule") === "1", weather: formData.get("apply_weather") === "1" });
+  const issues = selectedImportIssues(integrity, { schedule: formData.get("apply_schedule") === "1", weather: formData.get("apply_weather") === "1", certificate: formData.get("apply_certificate") === "1", staff: formData.get("apply_staff") === "1", execution: formData.get("apply_execution") === "1" });
   const errors = issues.filter(issue => issue.severity === "ERROR");
   if (errors.length) return { error: errors.map(issue => `${issue.source}: ${issue.message}`).join(" ") };
   if (issues.some(issue => issue.severity === "REVIEW") && formData.get("accept_import_observations") !== "1") return { error: "Revisá y aceptá las observaciones de integridad antes de crear la obra." };
+  const wantsCertificate = formData.get("apply_certificate") === "1";
+  if (wantsCertificate && !["SAFE_TO_APPLY", "APPLY_WITH_WARNINGS"].includes(result.candidate.certificate.status)) return { error: "El certificado seleccionado no es aplicable; revisá el análisis antes de crear la obra." };
+  if ((formData.get("apply_staff") === "1" || formData.get("apply_execution") === "1") && !wantsCertificate) return { error: "Personal y avance necesitan que se importe el certificado del período. Revisá la selección." };
+  if (["apply_staff", "apply_schedule", "apply_weather"].some(key => formData.get(key) === "1") && !planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin)) return { error: "La selección incluye datos que requieren el plan Caterpillar. Revisá las secciones antes de crear la obra." };
   if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
 
@@ -423,7 +427,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   }
 
   const verification = await verifyImportedProject(await createClient(), String(project.id), result.candidate, {
-    schedule: scheduleVersions > 0, weather: weatherDays > 0, certificateId,
+    schedule: scheduleAccepted && hasCaterpillar, weather: weatherAccepted && hasCaterpillar, certificateId,
+    staff: staffAccepted && hasCaterpillar && !!certificateId, execution: executionAccepted && !!certificateId,
   });
   pending.push(...verification);
 

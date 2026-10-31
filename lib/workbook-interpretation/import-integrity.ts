@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import type { CanonicalImportCandidate } from "./canonical-import";
 import type { WorkbookCell, WorkbookInterpretationResult, WorkbookRepresentation } from "./types";
 
-export type ImportIssue = { domain: "PROJECT" | "SCHEDULE" | "WEATHER"; severity: "ERROR" | "REVIEW"; message: string; source: string };
+export type ImportIssue = { domain: "PROJECT" | "BUDGET" | "CERTIFICATE" | "STAFF" | "EXECUTION" | "COVERAGE" | "SCHEDULE" | "WEATHER"; severity: "ERROR" | "REVIEW"; message: string; source: string };
 type Fact<T> = { value: T; source: string };
 export type ImportIntegrity = {
   version: 1;
@@ -123,6 +123,10 @@ export function inspectImportIntegrity(workbook: WorkbookRepresentation, result:
   return report;
 }
 
-export function selectedImportIssues(integrity: ImportIntegrity, selection: { schedule: boolean; weather: boolean }) {
-  return integrity.issues.filter(i => i.domain === "PROJECT" || (i.domain === "SCHEDULE" && selection.schedule) || (i.domain === "WEATHER" && selection.weather));
+export type ImportSelection = { schedule: boolean; weather: boolean; certificate?: boolean; staff?: boolean; execution?: boolean };
+export function selectedImportIssues(integrity: ImportIntegrity, selection: ImportSelection) {
+  return integrity.issues.filter(i => i.domain === "PROJECT" || i.domain === "BUDGET" || i.domain === "COVERAGE"
+    || (i.domain === "SCHEDULE" && selection.schedule) || (i.domain === "WEATHER" && selection.weather)
+    || (i.domain === "CERTIFICATE" && selection.certificate) || (i.domain === "STAFF" && selection.staff)
+    || (i.domain === "EXECUTION" && selection.execution));
 }

@@ -220,7 +220,7 @@ function ResultActions({
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
   const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
-  const integrityIssues = candidate?.integrity ? selectedImportIssues(candidate.integrity, { schedule: applySchedule, weather: applyWeather }) : [];
+  const integrityIssues = candidate?.integrity ? selectedImportIssues(candidate.integrity, { schedule: applySchedule, weather: applyWeather, certificate: applyCertificate, staff: applyStaff, execution: applyExecution }) : [];
   const integrityBlocked = integrityIssues.some(i => i.severity === "ERROR") || (integrityIssues.some(i => i.severity === "REVIEW") && !acceptObservations);
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
