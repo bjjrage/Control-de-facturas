@@ -1,5 +1,4 @@
 .day {
-  composes: erp-card from global;
   --day-accent: 126, 175, 255;
   --day-fill: var(--panel-2);
   --day-ink: var(--foreground);
