@@ -1,0 +1,45 @@
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { it, expect } from "vitest";
+import { parseWorkbook } from "../parser";
+import { buildCanonicalImportCandidate } from "../canonical-import";
+import { workbookFromSnapshot, toStoredSheets } from "@/lib/certificates/workbook-store";
+import { applyWorkbookFormatting, extractWorkbookFormatting } from "@/lib/certificates/workbook-formatting";
+import { workingSnapshotToUniver, univerToWorkingSnapshot } from "@/lib/certificates/univer-adapter";
+const sessionPath = process.env.WORKBOOK_OPERATIONAL_SESSION;
+it.skipIf(!sessionPath)("verifies the real certificate workbook before and after grid/save/reopen, including dates, curve and daily codes",async()=>{
+  const source=path.join(process.env.USERPROFILE!,"Downloads","P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx");
+  const bytes=fs.readFileSync(source);
+  const session=JSON.parse(fs.readFileSync(sessionPath!,"utf8"));
+  const hash=createHash("sha256").update(bytes).digest("hex");
+  expect(hash).toBe(session.original_file_hash);
+  const parsed=parseWorkbook(bytes,source);
+  const formatted=applyWorkbookFormatting({fileName:source,sheets:toStoredSheets(parsed),definedNames:parsed.definedNames??[]},await extractWorkbookFormatting(bytes));
+  const edited=univerToWorkingSnapshot(workingSnapshotToUniver(formatted,"real-regression"),source);
+  const candidates=[parsed,workbookFromSnapshot(session.working_snapshot),workbookFromSnapshot(edited)].map(book=>buildCanonicalImportCandidate(book,session.interpretation));
+  for(const candidate of candidates){
+    expect(candidate.budgetItems).toHaveLength(53);
+    expect(candidate.budgetTotal).toBe(3482791500);
+    expect(candidate.certificate.itemCount).toBe(53);
+    expect(candidate.integrity?.project.orderDate?.value).toBe("2026-02-09");
+    expect(candidate.integrity?.project.durationDays?.value).toBe(175);
+    expect(candidate.integrity?.project.startDate?.value).toBe("2026-02-09");
+    expect(candidate.integrity?.project.endDate).toBeNull();
+    expect(candidate.weatherDays).toHaveLength(191);
+    expect(candidate.integrity?.weatherCounts).toEqual({B:84,LL:57,HH:29,O:21});
+    expect(candidate.schedulePlans).toHaveLength(2);
+    expect(candidate.schedulePlans[0].months[0].programadoPct).toBeCloseTo(17.56,6);
+    expect(candidate.schedulePlans.map(plan=>Number(plan.months.reduce((s,m)=>s+m.programadoPct,0).toFixed(2)))).toEqual([100,99.99]);
+    expect(candidate.integrity?.issues.filter(i=>i.severity==="ERROR")).toEqual([]);
+    expect(candidate.integrity?.issues.some(i=>i.domain==="WEATHER"&&i.source.endsWith("!AK15"))).toBe(true);
+  }
+  fs.writeFileSync(path.join(path.dirname(sessionPath!),"verified-candidate.json"),JSON.stringify(candidates[1],null,2));
+  const withoutKeys=structuredClone(session.interpretation);
+  for(const block of withoutKeys.importPlan.blocks) block.keyValues=block.keyValues?.filter((k:{key:string})=>!["certificateNumber","periodStart","periodEnd"].includes(k.key));
+  const recovered=buildCanonicalImportCandidate(parsed,withoutKeys);
+  expect(recovered.certificate.number).toBe(6);
+  expect(recovered.certificate.periodStart).toBe("2026-07-21");
+  expect(recovered.certificate.periodEnd).toBe("2026-08-20");
+  expect(createHash("sha256").update(fs.readFileSync(source)).digest("hex")).toBe(hash);
+},60000);

@@ -11,6 +11,8 @@ import { refreshAfterSave } from "@/lib/refresh-after-save";
 import { ProjectStatus } from "@/lib/types";
 import { createHash } from "node:crypto";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
+import { verifyImportedProject } from "@/lib/workbook-interpretation/verify-persistence";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
@@ -103,14 +105,6 @@ function importedNumber(field: { status: string; value: string | number | null }
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-function importedDate(value: string | null): string | null {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
-  if (!match) return null;
-  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-}
 
 /**
  * Confirma un preview semántico contra el XLSX original y materializa la
@@ -165,6 +159,11 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   }
 
   const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
+  const integrity = result.candidate.integrity!;
+  const issues = selectedImportIssues(integrity, { schedule: formData.get("apply_schedule") === "1", weather: formData.get("apply_weather") === "1" });
+  const errors = issues.filter(issue => issue.severity === "ERROR");
+  if (errors.length) return { error: errors.map(issue => `${issue.source}: ${issue.message}`).join(" ") };
+  if (issues.some(issue => issue.severity === "REVIEW") && formData.get("accept_import_observations") !== "1") return { error: "Revisá y aceptá las observaciones de integridad antes de crear la obra." };
   if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
 
@@ -209,8 +208,10 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       code,
       client: importedText(projectFields.client),
       location: importedText(projectFields.location),
-      start_date: importedDate(importedText(projectFields.startDate)),
-      end_date: importedDate(importedText(projectFields.endDate)),
+      start_date: integrity.project.startDate?.value ?? null,
+      end_date: integrity.project.endDate?.value ?? null,
+      orden_inicio_date: integrity.project.orderDate?.value ?? null,
+      plazo_dias: integrity.project.durationDays?.value ?? null,
       budget_total: contractAmount,
       comitente: importedText(projectFields.client),
       contract_number: importedText(projectFields.contractNumber),
@@ -262,6 +263,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     section: domain.target,
     reason: `Detectado (${domain.labels.join(" · ")}); su persistencia todavía no está conectada.`,
   }));
+  pending.push(...issues.filter(issue => issue.severity === "REVIEW").map(issue => ({ section: issue.domain, reason: `${issue.source}: ${issue.message}` })));
   const certificateApplicable = result.candidate.certificate.status === "SAFE_TO_APPLY" || result.candidate.certificate.status === "APPLY_WITH_WARNINGS";
   // The preview asks the user; a certificate with observations is only
   // written when the user explicitly accepted it.
@@ -378,18 +380,17 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     } else if (!weatherAccepted) {
       pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados; no se importaron (no fue aceptado en el preview).` });
     } else {
-      // A single bulk upsert instead of one setWeatherDay() call per day — the
-      // project was just created in this same call, so there is no existing
-      // Libro de Obra to conflict with.
+      // Authenticated RPC: same operational classifications and guards as
+      // manual entry, one transaction, source cells, and read-back validation.
       const weatherWriter = await createClient();
-      const { error: weatherError } = await weatherWriter
-        .from("project_weather_log")
-        .upsert(
-          result.candidate.weatherDays.map((day) => ({ project_id: project.id, log_date: day.date, code: day.code, recorded_by: profile.id })),
-          { onConflict: "project_id,log_date" }
-        );
+      const { data: savedDays, error: weatherError } = await weatherWriter.rpc("import_workbook_workdays", {
+        p_project_id: project.id,
+        p_source_hash: fingerprint,
+        p_days: result.candidate.weatherDays.map(day => ({ date: day.date, code: day.code, source: `${day.sheet}!${day.column}${day.row}` })),
+      });
       if (weatherError) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `No se pudo cargar el Libro de Obra: ${weatherError.message}` });
-      else weatherDays = result.candidate.weatherDays.length;
+      else if (savedDays !== result.candidate.weatherDays.length) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: "La lectura del Libro de Obra no coincide con la planilla; requiere revisión." });
+      else weatherDays = Number(savedDays);
     }
   }
 
@@ -420,6 +421,11 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       else executionEntries = executableEntries.length;
     }
   }
+
+  const verification = await verifyImportedProject(await createClient(), String(project.id), result.candidate, {
+    schedule: scheduleVersions > 0, weather: weatherDays > 0, certificateId,
+  });
+  pending.push(...verification);
 
   // Excel-first: la planilla de la sesión pasa a ser la del certificado
   // creado (mismo archivo original en Storage, misma copia de trabajo — no
@@ -501,6 +507,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       certificate_status: result.candidate.certificate.status,
       detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
+      import_integrity: integrity,
+      persistence_verified: verification.length === 0,
     },
   });
   revalidatePath("/projects");

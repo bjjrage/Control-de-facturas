@@ -89,6 +89,7 @@ export type WorkbookCell = {
   formatted: string | null;
   formula: string | null;
   type: string | null;
+  numberFormat?: string | null;
 };
 
 export type WorkbookBlock = {

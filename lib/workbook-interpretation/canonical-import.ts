@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { inspectImportIntegrity, type ImportIntegrity } from "./import-integrity";
 import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
@@ -112,6 +113,7 @@ export type BudgetContractCheck = {
 };
 
 export type CanonicalImportCandidate = {
+  integrity?: ImportIntegrity;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
@@ -193,11 +195,11 @@ function excelSerialToIso(serial: number): string | null {
 
 function datesInText(text: string): string[] {
   const found: string[] = [];
-  for (const match of text.matchAll(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/g)) {
-    const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-    found.push(`${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`);
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b|\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/g)) {
+    const year = match[1] ?? (match[6].length === 2 ? `20${match[6]}` : match[6]);
+    const value = match[1] ? `${year}-${match[2]}-${match[3]}` : `${year}-${match[5].padStart(2, "0")}-${match[4].padStart(2, "0")}`;
+    if (Number.isFinite(Date.parse(value)) && new Date(value+"T00:00:00Z").toISOString().slice(0,10) === value) found.push(value);
   }
-  for (const match of text.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)) found.push(match[0]);
   return found;
 }
 
@@ -206,6 +208,27 @@ function numbersInText(text: string): number[] {
 }
 
 const DATE_KEYS: ImportKeyValueKey[] = ["periodStart", "periodEnd"];
+
+/** A missing model key must not lose an explicit, unambiguous certificate
+ * heading. Conflicting identities remain unresolved; foreign blocks never
+ * participate. No project dates are inferred from these certificate periods. */
+function labeledCertificateValue(workbook: WorkbookRepresentation, blocks: ImportBlock[], key: "certificateNumber" | "periodStart" | "periodEnd"): VerifiedValue | null {
+  const found: VerifiedValue[] = [];
+  for (const block of blocks) {
+    const sheet = workbook.sheets.find(s => s.sheetName === block.sheet);
+    for (const cell of sheet?.cells.filter(c => c.row < block.dataRowStart && typeof c.raw === "string") ?? []) {
+      const text = String(cell.raw).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (key === "certificateNumber") {
+        const match = text.match(/^certificado(?: de ejecucion)?(?: de obras?)?\s+n(?:[°º.]|ro\.?|umero|o\.?)?\s*:?\s*(\d+)\s*$/i);
+        if (match) found.push({value:Number(match[1]),cell:`${block.sheet}!${cell.address}`,cellText:text,verified:true});
+      } else if (/^periodo\b/i.test(text)) {
+        const dates = datesInText(text);
+        if (dates.length === 2 && dates.every(d => Number.isFinite(Date.parse(d)) && new Date(d+"T00:00:00Z").toISOString().slice(0,10)===d) && dates[0] <= dates[1]) found.push({value:dates[key==="periodStart"?0:1],cell:`${block.sheet}!${cell.address}`,cellText:text,verified:true});
+      }
+    }
+  }
+  return new Set(found.map(f=>f.value)).size === 1 ? found[0] : null;
+}
 
 function verifiedKeyValue(workbook: WorkbookRepresentation, blocks: ImportBlock[], key: ImportKeyValueKey): VerifiedValue | null {
   for (const block of blocks) {
@@ -465,11 +488,13 @@ function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock):
 
 function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
   const cell = cells.get(`${columnName(column)}${row}`);
+  if (cell && ["e", "b", "d"].includes(cell.type ?? "")) return null;
   const value = rawNumber(cell?.raw ?? null);
   if (value === null) return null;
   // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
   // own column is 0-100, so only fraction-formatted cells get rescaled.
-  const isFraction = typeof cell?.formatted === "string" && cell.formatted.includes("%");
+  const format = cell?.numberFormat?.replace(/"[^"]*"|\\./g, "") ?? "";
+  const isFraction = format.includes("%") || (!cell?.numberFormat && Boolean(cell?.formatted?.includes("%")));
   return isFraction ? value * 100 : value;
 }
 
@@ -701,9 +726,9 @@ export function buildCanonicalImportCandidate(
   }
   for (const item of checks.filter((entry) => entry.status === "WARNING" && (entry.id.startsWith("certificate_") || entry.id.startsWith("scale_")))) certificateIssues.push(`${item.label}: ${item.detail}`);
 
-  const number = verifiedKeyValue(workbook, certificateBlocks, "certificateNumber");
-  const periodStart = verifiedKeyValue(workbook, certificateBlocks, "periodStart");
-  const periodEnd = verifiedKeyValue(workbook, certificateBlocks, "periodEnd");
+  const number = verifiedKeyValue(workbook, certificateBlocks, "certificateNumber") ?? labeledCertificateValue(workbook, certificateBlocks, "certificateNumber");
+  const periodStart = verifiedKeyValue(workbook, certificateBlocks, "periodStart") ?? labeledCertificateValue(workbook, certificateBlocks, "periodStart");
+  const periodEnd = verifiedKeyValue(workbook, certificateBlocks, "periodEnd") ?? labeledCertificateValue(workbook, certificateBlocks, "periodEnd");
   const identityProblems = [
     !number?.verified && "número",
     !periodStart?.verified && "inicio de período",
@@ -845,7 +870,7 @@ export function buildCanonicalImportCandidate(
     domains.set(block.target, domain);
   }
 
-  return {
+  const candidate: CanonicalImportCandidate = {
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
@@ -872,6 +897,8 @@ export function buildCanonicalImportCandidate(
       ...executionIssues,
     ])],
   };
+  candidate.integrity = inspectImportIntegrity(workbook, result, candidate);
+  return candidate;
 }
 
 export function safeProjectField(result: WorkbookInterpretationResult, key: keyof WorkbookInterpretationResult["project"]): string | null {
