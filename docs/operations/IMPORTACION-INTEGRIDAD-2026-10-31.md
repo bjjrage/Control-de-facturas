@@ -47,3 +47,9 @@ Las evidencias privadas y capturas se guardan localmente en `audit-artifacts/imp
 IASA pasó al commit `e486860d8dcf9c9cd521d6a7d8ed68b7f6eb7284`, despliegue `dpl_94KQbV2Y28xAgAuHyudLmXwKVXRC`, después de verificar QA en `dpl_47AMGGXDhbc8XC9riKWQvdte4Lq4`. Cada casilla completa usa el color de su tipo: B verde, LL violeta, HH amarillo y O coral. La leyenda y los botones usan la misma paleta. La selección usa un borde y el borrador conserva el fondo del tipo elegido. Se retiró de las casillas la clase genérica de tarjeta que hacía que el tema claro les impusiera un fondo blanco.
 
 Verificación autenticada en QA e IASA, temas Original y Claro: cuatro fondos y leyenda coincidentes, selección sin cambio de color, cambio a LL en borrador y restauración al descartar; cero errores JavaScript. Contraste del texto principal superior a 8:1 en los cuatro colores. ESLint y TypeScript aprobados. Bay conserva su despliegue anterior. Evidencias privadas: `calendar-colors-{qa,iasa}.json` y capturas de ambos temas en la carpeta local de auditoría.
+
+### Alcance visual corregido
+
+La publicación posterior `9d3bf517e6dfc55b7a1a43dc571df816b6412fd1` restaura los botones de fondo neutro, la leyenda de texto y el borde interior de selección de la versión anterior al cambio de colores. El relleno se limita a las casillas; LL conserva un tono violeta. «Final humano» se reemplaza por «Registrado» y «Sin final» por «Sin registro»: estas etiquetas describen el estado guardado y no acreditan una revisión individual del día. No se modifican registros ni el flujo de confirmación.
+
+QA `dpl_5E8DC8sedMQVTwP8EGiuzXwuNGb1` e IASA `dpl_4SBfoueV2DRLirZvCQBw44vT5mc8`: ambos temas verificados con controles originales, cuatro fondos, selección con borde interior de 1 px, borrador y descarte; cero errores JavaScript. ESLint y TypeScript aprobados. Evidencias privadas `calendar-scope-{qa,iasa}.json` y capturas en la carpeta local de auditoría.
