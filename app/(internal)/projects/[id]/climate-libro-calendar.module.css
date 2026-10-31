@@ -3,11 +3,12 @@
   --day-fill: var(--panel-2);
   --day-ink: var(--foreground);
   --day-border: var(--border);
+  --day-hover-glow: 0 0 0 2px rgba(var(--day-accent), .95), 0 0 18px 4px rgba(var(--day-accent), .8);
   background: var(--day-fill);
   border-color: var(--day-border);
   color: var(--day-ink);
   box-shadow: none;
-  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }
 
 .day[data-code="B"] {
@@ -27,8 +28,11 @@
 .dayStatus { opacity: .85; }
 
 .day:not(:disabled):hover {
-  border-color: rgba(var(--day-accent), .8);
-  box-shadow: inset 0 0 0 1px rgba(var(--day-accent), .3), 0 0 9px rgba(var(--day-accent), .28);
+  position: relative;
+  z-index: 1;
+  filter: brightness(1.08);
+  border-color: #eef5ff;
+  box-shadow: inset 0 0 0 1px #eef5ff, var(--day-hover-glow);
 }
 
 .day[data-draft="true"] {
@@ -44,7 +48,7 @@
 }
 
 .day[aria-pressed="true"]:not(:disabled):hover {
-  box-shadow: inset 0 0 0 1px #eef5ff, 0 0 9px rgba(var(--day-accent), .28);
+  box-shadow: inset 0 0 0 1px #eef5ff, var(--day-hover-glow);
 }
 
 .day:focus-visible {
@@ -83,7 +87,7 @@
   box-shadow: inset 0 0 0 1px var(--foreground);
 }
 :global(html[data-theme="claro"]) .day[aria-pressed="true"]:not(:disabled):hover {
-  box-shadow: inset 0 0 0 1px var(--foreground), 0 0 9px rgba(var(--day-accent), .28);
+  box-shadow: inset 0 0 0 1px var(--foreground), var(--day-hover-glow);
 }
 :global(html[data-theme="claro"]) .day:focus-visible {
   outline: 2px solid var(--primary);
