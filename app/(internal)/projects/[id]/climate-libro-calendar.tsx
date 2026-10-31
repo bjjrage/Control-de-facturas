@@ -10,7 +10,6 @@ import styles from "./climate-libro-calendar.module.css";
 import type { ClimateEvent, ClimateEvidence, Project, ProjectWorkdayStatus, WeatherCode } from "@/lib/types";
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const COLORS: Record<WeatherCode, string> = { B: "text-[var(--ok)]", LL: "text-[#b5d1ff]", HH: "text-[var(--warn)]", O: "text-[var(--foreground)]" };
 
 export function ClimateLibroCalendar({ project, events, workdays, evidence, pending, onSelectDate, onSave, onConfirm, onPhoto }: {
   project: Project; events: ClimateEvent[]; workdays: ProjectWorkdayStatus[]; evidence: ClimateEvidence[]; pending: boolean;
@@ -72,7 +71,7 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
       <span className="text-[var(--muted)]">Libro guardado:</span>
       <span>Lluvia <strong>{totals.rain}</strong></span><span>Húmedos <strong>{totals.humid}</strong></span><span>Otros <strong>{totals.other}</strong></span><span>Total no trabajados <strong>{totals.rain + totals.humid + totals.other}</strong></span>
     </div>
-    <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={COLORS[code]}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
+    <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={styles.legendCode} data-code={code}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
     <div className={styles.toolbar} aria-label="Marcar estado del Libro">
       <div className={styles.selectionSummary}><strong className="text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong><InfoTooltip label="Editar el Libro" content="Seleccioná días con clic; usá Ctrl o selección múltiple para sumar fechas. Elegí B, LL, HH u O y guardá. Los cambios quedan en borrador hasta guardar." /></div>
       {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <button className={styles.typeButton} data-code={code} key={code} type="button" disabled={busy || !selected.length} onClick={() => markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={`${LIBRO_LABELS[code]} · preparar sin guardar`}>{code}</button>)}
@@ -120,11 +119,11 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
             const external = facts.observations.find(event => event.external_precipitation_mm != null);
             const resident = facts.residentPhotos[0];
             const shownCode = draft[date] ?? facts.final;
-            return <button key={date} type="button" data-testid={`libro-day-${date}`} data-code={shownCode ?? undefined} data-draft={!!draft[date]} aria-label={`Día ${date}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); onSelectDate(date); }} className={`${styles.day} min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35`}>
-              <span className="flex justify-between gap-1"><span>{index + 1}{selected.includes(date) ? <span aria-hidden="true" className="ml-1 font-bold text-white">✓</span> : null}</span><strong className={shownCode ? COLORS[shownCode] : "text-[var(--muted)]"}>{shownCode ?? "—"}</strong></span>
-              <span className={`block truncate text-[9px] ${draft[date] ? styles.draftLabel : "text-[var(--muted)]"}`}>{draft[date] ? "Sin guardar" : facts.final ? "Final humano" : "Sin final"}</span>
-              {facts.proposal ? <span className="block truncate text-[9px] text-[var(--warn)]">{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}
-              {external ? <span className="block truncate text-[9px] text-[#b5d1ff]">{external.source === "DMH_DINAC" ? "DMH" : "Meteo"} {external.external_precipitation_mm} mm</span> : null}
+            return <button key={date} type="button" data-testid={`libro-day-${date}`} data-code={shownCode ?? undefined} data-draft={!!draft[date]} aria-label={`Día ${date}: ${shownCode ? `${shownCode} · ${LIBRO_LABELS[shownCode]}` : "Sin registro"}${draft[date] ? " · cambio sin guardar" : ""}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); onSelectDate(date); }} className={`${styles.day} min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35`}>
+              <span className="flex justify-between gap-1"><span>{index + 1}{selected.includes(date) ? <span aria-hidden="true" className="ml-1 font-bold">✓</span> : null}</span><strong>{shownCode ?? "—"}</strong></span>
+              <span className={`block truncate text-[9px] ${draft[date] ? styles.draftLabel : styles.dayStatus}`}>{draft[date] ? "Sin guardar" : facts.final ? "Final humano" : "Sin final"}</span>
+              {facts.proposal ? <span className={`block truncate text-[9px] ${styles.dayEvidence}`}>{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}
+              {external ? <span className={`block truncate text-[9px] ${styles.dayEvidence}`}>{external.source === "DMH_DINAC" ? "DMH" : "Meteo"} {external.external_precipitation_mm} mm</span> : null}
               {resident ? <span className="block truncate text-[9px]">📷 {String(resident.metadata?.precipitation_mm ?? facts.observations.find(event => event.id === resident.climate_event_id)?.local_precipitation_mm ?? "—")} mm · Residente</span> : null}
             </button>;
           })}
