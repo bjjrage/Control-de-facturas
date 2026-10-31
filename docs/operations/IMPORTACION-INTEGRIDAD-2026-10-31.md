@@ -53,3 +53,9 @@ Verificación autenticada en QA e IASA, temas Original y Claro: cuatro fondos y 
 La publicación posterior `9d3bf517e6dfc55b7a1a43dc571df816b6412fd1` restaura los botones de fondo neutro, la leyenda de texto y el borde interior de selección de la versión anterior al cambio de colores. El relleno se limita a las casillas; LL conserva un tono violeta. «Final humano» se reemplaza por «Registrado» y «Sin final» por «Sin registro»: estas etiquetas describen el estado guardado y no acreditan una revisión individual del día. No se modifican registros ni el flujo de confirmación.
 
 QA `dpl_5E8DC8sedMQVTwP8EGiuzXwuNGb1` e IASA `dpl_4SBfoueV2DRLirZvCQBw44vT5mc8`: ambos temas verificados con controles originales, cuatro fondos, selección con borde interior de 1 px, borrador y descarte; cero errores JavaScript. ESLint y TypeScript aprobados. Evidencias privadas `calendar-scope-{qa,iasa}.json` y capturas en la carpeta local de auditoría.
+
+### Hover luminoso de las casillas
+
+Código `4eeaf38b09bc14c2067a80b1b5a0b696d423afa2`, QA `dpl_7GmqFWuQWeHmjKQoGVNkddV31K3a` e IASA `dpl_9Ci3dS3sMAHCRgXErwa26Z5btxzw`: halo del color de cada tipo, contorno exterior de 2 px, brillo de 18 px y aumento de luminosidad a 1,08. El cambio se limita al hover de las casillas y también funciona sobre los días seleccionados.
+
+La regla global de hover impone `box-shadow: var(--ui-hover-glow) !important`; las casillas redefinen ese token únicamente durante su propio hover, para evitar que el halo azul genérico oculte su brillo. Verificación autenticada en ambos despliegues: B/LL/HH/O, Original/Claro, con y sin selección; fondos y dimensiones conservados, controles anteriores y cero errores JavaScript. Capturas y resultados privados en `calendar-hover-{qa,iasa}.json` y archivos PNG de la carpeta de auditoría.
