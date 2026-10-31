@@ -41,3 +41,9 @@ La migración agrega solamente `import_workbook_workdays`; no modifica filas exi
 La reparación de la obra existente se ejecutó únicamente sobre el proyecto diagnosticado, con comparación de valores previos para evitar pisar ediciones concurrentes: inicio/orden 09/02/2026, plazo 175 días, fin sin inferir, 13 filas mensuales corregidas y 191 jornadas incorporadas. La lectura posterior verificó que presupuesto, certificado, avance, versiones de curvas, histórico y copia original permanecieron intactos. Quedó un evento de auditoría `project.workbook_integrity_repaired` con hashes antes/después y la discrepancia del día adicional.
 
 Las evidencias privadas y capturas se guardan localmente en `audit-artifacts/import-integrity/`, excluido de Git. La obra en QA queda disponible para revisión. El día adicional sin fecha y la ausencia de fechas por partida para Gantt siguen siendo limitaciones explícitas de la fuente, no datos completados automáticamente.
+
+## Colores del calendario — 31/10/2026
+
+IASA pasó al commit `e486860d8dcf9c9cd521d6a7d8ed68b7f6eb7284`, despliegue `dpl_94KQbV2Y28xAgAuHyudLmXwKVXRC`, después de verificar QA en `dpl_47AMGGXDhbc8XC9riKWQvdte4Lq4`. Cada casilla completa usa el color de su tipo: B verde, LL violeta, HH amarillo y O coral. La leyenda y los botones usan la misma paleta. La selección usa un borde y el borrador conserva el fondo del tipo elegido. Se retiró de las casillas la clase genérica de tarjeta que hacía que el tema claro les impusiera un fondo blanco.
+
+Verificación autenticada en QA e IASA, temas Original y Claro: cuatro fondos y leyenda coincidentes, selección sin cambio de color, cambio a LL en borrador y restauración al descartar; cero errores JavaScript. Contraste del texto principal superior a 8:1 en los cuatro colores. ESLint y TypeScript aprobados. Bay conserva su despliegue anterior. Evidencias privadas: `calendar-colors-{qa,iasa}.json` y capturas de ambos temas en la carpeta local de auditoría.
