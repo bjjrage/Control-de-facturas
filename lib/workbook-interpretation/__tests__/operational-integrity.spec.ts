@@ -40,6 +40,11 @@ describe("operational input contract across workbook layouts", () => {
     const item = { code: "1", description: "Partida", unit: "un", quantity: 1, unitPrice: 10 };
     expect(errors(budgetFixture({ items: [item, item] })).some(i => i.message.includes("más de una vez"))).toBe(true);
   });
+  it("does not reuse a code column as a quantity even when the number looks valid", () => {
+    const f = budgetFixture();
+    f.result.importPlan.blocks[0].columnMappings.find(m => m.role === "quantity")!.column = "A";
+    expect(errors(f).some(i => i.message.includes("se usa para"))).toBe(true);
+  });
   it.each(["error", "uncached", "date", "percent"])("rejects a %s cell mapped as a unit price", mode => {
     const f = budgetFixture();
     const cell = f.workbook.sheets[0].cells.find(c => c.address === "E2")!;

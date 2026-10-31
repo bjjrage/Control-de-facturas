@@ -30,6 +30,7 @@ export function inspectOperationalIntegrity(workbook: WorkbookRepresentation, re
     if (["COVERAGE", "SCHEDULE", "WEATHER"].includes(domain)) continue;
     const range = XLSX.utils.decode_range(block.sourceRange);
     const mappedRoles = new Set<string>();
+    const mappedColumns = new Map<number, string>();
     for (const mapping of block.columnMappings.filter(m => m.role !== "ignore")) {
       if (mappedRoles.has(mapping.role)) add(domain, "ERROR", source, `Hay varias columnas para «${mapping.role}». Debe elegirse una; no se usa automáticamente la primera.`);
       mappedRoles.add(mapping.role);
@@ -39,6 +40,8 @@ export function inspectOperationalIntegrity(workbook: WorkbookRepresentation, re
         continue;
       }
       const col = XLSX.utils.decode_col(column.replace(/\d/g, ""));
+      if (mappedColumns.has(col)) add(domain, "ERROR", source, `La columna «${mapping.column}» se usa para «${mappedColumns.get(col)}» y «${mapping.role}». Debe aclararse el significado de la celda antes de importar.`);
+      mappedColumns.set(col, mapping.role);
       if (col < range.s.c || col > range.e.c) add(domain, "ERROR", source, `La columna «${mapping.column}» queda fuera del rango de origen.`);
     }
     // Numeric errors and absent formula results must not turn into zero,
