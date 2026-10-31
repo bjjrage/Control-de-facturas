@@ -28,11 +28,13 @@
 .dayStatus { opacity: .85; }
 
 .day:not(:disabled):hover {
+  /* The global enabled-hover rule reads this token with !important. */
+  --ui-hover-glow: inset 0 0 0 1px #eef5ff, var(--day-hover-glow);
   position: relative;
   z-index: 1;
   filter: brightness(1.08);
   border-color: #eef5ff;
-  box-shadow: inset 0 0 0 1px #eef5ff, var(--day-hover-glow);
+  box-shadow: var(--ui-hover-glow);
 }
 
 .day[data-draft="true"] {
@@ -48,7 +50,7 @@
 }
 
 .day[aria-pressed="true"]:not(:disabled):hover {
-  box-shadow: inset 0 0 0 1px #eef5ff, var(--day-hover-glow);
+  box-shadow: var(--ui-hover-glow);
 }
 
 .day:focus-visible {
@@ -87,7 +89,8 @@
   box-shadow: inset 0 0 0 1px var(--foreground);
 }
 :global(html[data-theme="claro"]) .day[aria-pressed="true"]:not(:disabled):hover {
-  box-shadow: inset 0 0 0 1px var(--foreground), var(--day-hover-glow);
+  --ui-hover-glow: inset 0 0 0 1px var(--foreground), var(--day-hover-glow);
+  box-shadow: var(--ui-hover-glow);
 }
 :global(html[data-theme="claro"]) .day:focus-visible {
   outline: 2px solid var(--primary);
