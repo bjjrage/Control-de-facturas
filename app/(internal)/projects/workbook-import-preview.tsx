@@ -43,6 +43,7 @@ function CandidatePreview({ candidate }: { candidate: CanonicalImportCandidate }
     <>
       {candidate.linkedRecipes?.recipes.length ? <section className="rounded-xl border border-[var(--border)] p-3 text-[12px]">
         <strong>APU y materiales: {candidate.linkedRecipes.recipes.length} recetas vinculadas a partidas</strong>
+        {candidate.recipeMappingCorrections?.map(message=><p key={message} className="text-amber-200">{message}</p>)}
         <p>Se cargan materiales, mano de obra, equipos y transporte desde los consumos por unidad. Los resúmenes no se vuelven a sumar como recetas.</p>
         <p className="text-[var(--muted)]">Los precios del archivo se conservan como referencia; compras y precios adoptados mantienen su prioridad. Las cantidades deben validarse con el cómputo real.</p>
         {candidate.linkedRecipes.bomWarnings?.map(message => <p key={message} className="text-amber-200">{message}</p>)}
@@ -143,7 +144,7 @@ function ResultPreview({ result, candidate }: { result: WorkbookInterpretationRe
       <section>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Plan de importación y cobertura</h3>
         <div className="mt-2 space-y-2">
-          {result.importPlan.blocks.length ? result.importPlan.blocks.map((block) => {
+          {(candidate?.resolvedPlan ?? result.importPlan).blocks.length ? (candidate?.resolvedPlan ?? result.importPlan).blocks.map((block) => {
             const coverage = result.coverage.find((item) => item.blockId === block.id);
             const requiresReview = block.needsReview || Boolean(coverage?.pendingRows.length || coverage?.unmappedRows.length);
             return (
@@ -408,7 +409,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
   const [acceptObservations, setAcceptObservations] = useState(false);
-  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number }; pending?: { section: string; reason: string }[] } | null>(null);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number; recipes?: number; materials?: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   // Recién analizado: aplica la misma lógica que antes tenía analyze() —
@@ -552,6 +553,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         {created.applied ? (
           <p className="mt-2 text-[12px] text-[var(--muted)]">
             Presupuesto: {created.applied.budgetItems} partidas
+            {created.applied.recipes ? ` · APU: ${created.applied.recipes} recetas` : ""}
+            {created.applied.materials ? ` · Materiales: ${created.applied.materials} vínculos` : ""}
             {created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}
             {created.applied.staffItems ? ` · Personal: ${created.applied.staffItems}` : ""}
             {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}

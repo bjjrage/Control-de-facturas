@@ -3,6 +3,7 @@ import { inspectImportIntegrity, type ImportIntegrity } from "./import-integrity
 import { inspectOperationalIntegrity } from "./operational-integrity";
 import { extractBudgetItems, isBudgetShapedBlock, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
+import { corroborateRecipeItemCodes } from "./recipe-identity";
 import type {
   DetectedField,
   ImportBlock,
@@ -116,6 +117,8 @@ export type BudgetContractCheck = {
 
 export type CanonicalImportCandidate = {
   linkedRecipes?: LinkedRecipes;
+  recipeMappingCorrections?: string[];
+  resolvedPlan?: ImportPlan;
   integrity?: ImportIntegrity;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
@@ -608,7 +611,8 @@ export function buildCanonicalImportCandidate(
   result: WorkbookInterpretationResult,
   checked?: ImportPlanCheck
 ): CanonicalImportCandidate {
-  const planCheck = checked ?? validateImportPlan(result.importPlan, workbook);
+  const corroborated = corroborateRecipeItemCodes(workbook, checked?.plan ?? result.importPlan);
+  const planCheck = corroborated.corrections.length ? validateImportPlan(corroborated.plan,workbook) : checked ?? validateImportPlan(result.importPlan, workbook);
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
@@ -883,6 +887,8 @@ export function buildCanonicalImportCandidate(
   }
 
   const candidate: CanonicalImportCandidate = {
+    recipeMappingCorrections: corroborated.corrections,
+    resolvedPlan: plan,
     linkedRecipes,
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
@@ -914,6 +920,7 @@ export function buildCanonicalImportCandidate(
   candidate.integrity.issues.push(...inspectOperationalIntegrity(workbook, result, candidate, { ...planCheck, coverage: extracted.coverage }));
   if (linkedRecipes.issues.length) candidate.integrity.issues.push(...linkedRecipes.issues.map(message => ({ domain: "BUDGET" as const, severity: "ERROR" as const, source: "APU", message })));
   candidate.integrity.issues.push(...linkedRecipes.bomWarnings.map(message => ({ domain: "COVERAGE" as const, severity: "REVIEW" as const, source: "BOM", message })));
+  candidate.integrity.issues.push(...corroborated.corrections.map(message=>({domain:"BUDGET" as const,severity:"REVIEW" as const,source:"APU",message})));
   return candidate;
 }
 

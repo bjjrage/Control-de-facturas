@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { parseWorkbook } from "../parser";
 import { extractBudgetItems } from "../import-plan";
 import { extractLinkedRecipes } from "../linked-recipes";
+import { corroborateRecipeItemCodes } from "../recipe-identity";
 import type { ImportPlan } from "../types";
 
 function fixture() {
@@ -28,6 +29,16 @@ function fixture() {
 }
 
 describe("linked workbook recipes",()=>{
+  it("corroborates an item number through its price formula instead of a repeated catalog code",()=>{
+    const {workbook,plan}=fixture();const sheet=workbook.sheets[0];sheet.cells.find(c=>c.address==="A1")!.raw="Ítem";
+    sheet.cells.push({...sheet.cells.find(c=>c.address==="A2")!,address:"F2",column:6,raw:"CAT-001"});
+    plan.blocks[0].columnMappings.find(m=>m.role==="code")!.column="F";
+    const fixed=corroborateRecipeItemCodes(workbook,plan);
+    expect(fixed.corrections).toHaveLength(1);expect(extractBudgetItems(workbook,fixed.plan).items[0].code).toBe("1");
+    expect(plan.blocks[0].columnMappings.find(m=>m.role==="code")!.column).toBe("F");
+    workbook.sheets[1].cells.find(c=>c.address==="B2")!.raw="Ítem N°: 99";
+    expect(corroborateRecipeItemCodes(workbook,plan).corrections).toEqual([]);
+  });
   it("respects an explicit budget and never imports an OTHER comparison as duplicate partidas",()=>{
     const {workbook,plan}=fixture();
     plan.blocks.push({...plan.blocks[0],id:"comparison",target:"OTHER"});
