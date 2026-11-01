@@ -453,7 +453,7 @@ export async function loadWeeklyPlanBaseData(
   });
 
   // 4. BOM (budget_item_materials × productos)
-  const { data: rawMaterials, error: mErr } = await readApuRows(supabase as unknown as SupabaseClient, "budget_item_materials", "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)", projectId, empresaId);
+  const { data: rawMaterials, error: mErr } = await readApuRows(supabase as unknown as SupabaseClient, "budget_item_materials", "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(id, nombre, sku, unidad, costo_promedio)", projectId, empresaId);
 
   if (mErr) {
     return {

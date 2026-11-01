@@ -267,17 +267,20 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
       .map((n) => {
         const d = priceDetails.get(n.productoId);
         const info = productInfo.get(n.productoId);
+        const sourceLines = materials.filter(m => m.producto_id === n.productoId && (qtyById.get(m.budget_item_id) ?? 0) > 0);
+        const sourceAmount = sourceLines.some(m => m.precio_unitario_origen == null) ? null : sourceLines.reduce((sum,m) => sum + (qtyById.get(m.budget_item_id) ?? 0)*Number(m.cantidad_por_unidad_ejecutada)*(1+Number(m.desperdicio_pct)/100)*Number(m.precio_unitario_origen),0);
+        const price: ResolvedPrice | null = d?.price ?? (sourceAmount !== null && n.cantidad > 0 ? {precio:sourceAmount/n.cantidad,fuente:"PLANILLA"} : null);
         return {
           productoId: n.productoId,
           nombre: info?.nombre ?? "",
           unidad: info?.unidad ?? "",
           rubro: info?.rubro ?? null,
           cantidad: n.cantidad,
-          precio: d?.price ?? null,
+          precio: price,
           adoptedPrice: d?.adoptedPrice ?? null,
           lastPurchasePrice: d?.lastPurchasePrice ?? null,
           currentQuote: d?.currentQuote ?? null,
-          subtotal: d?.price ? n.cantidad * d.price.precio : null,
+          subtotal: price ? n.cantidad * price.precio : null,
           quotes: d?.quotes ?? [],
           quotesOtraMoneda: d?.quotesOtraMoneda ?? 0,
           estimate: d?.estimate ?? null,

@@ -3,11 +3,11 @@ import { getApuOverviewTool } from "@/lib/tools/erp/get-apu-overview";
 
 function queryBuilder(result: { data: unknown; error: null | { message: string } }) {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "or", "in", "order", "limit"]) {
+  for (const method of ["select", "eq", "or", "in", "order", "limit", "range", "not", "lte"]) {
     builder[method] = vi.fn(() => builder);
   }
   builder.maybeSingle = vi.fn(async () => result);
-  builder.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
+  builder.then = (resolve: (value: unknown) => unknown) => Promise.resolve({...result,count:Array.isArray(result.data)?result.data.length:0}).then(resolve);
   return builder;
 }
 
