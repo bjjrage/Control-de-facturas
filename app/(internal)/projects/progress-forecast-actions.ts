@@ -1,4 +1,5 @@
 "use server";
+import { readApuRows } from "@/lib/costing/apu-source";
 
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
@@ -137,13 +138,7 @@ export async function runProgressForecastAction(
     }
 
     // 5. Fetch BOM materials (budget_item_materials joined with productos)
-    const { data: rawMaterials, error: rawMaterialsError } = await supabase
-      .from("budget_item_materials")
-      .select(
-        "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)"
-      )
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId);
+    const { data: rawMaterials, error: rawMaterialsError } = await readApuRows(supabase,"budget_item_materials","id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)",projectId,empresaId);
     if (rawMaterialsError) throw new Error(rawMaterialsError.message);
 
     const priceDetails = await resolveProjectMaterialPrices({ supabase, admin: createAdminClient(), empresaId, projectId,

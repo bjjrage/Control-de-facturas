@@ -1,3 +1,5 @@
+import { readApuRows } from "@/lib/costing/apu-source";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BudgetItem,
   DailyWeatherForecast,
@@ -451,13 +453,7 @@ export async function loadWeeklyPlanBaseData(
   });
 
   // 4. BOM (budget_item_materials × productos)
-  const { data: rawMaterials, error: mErr } = await supabase
-    .from("budget_item_materials")
-    .select(
-      "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)"
-    )
-    .eq("project_id", projectId)
-    .eq("empresa_id", empresaId);
+  const { data: rawMaterials, error: mErr } = await readApuRows(supabase as unknown as SupabaseClient, "budget_item_materials", "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)", projectId, empresaId);
 
   if (mErr) {
     return {
@@ -513,9 +509,9 @@ export async function loadWeeklyPlanBaseData(
   const subcontractsByItem: Record<string, PlanSubcontractLineInput[]> = {};
   try {
     const [laborRes, equipmentRes, subcontractRes] = await Promise.all([
-      supabase.from("budget_item_labor").select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
-      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
-      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+      readApuRows(supabase as unknown as SupabaseClient, "budget_item_labor", "budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora", projectId, empresaId),
+      readApuRows(supabase as unknown as SupabaseClient, "budget_item_equipment", "budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora", projectId, empresaId),
+      readApuRows(supabase as unknown as SupabaseClient, "budget_item_subcontracts", "budget_item_id, descripcion, precio_por_unidad", projectId, empresaId),
     ]);
     for (const result of [laborRes, equipmentRes, subcontractRes]) if (result.error) throw new Error(result.error.message);
     for (const l of (laborRes.data ?? []) as any[]) {

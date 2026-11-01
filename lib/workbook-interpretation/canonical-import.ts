@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 import { inspectImportIntegrity, type ImportIntegrity } from "./import-integrity";
 import { inspectOperationalIntegrity } from "./operational-integrity";
-import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractBudgetItems, isBudgetShapedBlock, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
 import type {
   DetectedField,
   ImportBlock,
@@ -114,6 +115,7 @@ export type BudgetContractCheck = {
 };
 
 export type CanonicalImportCandidate = {
+  linkedRecipes?: LinkedRecipes;
   integrity?: ImportIntegrity;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
@@ -610,7 +612,7 @@ export function buildCanonicalImportCandidate(
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
+  const budgetBlocks = selectBudgetBlocks(plan);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
@@ -863,8 +865,15 @@ export function buildCanonicalImportCandidate(
   // STAFF/SCHEDULE/NON_WORKING_DAYS blocks that actually yielded rows get
   // their own dedicated sections below; the rest (extraction found nothing
   // usable) still show up as a generic detected-but-unresolved domain.
+  const linkedRecipes = extractLinkedRecipes(workbook, plan, canonicalBudgetItems);
+  const recipesVerified = linkedRecipes.recipes.length > 0 && !linkedRecipes.issues.length;
+  // Units come from verified recipe identities; descriptive attribute strings
+  // in a tender price list are preserved in the source, not used as unit codes.
+  if (recipesVerified) for (const item of canonicalBudgetItems) item.unit = linkedRecipes.recipes.find(r => r.budgetCode === item.code)!.unit;
   const domains = new Map<string, CanonicalDomainSummary>();
   for (const block of mainBlocks.filter((item) => !isBudgetShapedBlock(item) && item.target !== "PROJECT_METADATA" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
+    if (recipesVerified && block.target === "APU") continue;
+    if (recipesVerified && block.target === "BOM" && linkedRecipes.reconciledBomSheets.includes(block.sheet)) continue;
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -874,6 +883,7 @@ export function buildCanonicalImportCandidate(
   }
 
   const candidate: CanonicalImportCandidate = {
+    linkedRecipes,
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
@@ -902,6 +912,8 @@ export function buildCanonicalImportCandidate(
   };
   candidate.integrity = inspectImportIntegrity(workbook, result, candidate);
   candidate.integrity.issues.push(...inspectOperationalIntegrity(workbook, result, candidate, { ...planCheck, coverage: extracted.coverage }));
+  if (linkedRecipes.issues.length) candidate.integrity.issues.push(...linkedRecipes.issues.map(message => ({ domain: "BUDGET" as const, severity: "ERROR" as const, source: "APU", message })));
+  candidate.integrity.issues.push(...linkedRecipes.bomWarnings.map(message => ({ domain: "COVERAGE" as const, severity: "REVIEW" as const, source: "BOM", message })));
   return candidate;
 }
 

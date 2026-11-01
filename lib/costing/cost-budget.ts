@@ -12,7 +12,7 @@
 // partida es null (con la lista de faltantes). Nunca se suma como 0.
 // ---------------------------------------------------------------------------
 
-export type CostPriceSource = "COTIZACION" | "ESTIMACION" | "HISTORICO" | "MANUAL" | "FACTURA" | "RECEPCION" | "CPP";
+export type CostPriceSource = "COTIZACION" | "ESTIMACION" | "HISTORICO" | "MANUAL" | "FACTURA" | "RECEPCION" | "CPP" | "PLANILLA";
 
 export interface ResolvedPrice {
   precio: number;
@@ -31,6 +31,7 @@ export interface CostMaterialLine {
   productoId: string;
   cantidadPorUnidad: number;
   desperdicioPct: number;
+  precioOrigen?: number | null;
 }
 
 export interface CostHourLine {
@@ -97,7 +98,8 @@ export function computePartidaCosts(
   for (const m of lines.materials) {
     const c = ensure(m.budgetItemId);
     c.tieneApu = true;
-    const price = prices.get(m.productoId);
+    const resolved = prices.get(m.productoId);
+    const price = resolved?.fuente !== "PLANILLA" && resolved ? resolved : m.precioOrigen != null && Number.isFinite(m.precioOrigen) && m.precioOrigen >= 0 ? { precio: m.precioOrigen } : resolved;
     if (!price) {
       if (!c.faltantes.includes(m.productoId)) c.faltantes.push(m.productoId);
       continue;

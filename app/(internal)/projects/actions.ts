@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
 import { verifyImportedProject } from "@/lib/workbook-interpretation/verify-persistence";
+import { verifyLinkedRecipePersistence } from "@/lib/workbook-interpretation/verify-recipes";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
@@ -89,7 +90,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
 type WorkbookCreateResult = {
   error: string | null;
   projectId?: string;
-  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number };
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number; recipes?: number; materials?: number };
   pending?: { section: string; reason: string }[];
 };
 
@@ -170,6 +171,21 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   if (["apply_staff", "apply_schedule", "apply_weather"].some(key => formData.get(key) === "1") && !planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin)) return { error: "La selección incluye datos que requieren el plan Caterpillar. Revisá las secciones antes de crear la obra." };
   if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
+
+  const linked = result.candidate.linkedRecipes;
+  if (session && linked?.recipes.length && !linked.issues.length) {
+    // This transaction already exists in QA/IASA. Keep the established ERP
+    // flow; only composition workbooks without certificate dependents use it.
+    if (wantsCertificate || result.candidate.staff.length || result.candidate.weatherDays.length || result.candidate.executionEntries.length) return { error: "Esta planilla combina recetas con certificados o avance. Requiere separar la confirmación de esos datos; no se aplicó una importación parcial." };
+    const writer = await createClient();
+    const { data, error } = await writer.rpc("create_linked_workbook_project", { p_session: session.id, p_expected_revision: session.workingRevision, p_project: { name, code, regime, quantityStatus: result.candidate.budgetScale?.basis === "CONTRACT_TOTAL" ? "CONFIRMED" : "REFERENCE", applySchedule: formData.get("apply_schedule") === "1" }, p_candidate: result.candidate });
+    if (error || !data?.projectId) return { error: error?.message ?? "No se pudo vincular la planilla APU." };
+    const verification = await verifyLinkedRecipePersistence(writer, data.projectId, profile.empresa_id, linked.recipes);
+    const pending = [...(data.pending ?? []),...result.candidate.domains.map(d=>({section:d.target,reason:`Conservado como respaldo: ${d.labels.join(" · ")}. No se aplica como otra receta.`})),...verification.errors.map(reason=>({section:"VERIFICACION APU",reason}))];
+    await logAudit(writer,{action:"project.workbook_apu_verified",detail:{project_id:data.projectId,session_id:session.id,persistence_verified:verification.errors.length===0,counts:verification.counts,pending}});
+    refreshAfterSave("/projects");
+    return {error:null,projectId:data.projectId,applied:data.applied,pending};
+  }
 
   const admin = createAdminClient();
   const fingerprint = session?.originalFileHash ?? createHash("sha256").update(new Uint8Array(await (file as File).arrayBuffer())).digest("hex");

@@ -1,12 +1,12 @@
 import * as XLSX from "xlsx";
 import type { CanonicalImportCandidate } from "./canonical-import";
 import type { ImportIssue } from "./import-integrity";
-import { isBudgetShapedBlock, rawNumber, type ImportPlanCheck } from "./import-plan";
+import { isBudgetShapedBlock, selectBudgetBlocks, rawNumber, type ImportPlanCheck } from "./import-plan";
 import type { ImportBlock, WorkbookInterpretationResult, WorkbookRepresentation } from "./types";
 
 const numericRoles = new Set(["quantity", "unitPrice", "subtotal", "previousQuantity", "currentQuantity", "cumulativeQuantity", "previousAmount", "currentAmount", "cumulativeAmount", "percentage"]);
-function domainFor(block: ImportBlock): ImportIssue["domain"] {
-  if (isBudgetShapedBlock(block)) return "BUDGET";
+function domainFor(block: ImportBlock, budgetIds: Set<string>): ImportIssue["domain"] {
+  if (budgetIds.has(block.id)) return "BUDGET";
   if (block.target === "NON_WORKING_DAYS") return "WEATHER";
   if (["CERTIFICATE", "STAFF", "EXECUTION", "SCHEDULE"].includes(block.target)) return block.target as ImportIssue["domain"];
   return "COVERAGE";
@@ -19,9 +19,10 @@ export function inspectOperationalIntegrity(workbook: WorkbookRepresentation, re
   const issues: ImportIssue[] = [];
   const add = (domain: ImportIssue["domain"], severity: ImportIssue["severity"], source: string, message: string) => issues.push({ domain, severity, source, message });
   const blocks = checked.plan.blocks.filter(b => b.mainProject !== false);
+  const budgetIds = new Set(selectBudgetBlocks(checked.plan).map(b => b.id));
   const blockIds = new Set<string>();
   for (const block of blocks) {
-    const domain = domainFor(block), source = `${block.sheet}!${block.sourceRange}`;
+    const domain = domainFor(block, budgetIds), source = `${block.sheet}!${block.sourceRange}`;
     if (blockIds.has(block.id)) add(domain, "ERROR", source, "Dos bloques tienen el mismo identificador; sus vínculos son ambiguos.");
     blockIds.add(block.id);
     if (block.needsReview && domain !== "COVERAGE") add(domain, "REVIEW", source, "El mapeo de este bloque requiere revisión antes de aplicar sus datos.");
@@ -94,7 +95,7 @@ export function inspectOperationalIntegrity(workbook: WorkbookRepresentation, re
     const block = blocks.find(b => b.id === coverage.blockId);
     if (!block) continue;
     if (coverage.unmappedRows.length) add("COVERAGE", "REVIEW", `${block.sheet}!${block.sourceRange}`, `Hay filas adyacentes fuera del mapeo de esta tabla: ${coverage.unmappedRows.slice(0, 12).join(", ")}. Revisá si contienen datos operativos pendientes.`);
-    if (coverage.pendingRows.length && isBudgetShapedBlock(block)) add("BUDGET", "ERROR", `${block.sheet}!${block.sourceRange}`, `${coverage.pendingRows.length} fila(s) del presupuesto quedaron sin extraer; revisá el mapeo.`);
+    if (coverage.pendingRows.length && budgetIds.has(block.id)) add("BUDGET", "ERROR", `${block.sheet}!${block.sourceRange}`, `${coverage.pendingRows.length} fila(s) del presupuesto quedaron sin extraer; revisá el mapeo.`);
   }
   const foreignOnlySheets = new Set(checked.plan.blocks.filter(b => b.mainProject === false && !blocks.some(main => main.sheet === b.sheet)).map(b => b.sheet));
   for (const region of [...checked.plan.unresolvedRegions, ...result.unknownSections]) {

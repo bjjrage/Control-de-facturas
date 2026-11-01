@@ -29,6 +29,7 @@ const FUENTE_LABEL: Record<string, string> = {
   FACTURA: "Última compra · factura",
   RECEPCION: "Última compra · recepción",
   CPP: "CPP de inventario",
+  PLANILLA: "Planilla (referencia)",
 };
 
 function gs(n: number | null | undefined): string {
@@ -69,6 +70,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       <CosteoChecklist projectId={projectId} data={data} loading={loading} onChanged={load} />
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
+      {data.insumos.some(i => i.precio?.fuente === "PLANILLA") ? <p className="text-[12px] text-amber-500">Incluye precios de referencia del Excel. Validá el cómputo y los precios antes de comprar; los precios adoptados y compras reales tienen prioridad.</p> : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi label="Costo total" value={gs(totals.costoTotal)} note={totals.completo ? "Presupuesto de costo completo" : "Parcial: ver avisos abajo"} warn={!totals.completo} />

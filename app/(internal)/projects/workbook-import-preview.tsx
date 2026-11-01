@@ -41,6 +41,12 @@ function weatherByMonth(days: CanonicalImportCandidate["weatherDays"]) {
 function CandidatePreview({ candidate }: { candidate: CanonicalImportCandidate }) {
   return (
     <>
+      {candidate.linkedRecipes?.recipes.length ? <section className="rounded-xl border border-[var(--border)] p-3 text-[12px]">
+        <strong>APU y materiales: {candidate.linkedRecipes.recipes.length} recetas vinculadas a partidas</strong>
+        <p>Se cargan materiales, mano de obra, equipos y transporte desde los consumos por unidad. Los resúmenes no se vuelven a sumar como recetas.</p>
+        <p className="text-[var(--muted)]">Los precios del archivo se conservan como referencia; compras y precios adoptados mantienen su prioridad. Las cantidades deben validarse con el cómputo real.</p>
+        {candidate.linkedRecipes.bomWarnings?.map(message => <p key={message} className="text-amber-200">{message}</p>)}
+      </section> : null}
       {candidate.relationships.length ? (
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Relaciones entre hojas</h3>

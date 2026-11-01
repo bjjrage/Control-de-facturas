@@ -397,6 +397,12 @@ export function isBudgetShapedBlock(block: ImportBlock): boolean {
   return roles.has("description") && roles.has("quantity") && roles.has("unitPrice");
 }
 
+/** A classified budget takes precedence over comparative/resource summaries. */
+export function selectBudgetBlocks(plan: ImportPlan): ImportBlock[] {
+  const explicit = plan.blocks.filter(b => b.mainProject !== false && b.target === "BUDGET");
+  return explicit.length ? explicit : plan.blocks.filter(isBudgetShapedBlock);
+}
+
 /**
  * Copies the rows of every budget-shaped block (see isBudgetShapedBlock)
  * exactly as the model mapped them. It does not judge whether a row "looks
@@ -412,8 +418,7 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let processedRows = 0;
   let excludedRows = 0;
   let pendingRows = 0;
-  for (const block of plan.blocks) {
-    if (!isBudgetShapedBlock(block)) continue;
+  for (const block of selectBudgetBlocks(plan)) {
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));

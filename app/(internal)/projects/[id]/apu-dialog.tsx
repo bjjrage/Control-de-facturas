@@ -74,9 +74,10 @@ interface ApuDialogProps {
   projectId: string;
   budgetItemId: string;
   budgetItemLabel: string;
+  onSaved?: () => void;
 }
 
-export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialogProps) {
+export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved }: ApuDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -95,8 +96,6 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
     Promise.all([
       listApuAction({ projectId, budgetItemId }),
       getApuImportCatalogsAction(projectId),
@@ -121,6 +120,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   }, [open, projectId, budgetItemId]);
 
   function refresh() {
+    onSaved?.();
     listApuAction({ projectId, budgetItemId }).then((res) => {
       if (res.data) {
         setMaterials(res.data.materials);
@@ -162,12 +162,12 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   }
 
   // Costo unitario APU: materiales (ley "nunca Gs. 0 fingido") + mano de obra + equipo.
-  const materialsMissingCost = materials.filter((m) => m.costo_promedio === null);
+  const materialsMissingCost = materials.filter((m) => m.costo_unitario === null);
   const costoMaterial =
     materialsMissingCost.length > 0
       ? null
       : materials.reduce(
-          (acc, m) => acc + m.cantidad_por_unidad_ejecutada * (1 + m.desperdicio_pct / 100) * (m.costo_promedio ?? 0),
+          (acc, m) => acc + m.cantidad_por_unidad_ejecutada * (1 + m.desperdicio_pct / 100) * (m.costo_unitario ?? 0),
           0
         );
   const costoManoObra = labor.reduce((acc, l) => acc + l.horas_por_unidad_ejecutada * l.costo_hora, 0);
@@ -176,7 +176,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   const costoTotal = costoMaterial === null ? null : costoMaterial + costoManoObra + costoEquipo + costoSubcontrato;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (next) { setLoading(true); setLoadError(null); } }}>
       <DialogTrigger asChild>
         <Button variant="ghost" title="APU / BOM de la partida" className="h-6 w-6 p-0">
           <Calculator size={13} />
@@ -240,15 +240,15 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                   <p className="text-[11px] text-[var(--muted)]">Sin materiales cargados.</p>
                 ) : (
                   <RowTable
-                    columns={["Producto", "Cant./unidad", "Desperdicio", "Costo prom.", ""]}
+                    columns={["Producto", "Cant./unidad", "Desperdicio", "Precio unitario", ""]}
                     rows={materials.map((m) => [
                       `${m.producto_nombre}${m.producto_sku ? ` (${m.producto_sku})` : ""}`,
                       `${m.cantidad_por_unidad_ejecutada} ${m.unidad_medida}`,
                       `${m.desperdicio_pct}%`,
-                      m.costo_promedio === null ? (
+                      m.costo_unitario === null ? (
                         <span className="text-amber-500">Sin costo</span>
                       ) : (
-                        money(m.costo_promedio)
+                        <span>{money(m.costo_unitario)}<small className="block text-[var(--muted)]">{m.fuente_costo}</small></span>
                       ),
                       <button key="del" onClick={() => handleDeleteMaterial(m.id)} className="text-[var(--muted)] hover:text-[var(--error)]">
                         <Trash2 size={13} />
