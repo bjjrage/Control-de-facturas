@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney, formatDate } from "@/lib/format";
 import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
@@ -154,6 +155,10 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
 
   return (
     <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-3">
+        <Link className={buttonClassName()} href={`/projects/${projectId}/workspace`}>Abrir workspace de presupuesto y APU</Link>
+        <span className="text-xs text-[var(--muted)]">Edición por celdas, pegado de rangos y guardado de cambios.</span>
+      </div>
       {referenceQuantities ? <p className="text-[12px] text-amber-500">Cantidades de referencia del archivo: validá el cómputo real antes de comprar o planificar la ejecución. Los consumos del BOM se calculan con las cantidades actuales.</p> : null}
       {Object.values(apuCosts).some(s => s.precioReferencia) ? <p className="text-[12px] text-[var(--muted)]">ref. = incluye precios del Excel; los precios adoptados y las compras reales tienen prioridad.</p> : null}
       {apuError ? <p role="alert" className="text-[12px] text-[var(--error)]">{apuError}</p> : null}

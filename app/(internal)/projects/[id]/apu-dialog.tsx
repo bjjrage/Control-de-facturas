@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, Upload, RefreshCw, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { Calculator, Upload, RefreshCw, CheckCircle2, AlertTriangle, Trash2, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import {
   deleteBudgetItemEquipmentAction,
   deleteBudgetItemSubcontractAction,
   listLaborRatesAction,
+  saveBudgetItemMaterialAction,
   type ApuMaterialRow,
   type ApuLaborRow,
   type ApuEquipmentRow,
@@ -30,6 +31,7 @@ import {
   resolveApuSubcontractImportMapping,
 } from "@/lib/procurement/apu-import";
 import { matchLaborRate } from "@/lib/procurement/apu-templates";
+import { parseWorkspaceNumber } from "@/lib/projects/budget-workspace";
 
 // Mismo parser PY que import-recipe-dialog.tsx / import-budget-dialog.
 function parsePyNumber(raw: unknown): number | null {
@@ -75,9 +77,12 @@ interface ApuDialogProps {
   budgetItemId: string;
   budgetItemLabel: string;
   onSaved?: () => void;
+  trigger?: React.ReactNode;
+  disabled?: boolean;
+  workspaceEditing?: boolean;
 }
 
-export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved }: ApuDialogProps) {
+export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved, trigger, disabled, workspaceEditing }: ApuDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -178,12 +183,13 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved }:
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (next) { setLoading(true); setLoadError(null); } }}>
       <DialogTrigger asChild>
-        <Button variant="ghost" title="APU / BOM de la partida" className="h-6 w-6 p-0">
-          <Calculator size={13} />
+        <Button variant={trigger ? "secondary" : "ghost"} disabled={disabled} title="APU / BOM de la partida" className={trigger ? undefined : "h-6 w-6 p-0"}>
+          {trigger ?? <Calculator size={13} />}
         </Button>
       </DialogTrigger>
       <DialogContent title={`APU — ${budgetItemLabel}`} className="max-w-4xl">
         <div className="space-y-5">
+          {workspaceEditing ? <p className="text-xs text-[var(--muted)]">Editá el consumo por unidad de cada material. «Guardar material» actualiza esta receta y sus necesidades en el ERP; conserva el precio de venta de la partida.</p> : null}
           {loading && <div className="text-xs text-[var(--muted)]">Cargando…</div>}
           {loadError && (
             <div className="flex items-center gap-2 text-xs text-red-500">
@@ -243,7 +249,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved }:
                     columns={["Producto", "Cant./unidad", "Desperdicio", "Precio unitario", ""]}
                     rows={materials.map((m) => [
                       `${m.producto_nombre}${m.producto_sku ? ` (${m.producto_sku})` : ""}`,
-                      `${m.cantidad_por_unidad_ejecutada} ${m.unidad_medida}`,
+                      workspaceEditing ? <MaterialCoefficientEditor key={m.id} projectId={projectId} budgetItemId={budgetItemId} material={m} onSaved={refresh} /> : `${m.cantidad_por_unidad_ejecutada} ${m.unidad_medida}`,
                       `${m.desperdicio_pct}%`,
                       m.costo_unitario === null ? (
                         <span className="text-amber-500">Sin costo</span>
@@ -461,6 +467,39 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel, onSaved }:
       </DialogContent>
     </Dialog>
   );
+}
+
+function MaterialCoefficientEditor({ projectId, budgetItemId, material, onSaved }: {
+  projectId: string; budgetItemId: string; material: ApuMaterialRow; onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [quantity, setQuantity] = useState("");
+  const [waste, setWaste] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const editableNumber = (value: number) => String(value).split(".")[1]?.length === 3 ? value.toFixed(4) : String(value);
+  if (!editing) return <span className="inline-flex items-center gap-2">{material.cantidad_por_unidad_ejecutada} {material.unidad_medida}<Button variant="ghost" size="icon" aria-label={`Editar consumo de ${material.producto_nombre}`} onClick={() => {
+    setQuantity(editableNumber(material.cantidad_por_unidad_ejecutada)); setWaste(editableNumber(material.desperdicio_pct)); setError(""); setEditing(true);
+  }}><Pencil size={12} /></Button></span>;
+  return <form className="min-w-52 space-y-2" onSubmit={async event => {
+    event.preventDefault(); setError("");
+    try {
+      const amount = parseWorkspaceNumber(quantity);
+      const wastePct = parseWorkspaceNumber(waste);
+      if (amount === null || wastePct === null) { setError("Completá consumo y desperdicio."); return; }
+      setSaving(true);
+      const result = await saveBudgetItemMaterialAction({ projectId, budgetItemId, productoId: material.producto_id, cantidadPorUnidad: amount, desperdicioPct: wastePct,
+        expected: { cantidadPorUnidad: material.cantidad_por_unidad_ejecutada, desperdicioPct: material.desperdicio_pct } });
+      if (result.error) setError(result.error);
+      else { setEditing(false); onSaved(); }
+    } catch (error) { setError(error instanceof Error ? error.message : "No se pudo guardar el material."); }
+    finally { setSaving(false); }
+  }}>
+    <label className="block">Consumo / unidad<input aria-label="Consumo por unidad" className="block w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1" value={quantity} disabled={saving} onChange={event => setQuantity(event.target.value)} /></label>
+    <label className="block">Desperdicio %<input aria-label="Desperdicio del material" className="block w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1" value={waste} disabled={saving} onChange={event => setWaste(event.target.value)} /></label>
+    <div className="flex gap-2"><Button size="sm" type="submit" disabled={saving}>{saving ? "Guardando…" : "Guardar material"}</Button><Button size="sm" variant="ghost" type="button" disabled={saving} onClick={() => setEditing(false)}>Cancelar</Button></div>
+    {error ? <p role="alert" className="text-xs text-red-400 whitespace-normal">{error}</p> : null}
+  </form>;
 }
 
 function RowTable({ columns, rows }: { columns: string[]; rows: (string | React.ReactNode)[][] }) {
