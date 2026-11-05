@@ -4,8 +4,8 @@ import { z } from "zod";
 export const budgetWorkspaceValues = z.object({
   description: z.string().trim().min(1, "La descripción es obligatoria.").max(2000),
   unit: z.string().trim().max(40).nullable(),
-  quantity: z.number().finite().nonnegative().max(999999999999.9999).refine(value => Number(value.toFixed(4)) === value, "La cantidad admite hasta 4 decimales.").nullable(),
-  unitPrice: z.number().finite().nonnegative().max(99999999999999.99).refine(value => Number(value.toFixed(2)) === value, "El precio admite hasta 2 decimales.").nullable(),
+  quantity: z.number().finite().nonnegative().max(999999999999.9999, "La cantidad supera el máximo admitido.").refine(value => Number(value.toFixed(4)) === value, "La cantidad admite hasta 4 decimales.").nullable(),
+  unitPrice: z.number().finite().nonnegative().max(99999999999999.99, "El precio supera el máximo admitido.").refine(value => Number(value.toFixed(2)) === value, "El precio admite hasta 2 decimales.").nullable(),
 }).strict();
 
 export type BudgetWorkspaceValues = z.infer<typeof budgetWorkspaceValues>;
@@ -30,6 +30,11 @@ export type WorkspaceEditableKey = typeof workspaceEditableKeys[number];
 
 export function workspaceValues(row: BudgetWorkspaceValues): BudgetWorkspaceValues {
   return { description: row.description, unit: row.unit, quantity: row.quantity, unitPrice: row.unitPrice };
+}
+
+export function validateWorkspaceValues(values: BudgetWorkspaceValues): void {
+  const result = budgetWorkspaceValues.safeParse(values);
+  if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Revisá los valores de esta partida.");
 }
 
 export function sameWorkspaceValues(a: BudgetWorkspaceValues, b: BudgetWorkspaceValues): boolean {
@@ -84,7 +89,7 @@ export function pasteWorkspaceRange(rows: BudgetWorkspaceRow[], startRow: number
       try { Object.assign(row, { [key]: parseWorkspaceCell(key, text) }); }
       catch (error) { throw new Error(`Fila ${startRow + index + 1}, ${key === "quantity" ? "Cantidad" : key === "unitPrice" ? "P. unitario" : key}: ${(error as Error).message}`); }
     });
-    budgetWorkspaceValues.parse(workspaceValues(row));
+    validateWorkspaceValues(workspaceValues(row));
     result[startRow + index] = row;
   });
   return result;

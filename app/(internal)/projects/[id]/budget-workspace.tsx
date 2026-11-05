@@ -10,7 +10,7 @@ import { ArrowLeft, Calculator, Maximize2, Minimize2, Save, Undo2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
-import { budgetWorkspaceValues, parseWorkspaceCell, pasteWorkspaceRange, rebaseWorkspaceValues, sameWorkspaceValues, workspaceValues, type BudgetWorkspaceRow, type BudgetWorkspaceValues, type WorkspaceEditableKey } from "@/lib/projects/budget-workspace";
+import { budgetWorkspaceValues, parseWorkspaceCell, pasteWorkspaceRange, rebaseWorkspaceValues, sameWorkspaceValues, validateWorkspaceValues, workspaceValues, type BudgetWorkspaceRow, type BudgetWorkspaceValues, type WorkspaceEditableKey } from "@/lib/projects/budget-workspace";
 import { ApuDialog } from "./apu-dialog";
 import { getApuCostSummaryAction, type ApuCostSummary } from "./apu-actions";
 import { saveBudgetWorkspace } from "./workspace-actions";
@@ -33,7 +33,7 @@ function CellEditor({ row, column, rowIdx, onRowChange, onClose, onNavigate }: R
     if (committed.current) return true;
     try {
       const next = { ...row, [key]: parseWorkspaceCell(key, text) };
-      budgetWorkspaceValues.parse(workspaceValues(next));
+      validateWorkspaceValues(workspaceValues(next));
       onRowChange(next, true);
       committed.current = true;
       return true;

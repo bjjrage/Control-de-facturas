@@ -34,6 +34,10 @@ describe("budget workspace clipboard", () => {
     expect(budgetWorkspaceValues.safeParse({ description: "a", unit: null, quantity: 1.74241, unitPrice: 2 }).success).toBe(false);
     expect(budgetWorkspaceValues.safeParse({ description: "a", unit: null, quantity: 1.7424, unitPrice: 2.555 }).success).toBe(false);
   });
+  it("explains precision errors without exposing validator internals", () => {
+    expect(() => pasteWorkspaceRange(rows, 0, "unitPrice", "2.5555")).toThrowError("El precio admite hasta 2 decimales.");
+    expect(() => pasteWorkspaceRange(rows, 0, "quantity", "1.74241")).toThrowError("La cantidad admite hasta 4 decimales.");
+  });
   it("keeps a colleague's price when reviewing only a quantity edit", () => {
     const expected = rows[0];
     const next = { ...expected, quantity: 3 };
