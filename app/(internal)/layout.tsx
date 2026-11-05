@@ -6,6 +6,7 @@ import { AppShellClient } from "@/components/layout/app-shell-client";
 import { RodrigoAgentProvider } from "@/components/agent/rodrigo-agent-provider";
 import { RodrigoAgentWidget } from "@/components/agent/rodrigo-agent-widget";
 import { planMeetsMinimum } from "@/lib/plans";
+import { deploymentInfo } from "@/lib/deployment-info";
 
 // The logo upload in the Sidebar (present on every page under this layout)
 // can rasterize a PDF, which may outlast the platform's default serverless
@@ -14,6 +15,7 @@ export const maxDuration = 60;
 
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
+  const deployment = deploymentInfo();
   const isProOrAbove = planMeetsMinimum(profile.plan, "pro", profile.is_super_admin);
   const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
@@ -44,6 +46,12 @@ export default async function InternalLayout({ children }: { children: React.Rea
           showOperativo={showOperativo}
           showLicitaciones={showLicitaciones}
         />
+        {deployment.environment === "preview" && (
+          <div role="status" className="border-b border-amber-400/50 bg-amber-100 px-5 py-1 text-sm text-amber-950">
+            {deployment.valid ? "QA · Entorno de pruebas" : "QA · Revisar configuración de datos"}
+            {deployment.commit ? ` · Versión ${deployment.commit.slice(0, 8)}` : ""}
+          </div>
+        )}
         <main className="erp-main relative flex-1 min-w-0 p-5 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_70%_0%,rgba(72,119,214,.08),transparent_28%)]">
           <div className="relative z-[1]"><AppShellClient key={`${profile.id}:${profile.empresa_id}:${profile.role}:${profile.is_super_admin}:${profile.plan}:${profile.modulo_compras}:${profile.modulo_ventas}`} warmPaths={warmPaths}>{children}</AppShellClient></div>
         </main>

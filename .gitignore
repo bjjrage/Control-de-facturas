@@ -64,3 +64,4 @@ E2E_PASSWORD*
 /audit-artifacts/ui-recovery-01/
 .env.local
 /audit-artifacts/import-integrity/
+/audit-artifacts/consolidation/

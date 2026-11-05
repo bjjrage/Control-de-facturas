@@ -33,6 +33,7 @@ function action(){
   requirePlan:async()=>({id:U,empresa_id:E}),createClient:async()=>client,createAdminClient:()=>client,
   DEFAULT_RFQ_WINDOW_HOURS:72,explodeMaterialNeeds:()=>[{productoId:product}],
   groupNeedsByRubro:()=>({sinRubro:[],rubros:[{categoriaId:"cat",items:[{productoId:product,nombre:"Cemento",cantidad:2,unidad:"unidad"}]}]}),
+  readApuRows:async()=>({data:[],error:null}),
   createCanonicalRfq,revalidatePath:vi.fn(),
  }).createCostRfqsFromProject;
 }

@@ -22,7 +22,7 @@ describe("QA ADMIN common save invalidation", () => {
   });
   it("synchronizes keep-alive sections when an RSC response changes without navigation", () => {
     const shell = readFileSync("components/layout/app-shell-client.tsx", "utf8");
-    expect(shell).toContain("[pathname, children]");
+    expect(shell).toMatch(/\[pathname,\s*children(?:\s*,[^\]]+)?\]/);
   });
   it.each([
     ["app/(internal)/providers/actions.ts", 'refreshAfterSave("/providers")'],
