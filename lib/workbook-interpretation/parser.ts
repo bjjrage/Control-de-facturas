@@ -194,6 +194,7 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
           column: column + 1,
           raw: cellValue(cell),
           formatted: typeof cell.w === "string" ? cell.w : cell.v === undefined || cell.v === null ? null : String(cell.v),
+          numberFormat: typeof cell.z === "string" ? cell.z : null,
           formula: typeof cell.f === "string" ? cell.f : null,
           type: typeof cell.t === "string" ? cell.t : null,
         });

@@ -38,19 +38,29 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [apuCosts, setApuCosts] = useState<Record<string, ApuCostSummary>>({});
+  const [apuRevision, setApuRevision] = useState(0);
+  const [referenceQuantities, setReferenceQuantities] = useState(false);
+  const [apuError, setApuError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
     getApuCostSummaryAction(projectId).then((res) => {
+      if (cancelled) return;
       if (res.data) setApuCosts(res.data);
+      setReferenceQuantities(Boolean(res.referenceQuantities));
+      setApuError(res.error);
+    }).catch(() => {
+      if (!cancelled) setApuError("No se pudo leer el APU completo. Actualizá la vista.");
     });
-  }, [projectId]);
+    return () => { cancelled = true; };
+  }, [projectId, apuRevision]);
 
   function apuCostLabel(r: Row): React.ReactNode {
     const s = apuCosts[r.id];
     if (!s || !s.tieneApu) return <span className="text-[var(--muted)]">—</span>;
     if (s.costoTotal === null) return <span className="text-amber-500">Costo no disp.</span>;
-    return formatMoney(s.costoTotal, "PYG");
+    return <span title={s.precioReferencia ? "Incluye precios de referencia de la planilla" : undefined}>{formatMoney(s.costoTotal, "PYG")}{s.precioReferencia ? " · ref." : ""}</span>;
   }
 
   function margenLabel(r: Row): React.ReactNode {
@@ -144,6 +154,9 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
 
   return (
     <div className="space-y-2">
+      {referenceQuantities ? <p className="text-[12px] text-amber-500">Cantidades de referencia del archivo: validá el cómputo real antes de comprar o planificar la ejecución. Los consumos del BOM se calculan con las cantidades actuales.</p> : null}
+      {Object.values(apuCosts).some(s => s.precioReferencia) ? <p className="text-[12px] text-[var(--muted)]">ref. = incluye precios del Excel; los precios adoptados y las compras reales tienen prioridad.</p> : null}
+      {apuError ? <p role="alert" className="text-[12px] text-[var(--error)]">{apuError}</p> : null}
       {selected.size > 0 ? (
         <div className="flex items-center gap-2 rounded-lg border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2">
           <span className="text-[12px] text-[var(--error)]">{selected.size} seleccionado{selected.size === 1 ? "" : "s"}</span>
@@ -245,7 +258,7 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                   </td>
                   <td>
                     <div className="flex items-center gap-1 justify-end">
-                      <ApuDialog projectId={projectId} budgetItemId={r.id} budgetItemLabel={`${r.code} — ${r.description}`} />
+                      <ApuDialog projectId={projectId} budgetItemId={r.id} budgetItemLabel={`${r.code} — ${r.description}`} onSaved={() => setApuRevision(v => v+1)} />
                       <EditBudgetItemDialog projectId={projectId} row={r} />
                     </div>
                   </td>

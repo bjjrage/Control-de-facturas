@@ -1,4 +1,5 @@
 "use server";
+import { readApuRows } from "@/lib/costing/apu-source";
 
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
@@ -132,6 +133,8 @@ export interface ApuMaterialRow {
   cantidad_por_unidad_ejecutada: number;
   desperdicio_pct: number;
   costo_promedio: number | null;
+  costo_unitario: number | null;
+  fuente_costo: string | null;
 }
 
 export interface ApuLaborRow {
@@ -177,7 +180,7 @@ export async function listApuAction(params: {
     const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
       supabase
         .from("budget_item_materials")
-        .select("id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(nombre, sku, unidad, costo_promedio)")
+        .select("id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(nombre, sku, unidad, costo_promedio)")
         .eq("project_id", params.projectId)
         .eq("budget_item_id", params.budgetItemId),
       supabase
@@ -213,7 +216,15 @@ export async function listApuAction(params: {
       costo_promedio: r.productos?.costo_promedio != null && Number(r.productos.costo_promedio) > 0
         ? Number(r.productos.costo_promedio)
         : null,
+      costo_unitario: r.precio_unitario_origen == null ? null : Number(r.precio_unitario_origen),
+      fuente_costo: r.precio_unitario_origen == null ? null : "Planilla · referencia",
     }));
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const prices = await resolveProjectMaterialPrices({ supabase, admin: createAdminClient(), empresaId: profile.empresa_id, projectId: params.projectId, productIds: materials.map(m => m.producto_id) });
+    for (const material of materials) {
+      const price = prices.get(material.producto_id)?.price;
+      if (price && price.fuente !== "PLANILLA") { material.costo_unitario = price.precio; material.fuente_costo = price.fuente; }
+    }
     const labor: ApuLaborRow[] = (laborRes.data ?? []).map((r: any) => ({
       id: r.id,
       budget_item_id: r.budget_item_id,
@@ -468,6 +479,7 @@ export async function deleteBudgetItemSubcontractAction(params: {
 }
 
 export interface ApuCostSummary {
+  precioReferencia?: boolean;
   costoMaterial: number | null;
   costoManoObra: number;
   costoEquipo: number;
@@ -486,31 +498,16 @@ export interface ApuCostSummary {
 export async function getApuCostSummaryAction(projectId: string): Promise<{
   data: Record<string, ApuCostSummary> | null;
   error: string | null;
+  referenceQuantities?: boolean;
 }> {
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
     const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
-      supabase
-        .from("budget_item_materials")
-        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(costo_promedio)")
-        .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
-      supabase
-        .from("budget_item_labor")
-        .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
-        .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
-      supabase
-        .from("budget_item_equipment")
-        .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
-        .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
-      supabase
-        .from("budget_item_subcontracts")
-        .select("budget_item_id, precio_por_unidad")
-        .eq("project_id", projectId)
-        .eq("empresa_id", profile.empresa_id),
+      readApuRows(supabase, "budget_item_materials", "budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(costo_promedio)", projectId, profile.empresa_id),
+      readApuRows(supabase, "budget_item_labor", "budget_item_id, horas_por_unidad_ejecutada, costo_hora", projectId, profile.empresa_id),
+      readApuRows(supabase, "budget_item_equipment", "budget_item_id, horas_por_unidad_ejecutada, costo_hora", projectId, profile.empresa_id),
+      readApuRows(supabase, "budget_item_subcontracts", "budget_item_id, precio_por_unidad", projectId, profile.empresa_id),
     ]);
     if (materialsRes.error) return { data: null, error: materialsRes.error.message };
     if (laborRes.error) return { data: null, error: laborRes.error.message };
@@ -535,6 +532,7 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
           productoId: r.producto_id,
           cantidadPorUnidad: Number(r.cantidad_por_unidad_ejecutada),
           desperdicioPct: Number(r.desperdicio_pct),
+          precioOrigen: r.precio_unitario_origen == null ? null : Number(r.precio_unitario_origen),
         })),
         labor: ((laborRes.data ?? []) as any[]).map((r) => ({
           budgetItemId: r.budget_item_id,
@@ -557,6 +555,7 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
     const summary: Record<string, ApuCostSummary> = {};
     for (const c of Object.values(costs)) {
       summary[c.budgetItemId] = {
+        precioReferencia: (materialsRes.data ?? []).some(r => r.budget_item_id === c.budgetItemId && r.precio_unitario_origen != null && (!prices.has(r.producto_id) || prices.get(r.producto_id)?.fuente === "PLANILLA")),
         costoMaterial: c.costoMaterial,
         costoManoObra: c.costoManoObra,
         costoEquipo: c.costoEquipo,
@@ -565,7 +564,8 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
         tieneApu: c.tieneApu,
       };
     }
-    return { data: summary, error: null };
+    const source = await supabase.from("workbook_import_sessions").select("quantity_status:candidate->>quantityStatus").eq("empresa_id",profile.empresa_id).eq("confirmed_project_id",projectId).limit(1).maybeSingle();
+    return { data: summary, error: null, referenceQuantities: source.data?.quantity_status === "REFERENCE" };
   } catch (err: any) {
     return { data: null, error: err.message || "Error al calcular el costo APU del presupuesto." };
   }

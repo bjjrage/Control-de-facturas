@@ -12,6 +12,7 @@ import { CertificateWorkbookGrid } from "@/components/certificates/CertificateWo
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
 import type { ContractRegime } from "@/lib/certificates/import-session-store";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { availableImportSelection, selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
 import type { DetectedField, WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 
 function formatMoney(value: number | null) {
@@ -40,6 +41,13 @@ function weatherByMonth(days: CanonicalImportCandidate["weatherDays"]) {
 function CandidatePreview({ candidate }: { candidate: CanonicalImportCandidate }) {
   return (
     <>
+      {candidate.linkedRecipes?.recipes.length ? <section className="rounded-xl border border-[var(--border)] p-3 text-[12px]">
+        <strong>APU y materiales: {candidate.linkedRecipes.recipes.length} recetas vinculadas a partidas</strong>
+        {candidate.recipeMappingCorrections?.map(message=><p key={message} className="text-amber-200">{message}</p>)}
+        <p>Se cargan materiales, mano de obra, equipos y transporte desde los consumos por unidad. Los resúmenes no se vuelven a sumar como recetas.</p>
+        <p className="text-[var(--muted)]">Los precios del archivo se conservan como referencia; compras y precios adoptados mantienen su prioridad. Las cantidades deben validarse con el cómputo real.</p>
+        {candidate.linkedRecipes.bomWarnings?.map(message => <p key={message} className="text-amber-200">{message}</p>)}
+      </section> : null}
       {candidate.relationships.length ? (
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Relaciones entre hojas</h3>
@@ -106,8 +114,11 @@ function ResultPreview({ result, candidate }: { result: WorkbookInterpretationRe
           <Value label="Contratista" field={result.project.contractor} />
           <Value label="Ubicación" field={result.project.location} />
           <Value label="Contrato" field={result.project.contractNumber} />
-          <Value label="Fecha de inicio" field={result.project.startDate} />
-          <Value label="Fecha de fin" field={result.project.endDate} />
+          {candidate?.integrity ? <div className="rounded-xl border border-[var(--border)] p-3 text-[12px] sm:col-span-2">
+            <p>Inicio de obra: <strong>{candidate.integrity.project.startDate?.value ?? "Sin fecha verificada"}</strong> · Fin: <strong>{candidate.integrity.project.endDate?.value ?? "Sin fecha verificada"}</strong></p>
+            <p>Orden de inicio: <strong>{candidate.integrity.project.orderDate?.value ?? "No encontrada"}</strong> · Plazo contractual: <strong>{candidate.integrity.project.durationDays?.value ?? "No encontrado"}</strong> días.</p>
+            <p className="text-[var(--muted)]">{Object.values(candidate.integrity.project).filter(Boolean).map(f => f!.source).join(" · ")}</p>
+          </div> : null}
           <Value label="Monto total" field={result.project.totalAmount} money />
         </div>
       </section>
@@ -133,7 +144,7 @@ function ResultPreview({ result, candidate }: { result: WorkbookInterpretationRe
       <section>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Plan de importación y cobertura</h3>
         <div className="mt-2 space-y-2">
-          {result.importPlan.blocks.length ? result.importPlan.blocks.map((block) => {
+          {(candidate?.resolvedPlan ?? result.importPlan).blocks.length ? (candidate?.resolvedPlan ?? result.importPlan).blocks.map((block) => {
             const coverage = result.coverage.find((item) => item.blockId === block.id);
             const requiresReview = block.needsReview || Boolean(coverage?.pendingRows.length || coverage?.unmappedRows.length);
             return (
@@ -183,8 +194,11 @@ function ResultActions({
   onCodeOverride,
   onCreate,
   creating,
+  creationAllowed,
   error,
   onBack,
+  acceptObservations,
+  onAcceptObservations,
 }: {
   result: WorkbookInterpretationResult;
   candidate: CanonicalImportCandidate | null;
@@ -204,14 +218,20 @@ function ResultActions({
   onCodeOverride: (value: string) => void;
   onCreate: () => void;
   creating: boolean;
+  creationAllowed: boolean;
   error: string | null;
   onBack: () => void;
+  acceptObservations: boolean;
+  onAcceptObservations: (value: boolean) => void;
 }) {
   const nameMissing = result.project.name.status === "NOT_FOUND" || result.project.name.value === null;
   const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
   const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
+  const selection = candidate ? availableImportSelection(candidate, { schedule: applySchedule, weather: applyWeather, certificate: applyCertificate, staff: applyStaff, execution: applyExecution }) : null;
+  const integrityIssues = candidate?.integrity && selection ? selectedImportIssues(candidate.integrity, selection) : [];
+  const integrityBlocked = integrityIssues.some(i => i.severity === "ERROR") || (integrityIssues.some(i => i.severity === "REVIEW") && !acceptObservations);
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Importación al ERP<InfoTooltip className="ml-1" label={"Importación al ERP"} content={"Solo se importa lo programado; el ERP calcula el ejecutado desde sus propios certificados."} /></h3>
@@ -257,8 +277,8 @@ function ResultActions({
               {candidate.staff.map((person) => <li key={`${person.sheet}-${person.row}`}>· {person.name} — {person.role}</li>)}
             </ul>
             <label className="mt-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={applyStaff} onChange={(event) => onApplyStaff(event.target.checked)} />
-              Importar personal al certificado
+              <input type="checkbox" checked={applyStaff && applyCertificate} disabled={!applyCertificate} onChange={(event) => onApplyStaff(event.target.checked)} />
+              Importar personal al certificado {!applyCertificate ? "(requiere importar el certificado)" : ""}
             </label>
           </div>
         ) : null}
@@ -291,7 +311,7 @@ function ResultActions({
             </ul>
             <label className="mt-2 flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={applyWeather} onChange={(event) => onApplyWeather(event.target.checked)} />
-              Importar Libro de Obra (días no trabajados)
+              Confirmar e importar los códigos diarios al Libro de Obra
             </label>
           </div>
         ) : null}
@@ -303,7 +323,7 @@ function ResultActions({
             </p>
             <p className="mt-1 text-[11px] text-[var(--muted)]">Se carga con fecha de cierre del certificado ({candidate.certificate.periodEnd ?? "—"}).</p>
             <label className="mt-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={applyExecution} onChange={(event) => onApplyExecution(event.target.checked)} disabled={!applyCertificate} />
+              <input type="checkbox" checked={applyExecution && applyCertificate} onChange={(event) => onApplyExecution(event.target.checked)} disabled={!applyCertificate} />
               Importar avance físico {!applyCertificate ? "(requiere importar el certificado)" : ""}
             </label>
           </div>
@@ -346,9 +366,14 @@ function ResultActions({
         </div>
       ) : null}
       {error ? <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
+      {integrityIssues.length ? <div className="rounded border border-amber-300/30 p-3 text-[12px]">
+        <p className="font-semibold">Revisión antes de importar</p>
+        <ul className="mt-2 space-y-2">{integrityIssues.map((issue, i) => <li key={i}><strong>{issue.severity === "ERROR" ? "No aplicable" : "Pendiente de revisión"}</strong> · {issue.source}: {issue.message}</li>)}</ul>
+        {integrityIssues.some(i => i.severity === "REVIEW") ? <label className="mt-3 flex gap-2"><input type="checkbox" checked={acceptObservations} onChange={e => onAcceptObservations(e.target.checked)} />Revisé las observaciones. Importar los datos verificados y conservar las diferencias como pendientes.</label> : null}
+      </div> : null}
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
-        <Button type="button" onClick={onCreate} disabled={creating || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+        <Button type="button" onClick={onCreate} disabled={creating || !creationAllowed || integrityBlocked || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
           {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>
@@ -383,7 +408,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number }; pending?: { section: string; reason: string }[] } | null>(null);
+  const [acceptObservations, setAcceptObservations] = useState(false);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number; recipes?: number; materials?: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   // Recién analizado: aplica la misma lógica que antes tenía analyze() —
@@ -394,8 +420,14 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   // eventos (no directo en un efecto) para no disparar varios setState
   // síncronos en el cuerpo de un efecto.
   const appliedInterpretationRef = useRef<string | null>(null);
+  const reviewedIntegrityRef = useRef<string | null>(null);
   function applySession(next: ImportSessionView) {
     setSession(next);
+    if (next.candidate?.integrity) {
+      const key = next.id + JSON.stringify(next.candidate.integrity);
+      if (key !== reviewedIntegrityRef.current) setAcceptObservations(false);
+      reviewedIntegrityRef.current = key;
+    }
     if (!next.interpretation || next.id === appliedInterpretationRef.current) return;
     appliedInterpretationRef.current = next.id;
     const result = next.interpretation;
@@ -482,19 +514,21 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   }
 
   async function createImportedProject() {
-    if (!session?.interpretation || !regime) return;
+    if (!session?.interpretation || !session.candidate || !regime) return;
     setCreating(true);
     setError(null);
     const formData = new FormData();
+    const selection = availableImportSelection(session.candidate, { certificate: applyCertificate, staff: applyStaff, schedule: applySchedule, weather: applyWeather, execution: applyExecution });
     formData.set("session_id", session.id);
     formData.set("name_override", nameOverride);
     formData.set("code_override", codeOverride);
     formData.set("contract_regime", regime);
-    formData.set("apply_certificate", applyCertificate ? "1" : "0");
-    formData.set("apply_staff", applyStaff ? "1" : "0");
-    formData.set("apply_schedule", applySchedule ? "1" : "0");
-    formData.set("apply_weather", applyWeather ? "1" : "0");
-    formData.set("apply_execution", applyExecution ? "1" : "0");
+    formData.set("apply_certificate", selection.certificate ? "1" : "0");
+    formData.set("apply_staff", selection.staff ? "1" : "0");
+    formData.set("apply_schedule", selection.schedule ? "1" : "0");
+    formData.set("apply_weather", selection.weather ? "1" : "0");
+    formData.set("accept_import_observations", acceptObservations ? "1" : "0");
+    formData.set("apply_execution", selection.execution ? "1" : "0");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -515,10 +549,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   if (created) return (
     <div className="space-y-4">
       <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
-        <div className="flex items-center gap-2 text-[13px] font-semibold text-emerald-200"><CheckCircle2 size={15} /> Obra creada</div>
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-emerald-200"><CheckCircle2 size={15} /> {created.pending?.length ? "Obra creada con información pendiente" : "Obra creada · importación verificada"}</div>
         {created.applied ? (
           <p className="mt-2 text-[12px] text-[var(--muted)]">
             Presupuesto: {created.applied.budgetItems} partidas
+            {created.applied.recipes ? ` · APU: ${created.applied.recipes} recetas` : ""}
+            {created.applied.materials ? ` · Materiales: ${created.applied.materials} vínculos` : ""}
             {created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}
             {created.applied.staffItems ? ` · Personal: ${created.applied.staffItems}` : ""}
             {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}
@@ -620,6 +656,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             </div>
           </section>
           <ResultActions
+            acceptObservations={acceptObservations}
+            onAcceptObservations={setAcceptObservations}
             result={result}
             candidate={candidate}
             applyCertificate={applyCertificate}
@@ -637,7 +675,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             onNameOverride={setNameOverride}
             onCodeOverride={setCodeOverride}
             onCreate={() => void createImportedProject()}
-            creating={creating || !regime}
+            creating={creating}
+            creationAllowed={Boolean(regime) && session.status === "ANALYZED" && !session.analysisStale}
             error={error ?? (!regime ? "Confirmá el régimen contractual antes de crear la obra." : null)}
             onBack={() => void handleDiscard()}
           />

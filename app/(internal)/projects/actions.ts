@@ -11,6 +11,9 @@ import { refreshAfterSave } from "@/lib/refresh-after-save";
 import { ProjectStatus } from "@/lib/types";
 import { createHash } from "node:crypto";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { selectedImportIssues } from "@/lib/workbook-interpretation/import-integrity";
+import { verifyImportedProject } from "@/lib/workbook-interpretation/verify-persistence";
+import { verifyLinkedRecipePersistence } from "@/lib/workbook-interpretation/verify-recipes";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
@@ -87,7 +90,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
 type WorkbookCreateResult = {
   error: string | null;
   projectId?: string;
-  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number };
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number; recipes?: number; materials?: number };
   pending?: { section: string; reason: string }[];
 };
 
@@ -103,20 +106,12 @@ function importedNumber(field: { status: string; value: string | number | null }
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-function importedDate(value: string | null): string | null {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
-  if (!match) return null;
-  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-}
 
 /**
  * Confirma un preview semántico contra el XLSX original y materializa la
- * obra, su presupuesto y (si el usuario lo aceptó) el certificado. Los demás
- * dominios detectados (curva, clima, personal, mediciones) se informan como
- * pendientes: su persistencia todavía no está conectada.
+ * obra, presupuesto y secciones aceptadas. Las secciones sin integración
+ * operativa quedan explícitamente pendientes. Los mismos controles se
+ * vuelven a ejecutar aquí: el preview no es una frontera de confianza.
  */
 export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -165,8 +160,32 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   }
 
   const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
+  const integrity = result.candidate.integrity!;
+  const issues = selectedImportIssues(integrity, { schedule: formData.get("apply_schedule") === "1", weather: formData.get("apply_weather") === "1", certificate: formData.get("apply_certificate") === "1", staff: formData.get("apply_staff") === "1", execution: formData.get("apply_execution") === "1" });
+  const errors = issues.filter(issue => issue.severity === "ERROR");
+  if (errors.length) return { error: errors.map(issue => `${issue.source}: ${issue.message}`).join(" ") };
+  if (issues.some(issue => issue.severity === "REVIEW") && formData.get("accept_import_observations") !== "1") return { error: "Revisá y aceptá las observaciones de integridad antes de crear la obra." };
+  const wantsCertificate = formData.get("apply_certificate") === "1";
+  if (wantsCertificate && !["SAFE_TO_APPLY", "APPLY_WITH_WARNINGS"].includes(result.candidate.certificate.status)) return { error: "El certificado seleccionado no es aplicable; revisá el análisis antes de crear la obra." };
+  if ((formData.get("apply_staff") === "1" || formData.get("apply_execution") === "1") && !wantsCertificate) return { error: "Personal y avance necesitan que se importe el certificado del período. Revisá la selección." };
+  if (["apply_staff", "apply_schedule", "apply_weather"].some(key => formData.get(key) === "1") && !planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin)) return { error: "La selección incluye datos que requieren el plan Caterpillar. Revisá las secciones antes de crear la obra." };
   if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
+
+  const linked = result.candidate.linkedRecipes;
+  if (session && linked?.recipes.length && !linked.issues.length) {
+    // This transaction already exists in QA/IASA. Keep the established ERP
+    // flow; only composition workbooks without certificate dependents use it.
+    if (wantsCertificate || result.candidate.staff.length || result.candidate.weatherDays.length || result.candidate.executionEntries.length) return { error: "Esta planilla combina recetas con certificados o avance. Requiere separar la confirmación de esos datos; no se aplicó una importación parcial." };
+    const writer = await createClient();
+    const { data, error } = await writer.rpc("create_linked_workbook_project", { p_session: session.id, p_expected_revision: session.workingRevision, p_project: { name, code, regime, quantityStatus: result.candidate.budgetScale?.basis === "CONTRACT_TOTAL" ? "CONFIRMED" : "REFERENCE", applySchedule: formData.get("apply_schedule") === "1" }, p_candidate: result.candidate });
+    if (error || !data?.projectId) return { error: error?.message ?? "No se pudo vincular la planilla APU." };
+    const verification = await verifyLinkedRecipePersistence(writer, data.projectId, profile.empresa_id, linked.recipes);
+    const pending = [...(data.pending ?? []),...result.candidate.domains.map(d=>({section:d.target,reason:`Conservado como respaldo: ${d.labels.join(" · ")}. No se aplica como otra receta.`})),...verification.errors.map(reason=>({section:"VERIFICACION APU",reason}))];
+    await logAudit(writer,{action:"project.workbook_apu_verified",detail:{project_id:data.projectId,session_id:session.id,persistence_verified:verification.errors.length===0,counts:verification.counts,pending}});
+    refreshAfterSave("/projects");
+    return {error:null,projectId:data.projectId,applied:data.applied,pending};
+  }
 
   const admin = createAdminClient();
   const fingerprint = session?.originalFileHash ?? createHash("sha256").update(new Uint8Array(await (file as File).arrayBuffer())).digest("hex");
@@ -209,8 +228,10 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       code,
       client: importedText(projectFields.client),
       location: importedText(projectFields.location),
-      start_date: importedDate(importedText(projectFields.startDate)),
-      end_date: importedDate(importedText(projectFields.endDate)),
+      start_date: integrity.project.startDate?.value ?? null,
+      end_date: integrity.project.endDate?.value ?? null,
+      orden_inicio_date: integrity.project.orderDate?.value ?? null,
+      plazo_dias: integrity.project.durationDays?.value ?? null,
       budget_total: contractAmount,
       comitente: importedText(projectFields.client),
       contract_number: importedText(projectFields.contractNumber),
@@ -262,6 +283,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     section: domain.target,
     reason: `Detectado (${domain.labels.join(" · ")}); su persistencia todavía no está conectada.`,
   }));
+  pending.push(...issues.filter(issue => issue.severity === "REVIEW").map(issue => ({ section: issue.domain, reason: `${issue.source}: ${issue.message}` })));
   const certificateApplicable = result.candidate.certificate.status === "SAFE_TO_APPLY" || result.candidate.certificate.status === "APPLY_WITH_WARNINGS";
   // The preview asks the user; a certificate with observations is only
   // written when the user explicitly accepted it.
@@ -378,18 +400,17 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     } else if (!weatherAccepted) {
       pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados; no se importaron (no fue aceptado en el preview).` });
     } else {
-      // A single bulk upsert instead of one setWeatherDay() call per day — the
-      // project was just created in this same call, so there is no existing
-      // Libro de Obra to conflict with.
+      // Authenticated RPC: same operational classifications and guards as
+      // manual entry, one transaction, source cells, and read-back validation.
       const weatherWriter = await createClient();
-      const { error: weatherError } = await weatherWriter
-        .from("project_weather_log")
-        .upsert(
-          result.candidate.weatherDays.map((day) => ({ project_id: project.id, log_date: day.date, code: day.code, recorded_by: profile.id })),
-          { onConflict: "project_id,log_date" }
-        );
+      const { data: savedDays, error: weatherError } = await weatherWriter.rpc("import_workbook_workdays", {
+        p_project_id: project.id,
+        p_source_hash: fingerprint,
+        p_days: result.candidate.weatherDays.map(day => ({ date: day.date, code: day.code, source: `${day.sheet}!${day.column}${day.row}` })),
+      });
       if (weatherError) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `No se pudo cargar el Libro de Obra: ${weatherError.message}` });
-      else weatherDays = result.candidate.weatherDays.length;
+      else if (savedDays !== result.candidate.weatherDays.length) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: "La lectura del Libro de Obra no coincide con la planilla; requiere revisión." });
+      else weatherDays = Number(savedDays);
     }
   }
 
@@ -420,6 +441,12 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       else executionEntries = executableEntries.length;
     }
   }
+
+  const verification = await verifyImportedProject(await createClient(), String(project.id), result.candidate, {
+    schedule: scheduleAccepted && hasCaterpillar, weather: weatherAccepted && hasCaterpillar, certificateId,
+    staff: staffAccepted && hasCaterpillar && !!certificateId, execution: executionAccepted && !!certificateId,
+  });
+  pending.push(...verification);
 
   // Excel-first: la planilla de la sesión pasa a ser la del certificado
   // creado (mismo archivo original en Storage, misma copia de trabajo — no
@@ -501,6 +528,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       certificate_status: result.candidate.certificate.status,
       detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
+      import_integrity: integrity,
+      persistence_verified: verification.length === 0,
     },
   });
   revalidatePath("/projects");

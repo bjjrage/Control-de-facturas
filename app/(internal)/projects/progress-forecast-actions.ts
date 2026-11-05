@@ -1,4 +1,5 @@
 "use server";
+import { readApuRows } from "@/lib/costing/apu-source";
 
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
@@ -137,13 +138,7 @@ export async function runProgressForecastAction(
     }
 
     // 5. Fetch BOM materials (budget_item_materials joined with productos)
-    const { data: rawMaterials, error: rawMaterialsError } = await supabase
-      .from("budget_item_materials")
-      .select(
-        "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)"
-      )
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId);
+    const { data: rawMaterials, error: rawMaterialsError } = await readApuRows(supabase,"budget_item_materials","id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(id, nombre, sku, unidad, costo_promedio)",projectId,empresaId);
     if (rawMaterialsError) throw new Error(rawMaterialsError.message);
 
     const priceDetails = await resolveProjectMaterialPrices({ supabase, admin: createAdminClient(), empresaId, projectId,
@@ -163,7 +158,7 @@ export async function runProgressForecastAction(
         unidad_medida: prod?.unidad || "",
         cantidad_por_unidad_ejecutada: Number(m.cantidad_por_unidad_ejecutada),
         desperdicio_pct: Number(m.desperdicio_pct || 0),
-        costo_unitario: priceDetails.get(m.producto_id)?.price?.precio ?? null,
+        costo_unitario: priceDetails.get(m.producto_id)?.price?.precio ?? (m.precio_unitario_origen == null ? null : Number(m.precio_unitario_origen)),
       });
     }
 

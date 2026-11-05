@@ -26,7 +26,7 @@ import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-f
 export const CERTIFICATE_WORKBOOKS_BUCKET = "certificate-workbooks";
 
 /** [fila, columna, valor, texto visible (null = igual al valor), fórmula, tipo] */
-export type StoredCell = [number, number, string | number | boolean | null, string | null, string | null, string | null];
+export type StoredCell = [number, number, string | number | boolean | null, string | null, string | null, string | null, (string | null)?];
 
 /** Estilo de celda en la forma de Univer (IStyleData): n = formato de número,
  * bl/it = negrita/cursiva, bg = relleno, bd = bordes, ht/vt = alineación… */
@@ -95,11 +95,12 @@ export function toStoredSheets(workbook: WorkbookRepresentation): StoredSheet[] 
       cell.raw !== null && cell.formatted === String(cell.raw) ? null : cell.formatted,
       cell.formula,
       cell.type,
+      cell.numberFormat ?? null,
     ]),
   }));
 }
 
-function fromStoredCell([row, column, raw, formatted, formula, type]: StoredCell): WorkbookCell {
+function fromStoredCell([row, column, raw, formatted, formula, type, numberFormat]: StoredCell): WorkbookCell {
   return {
     address: XLSX.utils.encode_cell({ r: row - 1, c: column - 1 }),
     row,
@@ -108,6 +109,7 @@ function fromStoredCell([row, column, raw, formatted, formula, type]: StoredCell
     formatted: formatted ?? (raw === null ? null : String(raw)),
     formula,
     type,
+    numberFormat: numberFormat ?? null,
   };
 }
 
@@ -116,7 +118,15 @@ function fromStoredCell([row, column, raw, formatted, formula, type]: StoredCell
  * .xlsx. NO reconstruye el binario original (ver comentario del módulo). */
 export function workbookFromSnapshot(snapshot: WorkingSnapshot): WorkbookRepresentation {
   const sheets: WorkbookSheetRepresentation[] = snapshot.sheets.map((sheet) => {
-    const cells = sheet.cells.map(fromStoredCell);
+    const formats = new Map((sheet.styleCells ?? []).map(([r, c, id]) => {
+      const n = snapshot.styles?.[id]?.n as { pattern?: string } | undefined;
+      return [`${r}:${c}`, n?.pattern] as const;
+    }));
+    const cells = sheet.cells.map((stored) => {
+      const cell = fromStoredCell(stored);
+      cell.numberFormat = formats.get(`${cell.row}:${cell.column}`) ?? cell.numberFormat;
+      return cell;
+    });
     return {
       sheetName: sheet.name,
       sheetIndex: sheet.index,

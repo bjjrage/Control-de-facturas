@@ -1,5 +1,9 @@
 import * as XLSX from "xlsx";
-import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { inspectImportIntegrity, type ImportIntegrity } from "./import-integrity";
+import { inspectOperationalIntegrity } from "./operational-integrity";
+import { extractBudgetItems, isBudgetShapedBlock, selectBudgetBlocks, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractLinkedRecipes, type LinkedRecipes } from "./linked-recipes";
+import { corroborateRecipeItemCodes } from "./recipe-identity";
 import type {
   DetectedField,
   ImportBlock,
@@ -112,6 +116,10 @@ export type BudgetContractCheck = {
 };
 
 export type CanonicalImportCandidate = {
+  linkedRecipes?: LinkedRecipes;
+  recipeMappingCorrections?: string[];
+  resolvedPlan?: ImportPlan;
+  integrity?: ImportIntegrity;
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
@@ -193,11 +201,11 @@ function excelSerialToIso(serial: number): string | null {
 
 function datesInText(text: string): string[] {
   const found: string[] = [];
-  for (const match of text.matchAll(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/g)) {
-    const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-    found.push(`${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`);
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b|\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/g)) {
+    const year = match[1] ?? (match[6].length === 2 ? `20${match[6]}` : match[6]);
+    const value = match[1] ? `${year}-${match[2]}-${match[3]}` : `${year}-${match[5].padStart(2, "0")}-${match[4].padStart(2, "0")}`;
+    if (Number.isFinite(Date.parse(value)) && new Date(value+"T00:00:00Z").toISOString().slice(0,10) === value) found.push(value);
   }
-  for (const match of text.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)) found.push(match[0]);
   return found;
 }
 
@@ -206,6 +214,27 @@ function numbersInText(text: string): number[] {
 }
 
 const DATE_KEYS: ImportKeyValueKey[] = ["periodStart", "periodEnd"];
+
+/** A missing model key must not lose an explicit, unambiguous certificate
+ * heading. Conflicting identities remain unresolved; foreign blocks never
+ * participate. No project dates are inferred from these certificate periods. */
+function labeledCertificateValue(workbook: WorkbookRepresentation, blocks: ImportBlock[], key: "certificateNumber" | "periodStart" | "periodEnd"): VerifiedValue | null {
+  const found: VerifiedValue[] = [];
+  for (const block of blocks) {
+    const sheet = workbook.sheets.find(s => s.sheetName === block.sheet);
+    for (const cell of sheet?.cells.filter(c => c.row < block.dataRowStart && typeof c.raw === "string") ?? []) {
+      const text = String(cell.raw).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (key === "certificateNumber") {
+        const match = text.match(/^certificado(?: de ejecucion)?(?: de obras?)?\s+n(?:[°º.]|ro\.?|umero|o\.?)?\s*:?\s*(\d+)\s*$/i);
+        if (match) found.push({value:Number(match[1]),cell:`${block.sheet}!${cell.address}`,cellText:text,verified:true});
+      } else if (/^periodo\b/i.test(text)) {
+        const dates = datesInText(text);
+        if (dates.length === 2 && dates.every(d => Number.isFinite(Date.parse(d)) && new Date(d+"T00:00:00Z").toISOString().slice(0,10)===d) && dates[0] <= dates[1]) found.push({value:dates[key==="periodStart"?0:1],cell:`${block.sheet}!${cell.address}`,cellText:text,verified:true});
+      }
+    }
+  }
+  return new Set(found.map(f=>f.value)).size === 1 ? found[0] : null;
+}
 
 function verifiedKeyValue(workbook: WorkbookRepresentation, blocks: ImportBlock[], key: ImportKeyValueKey): VerifiedValue | null {
   for (const block of blocks) {
@@ -465,11 +494,13 @@ function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock):
 
 function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
   const cell = cells.get(`${columnName(column)}${row}`);
+  if (cell && ["e", "b", "d"].includes(cell.type ?? "")) return null;
   const value = rawNumber(cell?.raw ?? null);
   if (value === null) return null;
   // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
   // own column is 0-100, so only fraction-formatted cells get rescaled.
-  const isFraction = typeof cell?.formatted === "string" && cell.formatted.includes("%");
+  const format = cell?.numberFormat?.replace(/"[^"]*"|\\./g, "") ?? "";
+  const isFraction = format.includes("%") || (!cell?.numberFormat && Boolean(cell?.formatted?.includes("%")));
   return isFraction ? value * 100 : value;
 }
 
@@ -580,11 +611,12 @@ export function buildCanonicalImportCandidate(
   result: WorkbookInterpretationResult,
   checked?: ImportPlanCheck
 ): CanonicalImportCandidate {
-  const planCheck = checked ?? validateImportPlan(result.importPlan, workbook);
+  const corroborated = corroborateRecipeItemCodes(workbook, checked?.plan ?? result.importPlan);
+  const planCheck = corroborated.corrections.length ? validateImportPlan(corroborated.plan,workbook) : checked ?? validateImportPlan(result.importPlan, workbook);
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
+  const budgetBlocks = selectBudgetBlocks(plan);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
@@ -598,10 +630,6 @@ export function buildCanonicalImportCandidate(
   }
   const budgetSum = budgetLines.reduce((sum, item) => sum + (item.subtotal ?? (item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
   const declaredBudgetTotal = verifiedKeyValue(workbook, budgetBlocks, "declaredTotal");
-  if (declaredBudgetTotal) {
-    const declared = Number(declaredBudgetTotal.value);
-    check("budget_declared_total", "Presupuesto: suma de partidas = total declarado", declaredBudgetTotal.verified && close(budgetSum, declared), `Suma ${formatNumber(budgetSum)} · total declarado ${formatNumber(declared)} (${declaredBudgetTotal.cell}${declaredBudgetTotal.verified ? "" : ", no verificado en la celda"}).`);
-  }
 
   // Certificate lines.
   const certificateIssues: string[] = [];
@@ -701,9 +729,9 @@ export function buildCanonicalImportCandidate(
   }
   for (const item of checks.filter((entry) => entry.status === "WARNING" && (entry.id.startsWith("certificate_") || entry.id.startsWith("scale_")))) certificateIssues.push(`${item.label}: ${item.detail}`);
 
-  const number = verifiedKeyValue(workbook, certificateBlocks, "certificateNumber");
-  const periodStart = verifiedKeyValue(workbook, certificateBlocks, "periodStart");
-  const periodEnd = verifiedKeyValue(workbook, certificateBlocks, "periodEnd");
+  const number = verifiedKeyValue(workbook, certificateBlocks, "certificateNumber") ?? labeledCertificateValue(workbook, certificateBlocks, "certificateNumber");
+  const periodStart = verifiedKeyValue(workbook, certificateBlocks, "periodStart") ?? labeledCertificateValue(workbook, certificateBlocks, "periodStart");
+  const periodEnd = verifiedKeyValue(workbook, certificateBlocks, "periodEnd") ?? labeledCertificateValue(workbook, certificateBlocks, "periodEnd");
   const identityProblems = [
     !number?.verified && "número",
     !periodStart?.verified && "inicio de período",
@@ -757,6 +785,12 @@ export function buildCanonicalImportCandidate(
     })
     : budgetLines;
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
+  if (declaredBudgetTotal) {
+    const declared = Number(declaredBudgetTotal.value);
+    const verifiedScale = scaled && scale && scale.comparedLines > 0 && scale.consistentLines === scale.comparedLines;
+    const matches = close(budgetSum, declared) || (verifiedScale && close(budgetTotal, declared));
+    check("budget_declared_total", "Presupuesto: suma de partidas = total declarado", declaredBudgetTotal.verified && Boolean(matches), `Suma en origen ${formatNumber(budgetSum)}${scaled ? ` · contrato ${formatNumber(budgetTotal)}` : ""} · total declarado ${formatNumber(declared)} (${declaredBudgetTotal.cell}${declaredBudgetTotal.verified ? "" : ", no verificado en la celda"}).`);
+  }
 
   // Presupuesto vs. contrato del propio documento. Referencia: el monto de
   // contrato declarado y verificado en su celda; si no hay, el total
@@ -835,8 +869,15 @@ export function buildCanonicalImportCandidate(
   // STAFF/SCHEDULE/NON_WORKING_DAYS blocks that actually yielded rows get
   // their own dedicated sections below; the rest (extraction found nothing
   // usable) still show up as a generic detected-but-unresolved domain.
+  const linkedRecipes = extractLinkedRecipes(workbook, plan, canonicalBudgetItems);
+  const recipesVerified = linkedRecipes.recipes.length > 0 && !linkedRecipes.issues.length;
+  // Units come from verified recipe identities; descriptive attribute strings
+  // in a tender price list are preserved in the source, not used as unit codes.
+  if (recipesVerified) for (const item of canonicalBudgetItems) item.unit = linkedRecipes.recipes.find(r => r.budgetCode === item.code)!.unit;
   const domains = new Map<string, CanonicalDomainSummary>();
-  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
+  for (const block of mainBlocks.filter((item) => !isBudgetShapedBlock(item) && item.target !== "PROJECT_METADATA" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
+    if (recipesVerified && block.target === "APU") continue;
+    if (recipesVerified && block.target === "BOM" && linkedRecipes.reconciledBomSheets.includes(block.sheet)) continue;
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -845,7 +886,10 @@ export function buildCanonicalImportCandidate(
     domains.set(block.target, domain);
   }
 
-  return {
+  const candidate: CanonicalImportCandidate = {
+    recipeMappingCorrections: corroborated.corrections,
+    resolvedPlan: plan,
+    linkedRecipes,
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
@@ -872,6 +916,12 @@ export function buildCanonicalImportCandidate(
       ...executionIssues,
     ])],
   };
+  candidate.integrity = inspectImportIntegrity(workbook, result, candidate);
+  candidate.integrity.issues.push(...inspectOperationalIntegrity(workbook, result, candidate, { ...planCheck, coverage: extracted.coverage }));
+  if (linkedRecipes.issues.length) candidate.integrity.issues.push(...linkedRecipes.issues.map(message => ({ domain: "BUDGET" as const, severity: "ERROR" as const, source: "APU", message })));
+  candidate.integrity.issues.push(...linkedRecipes.bomWarnings.map(message => ({ domain: "COVERAGE" as const, severity: "REVIEW" as const, source: "BOM", message })));
+  candidate.integrity.issues.push(...corroborated.corrections.map(message=>({domain:"BUDGET" as const,severity:"REVIEW" as const,source:"APU",message})));
+  return candidate;
 }
 
 export function safeProjectField(result: WorkbookInterpretationResult, key: keyof WorkbookInterpretationResult["project"]): string | null {

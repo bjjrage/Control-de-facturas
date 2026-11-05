@@ -1,4 +1,5 @@
 "use server";
+import { readApuRows } from "@/lib/costing/apu-source";
 
 import { createCanonicalRfq } from "@/lib/rfq/service";
 import { createClient } from "@/lib/supabase/server";
@@ -74,11 +75,7 @@ export async function createCostRfqsFromProject(
 
     const [itemsRes, materialsRes] = await Promise.all([
       supabase.from("budget_items").select("id, quantity").eq("project_id", projectId),
-      supabase
-        .from("budget_item_materials")
-        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct")
-        .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
+      readApuRows(supabase, "budget_item_materials", "budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct,precio_unitario_origen", projectId, empresaId),
     ]);
     if (itemsRes.error) return { data: null, error: itemsRes.error.message };
     if (materialsRes.error) return { data: null, error: materialsRes.error.message };
@@ -90,6 +87,7 @@ export async function createCostRfqsFromProject(
         productoId: m.producto_id,
         cantidadPorUnidad: Number(m.cantidad_por_unidad_ejecutada),
         desperdicioPct: Number(m.desperdicio_pct),
+          precioOrigen: m.precio_unitario_origen == null ? null : Number(m.precio_unitario_origen),
       }))
     );
     if (needs.length === 0) {
@@ -207,18 +205,10 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
 
     const [itemsRes, materialsRes, laborRes, equipmentRes, subcontractsRes, rfqsRes] = await Promise.all([
       supabase.from("budget_items").select("id, code, description, unit, quantity, unit_price, sort_order").eq("project_id", projectId).order("sort_order"),
-      supabase
-        .from("budget_item_materials")
-        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(nombre, unidad, categoria_id, categorias_producto(nombre))")
-        .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
-      supabase
-        .from("budget_item_labor")
-        .select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rates(categoria)")
-        .eq("project_id", projectId)
-        .eq("empresa_id", empresaId),
-      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
-      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+      readApuRows(supabase, "budget_item_materials", "budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, precio_unitario_origen, productos(nombre, unidad, categoria_id, categorias_producto(nombre))", projectId, empresaId),
+      readApuRows(supabase, "budget_item_labor", "budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rates(categoria)", projectId, empresaId),
+      readApuRows(supabase, "budget_item_equipment", "budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora", projectId, empresaId),
+      readApuRows(supabase, "budget_item_subcontracts", "budget_item_id, descripcion, precio_por_unidad", projectId, empresaId),
       admin
         .from("rfqs")
         .select("id, code, product, status, expires_at, rfq_providers(status), rfq_items(id)")
@@ -253,6 +243,7 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
       productoId: m.producto_id as string,
       cantidadPorUnidad: Number(m.cantidad_por_unidad_ejecutada),
       desperdicioPct: Number(m.desperdicio_pct),
+          precioOrigen: m.precio_unitario_origen == null ? null : Number(m.precio_unitario_origen),
     }));
     const costs = computePartidaCosts(
       partidasInput,
@@ -276,17 +267,20 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
       .map((n) => {
         const d = priceDetails.get(n.productoId);
         const info = productInfo.get(n.productoId);
+        const sourceLines = materials.filter(m => m.producto_id === n.productoId && (qtyById.get(m.budget_item_id) ?? 0) > 0);
+        const sourceAmount = sourceLines.some(m => m.precio_unitario_origen == null) ? null : sourceLines.reduce((sum,m) => sum + (qtyById.get(m.budget_item_id) ?? 0)*Number(m.cantidad_por_unidad_ejecutada)*(1+Number(m.desperdicio_pct)/100)*Number(m.precio_unitario_origen),0);
+        const price: ResolvedPrice | null = d?.price ?? (sourceAmount !== null && n.cantidad > 0 ? {precio:sourceAmount/n.cantidad,fuente:"PLANILLA"} : null);
         return {
           productoId: n.productoId,
           nombre: info?.nombre ?? "",
           unidad: info?.unidad ?? "",
           rubro: info?.rubro ?? null,
           cantidad: n.cantidad,
-          precio: d?.price ?? null,
+          precio: price,
           adoptedPrice: d?.adoptedPrice ?? null,
           lastPurchasePrice: d?.lastPurchasePrice ?? null,
           currentQuote: d?.currentQuote ?? null,
-          subtotal: d?.price ? n.cantidad * d.price.precio : null,
+          subtotal: price ? n.cantidad * price.precio : null,
           quotes: d?.quotes ?? [],
           quotesOtraMoneda: d?.quotesOtraMoneda ?? 0,
           estimate: d?.estimate ?? null,
