@@ -1,5 +1,7 @@
 "use server";
 
+import { certificateDecisionMissing, CERTIFICATE_DECISION_REQUIRED } from "@/lib/workbook-interpretation/certificate-selection";
+
 import { projectLocationPatch } from "@/lib/projects/location-fields";
 
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +18,7 @@ import { verifyImportedProject } from "@/lib/workbook-interpretation/verify-pers
 import { verifyLinkedRecipePersistence } from "@/lib/workbook-interpretation/verify-recipes";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
-import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
+import { createCertificateWorkbook, workbookFromSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession } from "@/lib/certificates/import-session-store";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
@@ -166,6 +168,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   if (errors.length) return { error: errors.map(issue => `${issue.source}: ${issue.message}`).join(" ") };
   if (issues.some(issue => issue.severity === "REVIEW") && formData.get("accept_import_observations") !== "1") return { error: "Revisá y aceptá las observaciones de integridad antes de crear la obra." };
   const wantsCertificate = formData.get("apply_certificate") === "1";
+  if (certificateDecisionMissing(result.candidate.certificate.status, wantsCertificate, formData.get("omit_certificate_confirmed") === "1")) return { error: CERTIFICATE_DECISION_REQUIRED };
   if (wantsCertificate && !["SAFE_TO_APPLY", "APPLY_WITH_WARNINGS"].includes(result.candidate.certificate.status)) return { error: "El certificado seleccionado no es aplicable; revisá el análisis antes de crear la obra." };
   if ((formData.get("apply_staff") === "1" || formData.get("apply_execution") === "1") && !wantsCertificate) return { error: "Personal y avance necesitan que se importe el certificado del período. Revisá la selección." };
   if (["apply_staff", "apply_schedule", "apply_weather"].some(key => formData.get(key) === "1") && !planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin)) return { error: "La selección incluye datos que requieren el plan Caterpillar. Revisá las secciones antes de crear la obra." };
@@ -345,6 +348,26 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     }
     certificateItems = lines.length;
     certificateId = String(header.id);
+    // Keep the original and the reviewed working copy on the certificate,
+    // so importing a workbook does not leave its main document detached.
+    if (session) {
+      const { error: workbookError } = await certificateWriter.from("certificate_workbooks").insert({
+        empresa_id: profile.empresa_id,
+        project_id: project.id,
+        certificate_id: certificateId,
+        original_file_name: session.originalFileName,
+        original_file_size: session.originalFileSize,
+        original_storage_path: session.originalStoragePath,
+        original_file_hash: session.originalFileHash,
+        working_snapshot: session.workingSnapshot,
+        structure_hash: session.structureHash,
+        created_by: profile.id,
+      });
+      if (workbookError) { await rollback(); return { error: "No se creó la obra porque no se pudo vincular el Excel original al certificado." }; }
+    } else {
+      const saved = await createCertificateWorkbook(certificateWriter, { empresaId: profile.empresa_id, userId: profile.id, projectId: String(project.id), certificateId, fileName: uploaded.name, bytes: new Uint8Array(await (file as File).arrayBuffer()) });
+      if (saved.error) { await rollback(); return { error: `No se creó la obra porque no se pudo conservar el Excel del certificado: ${saved.error}` }; }
+    }
   } else if (result.candidate.certificate.status !== "NOT_DETECTED") {
     pending.push({ section: "CERTIFICADO", reason: certificateApplicable ? "No se importó: no fue aceptado en el preview." : result.candidate.certificate.reason });
   }

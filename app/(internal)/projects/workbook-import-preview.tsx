@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createProjectFromWorkbook } from "./actions";
 import { WorkbookImportSchedule } from "./workbook-import-schedule";
+import { certificateDecisionMissing, CERTIFICATE_DECISION_REQUIRED } from "@/lib/workbook-interpretation/certificate-selection";
 import { getImportSession, saveImportSessionSnapshot, discardImportSession, type ImportSessionView } from "./import-session-actions";
 import { CertificateWorkbookGrid } from "@/components/certificates/CertificateWorkbookGrid";
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
@@ -181,6 +182,8 @@ function ResultActions({
   candidate,
   applyCertificate,
   onApplyCertificate,
+  omitCertificateConfirmed,
+  onOmitCertificateConfirmed,
   applyStaff,
   onApplyStaff,
   applySchedule,
@@ -205,6 +208,8 @@ function ResultActions({
   candidate: CanonicalImportCandidate | null;
   applyCertificate: boolean;
   onApplyCertificate: (value: boolean) => void;
+  omitCertificateConfirmed: boolean;
+  onOmitCertificateConfirmed: (value: boolean) => void;
   applyStaff: boolean;
   onApplyStaff: (value: boolean) => void;
   applySchedule: boolean;
@@ -229,6 +234,7 @@ function ResultActions({
   const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
+  const certificateUndecided = certificateDecisionMissing(certificate?.status, applyCertificate, omitCertificateConfirmed);
   const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
   const selection = candidate ? availableImportSelection(candidate, { schedule: applySchedule, weather: applyWeather, certificate: applyCertificate, staff: applyStaff, execution: applyExecution }) : null;
   const integrityIssues = candidate?.integrity && selection ? selectedImportIssues(candidate.integrity, selection) : [];
@@ -237,6 +243,7 @@ function ResultActions({
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Importación al ERP<InfoTooltip className="ml-1" label={"Importación al ERP"} content={"La Curva S importa porcentajes programados por mes. Las fechas del Gantt se completan en Cronograma. El ERP calcula el ejecutado desde sus certificados."} /></h3>
       <div className="space-y-2 text-[12px]">
+        {certificateUndecided ? <p role="alert" className="rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3 text-amber-100"><strong>Certificado N.º {certificate?.number ?? "sin número"} detectado · {certificate?.itemCount ?? 0} líneas.</strong> {CERTIFICATE_DECISION_REQUIRED}</p> : null}
         <p>
           Presupuesto: <strong>{candidate?.budgetItems.length ?? result.budgetItems.length} partidas</strong>
           {candidate ? <> · total {formatMoney(candidate.budgetTotal)}</> : null}
@@ -264,12 +271,17 @@ function ResultActions({
             ) : null}
             {certificate.status !== "SAFE_TO_APPLY" ? <p className="mt-1 text-[11px] text-amber-100">{certificate.reason}</p> : null}
             {certificate.issues.length ? <ul className="mt-1 space-y-0.5 text-[11px] text-amber-100">{certificate.issues.map((issue) => <li key={issue}>· {issue}</li>)}</ul> : null}
-            {certificateApplicable ? (
-              <label className="mt-2 flex items-center gap-2 text-[12px]">
-                <input type="checkbox" checked={applyCertificate} onChange={(event) => onApplyCertificate(event.target.checked)} />
-                Importar este certificado {certificate.status === "APPLY_WITH_WARNINGS" ? "a pesar de las observaciones" : ""}
+            <fieldset className="mt-3 space-y-2">
+              <legend className="mb-2 font-semibold">Qué hacer con el certificado</legend>
+              <label className="flex items-center gap-2 text-[12px]">
+                <input type="radio" name="certificate_decision" disabled={!certificateApplicable} checked={applyCertificate} onChange={() => { onApplyCertificate(true); onOmitCertificateConfirmed(false); }} />
+                Importar certificado N.º {certificate.number ?? "—"} con sus {certificate.itemCount} líneas {certificate.status === "APPLY_WITH_WARNINGS" ? "(revisé sus observaciones)" : ""}
               </label>
-            ) : null}
+              <label className="flex items-center gap-2 text-[12px]">
+                <input type="radio" name="certificate_decision" checked={omitCertificateConfirmed} onChange={() => { onApplyCertificate(false); onOmitCertificateConfirmed(true); }} />
+                Crear la obra y dejar este certificado pendiente, sin importarlo
+              </label>
+            </fieldset>
           </div>
         ) : null}
         {candidate?.staff.length ? (
@@ -375,7 +387,7 @@ function ResultActions({
       </div> : null}
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
-        <Button type="button" onClick={onCreate} disabled={creating || !creationAllowed || integrityBlocked || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+        <Button type="button" onClick={onCreate} disabled={creating || !creationAllowed || certificateUndecided || integrityBlocked || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
           {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>
@@ -403,6 +415,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [session, setSession] = useState<ImportSessionView | null>(null);
   const [regime, setRegime] = useState<ContractRegime | "">("");
   const [applyCertificate, setApplyCertificate] = useState(false);
+  const [omitCertificateConfirmed, setOmitCertificateConfirmed] = useState(false);
   const [applyStaff, setApplyStaff] = useState(true);
   const [applySchedule, setApplySchedule] = useState(true);
   const [applyWeather, setApplyWeather] = useState(true);
@@ -434,6 +447,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     appliedInterpretationRef.current = next.id;
     const result = next.interpretation;
     setApplyCertificate(next.candidate?.certificate.status === "SAFE_TO_APPLY");
+    setOmitCertificateConfirmed(false);
     setApplyStaff(true);
     setApplySchedule(true);
     setApplyWeather(true);
@@ -526,6 +540,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("code_override", codeOverride);
     formData.set("contract_regime", regime);
     formData.set("apply_certificate", selection.certificate ? "1" : "0");
+    formData.set("omit_certificate_confirmed", omitCertificateConfirmed ? "1" : "0");
     formData.set("apply_staff", selection.staff ? "1" : "0");
     formData.set("apply_schedule", selection.schedule ? "1" : "0");
     formData.set("apply_weather", selection.weather ? "1" : "0");
@@ -665,6 +680,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             candidate={candidate}
             applyCertificate={applyCertificate}
             onApplyCertificate={setApplyCertificate}
+            omitCertificateConfirmed={omitCertificateConfirmed}
+            onOmitCertificateConfirmed={setOmitCertificateConfirmed}
             applyStaff={applyStaff}
             onApplyStaff={setApplyStaff}
             applySchedule={applySchedule}
