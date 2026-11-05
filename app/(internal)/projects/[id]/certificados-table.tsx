@@ -98,8 +98,8 @@ export function CertificadosTable({
   if (certificates.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-center text-[13px] text-[var(--muted)]">
-        Sin certificados. Generá el primero con el botón de arriba — se arma con los rubros del presupuesto
-        y el avance cargado en el período.
+        Esta obra no tiene certificados guardados en el ERP. Si tu Excel contiene un certificado,
+        revisá su importación pendiente o usá «Importar certificado». Para elaborar uno desde el avance registrado, usá «Nuevo certificado».
       </div>
     );
   }
