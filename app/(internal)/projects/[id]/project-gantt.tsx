@@ -8,6 +8,7 @@ import { updateBudgetItemSchedule } from "../actions";
 import { ProgramarPartidasDialog } from "./programar-partidas-dialog";
 import { ImportCronogramaDialog } from "./import-cronograma-dialog";
 import { ClearScheduleButton } from "./clear-schedule-button";
+import { ProjectPlanningLink } from "../workbook-import-schedule";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -544,7 +545,7 @@ export function ProjectGantt({
             Las partidas todavía no tienen fechas. Programalas acá para generar el Gantt, sin tener que volver al presupuesto.
           </p>
           <p className="text-[12px]">Para armar el Gantt, completá <strong>Código de partida, Inicio y Fin</strong>. La predecesora es opcional.</p>
-          {curveVersions > 0 ? <p className="text-[12px] text-[var(--muted)]">Esta obra tiene {curveVersions} versión(es) de Curva S con porcentajes mensuales. Esos porcentajes no definen las fechas de las partidas. <Link className="text-action underline" href={`/projects/${projectId}?tab=avance-fisico`}>Ver Curva S en Avance físico</Link></p> : null}
+          {curveVersions > 0 ? <p className="text-[12px] text-[var(--muted)]">Esta obra tiene {curveVersions} versión(es) de Curva S con porcentajes mensuales. Esos porcentajes no definen las fechas de las partidas. <ProjectPlanningLink projectId={projectId} tab="avance-fisico">Ver Curva S en Avance físico</ProjectPlanningLink></p> : null}
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ProgramarPartidasDialog budgetItems={budgetItems} />
             <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />
