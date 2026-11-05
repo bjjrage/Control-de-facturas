@@ -262,11 +262,29 @@ export async function saveBudgetItemMaterialAction(params: {
   productoId: string;
   cantidadPorUnidad: number;
   desperdicioPct?: number;
+  expected?: { cantidadPorUnidad: number; desperdicioPct: number };
 }): Promise<{ success: boolean; error: string | null }> {
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
+
+    // Workspace edits target an existing recipe and must not overwrite a
+    // concurrent coefficient change or replace its imported source price.
+    if (params.expected) {
+      const quantity = params.cantidadPorUnidad;
+      const waste = params.desperdicioPct ?? 0;
+      if (!Number.isFinite(quantity) || quantity <= 0 || quantity >= 1e10 || Number(quantity.toFixed(4)) !== quantity || !Number.isFinite(waste) || waste < 0 || waste >= 1000 || Number(waste.toFixed(2)) !== waste) {
+        return { success: false, error: "Cantidad mayor a cero (hasta 4 decimales) y desperdicio entre 0 y 999,99 (hasta 2 decimales)." };
+      }
+      const { data, error } = await supabase.from("budget_item_materials").update({ cantidad_por_unidad_ejecutada: quantity, desperdicio_pct: waste })
+        .eq("empresa_id", empresaId).eq("project_id", params.projectId).eq("budget_item_id", params.budgetItemId).eq("producto_id", params.productoId)
+        .eq("cantidad_por_unidad_ejecutada", params.expected.cantidadPorUnidad).eq("desperdicio_pct", params.expected.desperdicioPct).select("id").maybeSingle();
+      if (error) return { success: false, error: "No se pudo guardar el material de esta receta." };
+      if (!data) return { success: false, error: "La receta cambió. Cerrá y volvé a abrir el APU para revisar sus valores actuales." };
+      revalidatePath(`/projects/${params.projectId}`);
+      return { success: true, error: null };
+    }
 
     const { error } = await supabase.from("budget_item_materials").upsert(
       {
