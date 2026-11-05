@@ -375,9 +375,9 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   const scheduleAccepted = formData.get("apply_schedule") === "1";
   if (result.candidate.schedulePlans.length) {
     if (!hasCaterpillar) {
-      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); requiere el plan Caterpillar.` });
+      pending.push({ section: "CURVA S", reason: `Curva S mensual detectada (${result.candidate.schedulePlans.length} versión(es)); requiere el plan Caterpillar.` });
     } else if (!scheduleAccepted) {
-      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); no se importó (no fue aceptada en el preview).` });
+      pending.push({ section: "CURVA S", reason: `Curva S mensual detectada (${result.candidate.schedulePlans.length} versión(es)); no se importó (no fue aceptada en el preview).` });
     } else {
       for (const schedulePlan of result.candidate.schedulePlans) {
         const documentedByMonth = new Map(schedulePlan.documentedExecuted.map((entry) => [entry.monthIndex, entry.ejecutadoPct]));
@@ -386,7 +386,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
           label: schedulePlan.label || schedulePlan.planVersion,
           months: schedulePlan.months.map((month) => ({ month_index: month.monthIndex, programado_pct: month.programadoPct, ejecutado_pct_documento: documentedByMonth.get(month.monthIndex) ?? null })),
         });
-        if (planError) { pending.push({ section: "CRONOGRAMA", reason: `No se pudo cargar la versión “${schedulePlan.planVersion}”: ${planError}` }); continue; }
+        if (planError) { pending.push({ section: "CURVA S", reason: `No se pudo cargar la versión “${schedulePlan.planVersion}”: ${planError}` }); continue; }
         scheduleVersions++;
       }
     }

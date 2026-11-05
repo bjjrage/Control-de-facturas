@@ -419,10 +419,12 @@ export function ProjectGantt({
   projectId,
   budgetItems,
   execEntries,
+  curveVersions = 0,
 }: {
   projectId: string;
   budgetItems: BudgetItem[];
   execEntries: ExecutionEntry[];
+  curveVersions?: number;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [expanded, setExpanded] = useState(false);
@@ -541,6 +543,8 @@ export function ProjectGantt({
           <p className="text-[13px] text-[var(--muted)]">
             Las partidas todavía no tienen fechas. Programalas acá para generar el Gantt, sin tener que volver al presupuesto.
           </p>
+          <p className="text-[12px]">Para armar el Gantt, completá <strong>Código de partida, Inicio y Fin</strong>. La predecesora es opcional.</p>
+          {curveVersions > 0 ? <p className="text-[12px] text-[var(--muted)]">Esta obra tiene {curveVersions} versión(es) de Curva S con porcentajes mensuales. Esos porcentajes no definen las fechas de las partidas. <Link className="text-action underline" href={`/projects/${projectId}?tab=avance-fisico`}>Ver Curva S en Avance físico</Link></p> : null}
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ProgramarPartidasDialog budgetItems={budgetItems} />
             <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />

@@ -351,7 +351,7 @@ export function ProjectTabsClient({
 
       {tab === "cronograma" ? (
         <div className="space-y-5">
-          <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} />
+          <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} curveVersions={projectSchedulePlans.length} />
           <ClimateWorkdaysPanel
             project={project}
             events={climateEvents}

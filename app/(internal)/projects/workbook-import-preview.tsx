@@ -7,6 +7,7 @@ import { CheckCircle2, FileSpreadsheet, Link2, LoaderCircle, Sparkles, TriangleA
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createProjectFromWorkbook } from "./actions";
+import { WorkbookImportSchedule } from "./workbook-import-schedule";
 import { getImportSession, saveImportSessionSnapshot, discardImportSession, type ImportSessionView } from "./import-session-actions";
 import { CertificateWorkbookGrid } from "@/components/certificates/CertificateWorkbookGrid";
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
@@ -130,7 +131,7 @@ function ResultPreview({ result, candidate }: { result: WorkbookInterpretationRe
             <div key={`${section.sheet}-${section.range}-${index}`} className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div><p className="text-[13px] font-semibold">{section.title}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{section.sheet} · {section.range} · {section.rowCount} filas</p></div>
-                <span className="rounded-full bg-sky-400/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{section.type} · {Math.round(section.confidence * 100)}%</span>
+                <span className="rounded-full bg-sky-400/10 px-2 py-1 text-[10px] font-semibold text-sky-200">{section.type === "SCHEDULE" ? "Planificación" : section.type} · {Math.round(section.confidence * 100)}%</span>
               </div>
               {section.columns.length ? <p className="mt-2 text-[11px] text-[var(--muted)]">Columnas: {section.columns.join(" · ")}</p> : null}
               {section.warnings.length ? <p className="mt-2 text-[11px] text-amber-200">{section.warnings.join(" · ")}</p> : null}
@@ -150,7 +151,7 @@ function ResultPreview({ result, candidate }: { result: WorkbookInterpretationRe
             return (
               <div key={block.id} className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><p className="text-[13px] font-semibold">{block.target}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{block.sheet} · {block.sourceRange} · datos {block.dataRowStart}–{block.dataRowEnd}</p></div>
+                  <div><p className="text-[13px] font-semibold">{block.target === "SCHEDULE" ? (block.scheduleSeries?.some(series => series.role.startsWith("PLANNED_")) ? "Curva S (porcentajes mensuales)" : "Planificación pendiente de clasificar") : block.target}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{block.sheet} · {block.sourceRange} · datos {block.dataRowStart}–{block.dataRowEnd}</p></div>
                   <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${requiresReview ? "bg-amber-400/10 text-amber-200" : "bg-emerald-400/10 text-emerald-200"}`}>{requiresReview ? "REQUIERE REVISIÓN" : "LISTO PARA PREVIEW"}</span>
                 </div>
                 {coverage ? <p className="mt-2 text-[11px] text-[var(--muted)]">Filas fuente: {coverage.sourceRows} · procesadas: {coverage.processedRows} · excluidas: {coverage.excludedRows.length} · pendientes: {coverage.pendingRows.length} · sin mapear: {coverage.unmappedRows.length}</p> : null}
@@ -234,13 +235,14 @@ function ResultActions({
   const integrityBlocked = integrityIssues.some(i => i.severity === "ERROR") || (integrityIssues.some(i => i.severity === "REVIEW") && !acceptObservations);
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Importación al ERP<InfoTooltip className="ml-1" label={"Importación al ERP"} content={"Solo se importa lo programado; el ERP calcula el ejecutado desde sus propios certificados."} /></h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Importación al ERP<InfoTooltip className="ml-1" label={"Importación al ERP"} content={"La Curva S importa porcentajes programados por mes. Las fechas del Gantt se completan en Cronograma. El ERP calcula el ejecutado desde sus certificados."} /></h3>
       <div className="space-y-2 text-[12px]">
         <p>
           Presupuesto: <strong>{candidate?.budgetItems.length ?? result.budgetItems.length} partidas</strong>
           {candidate ? <> · total {formatMoney(candidate.budgetTotal)}</> : null}
           {candidate?.scale ? <span className="text-[var(--muted)]"> · cantidades de contrato (×{candidate.scale.factor} sobre {candidate.scale.fromBlock})</span> : null}
         </p>
+        <WorkbookImportSchedule budgetItems={candidate?.budgetItems.length ?? result.budgetItems.length} curveVersions={candidate?.schedulePlans.length ?? 0} />
         {contractMismatch ? (
           <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
             El presupuesto suma {formatMoney(contractMismatch.budgetTotal)} pero el {contractMismatch.source} es {formatMoney(contractMismatch.contractAmount)}.
@@ -284,7 +286,7 @@ function ResultActions({
         ) : null}
         {candidate?.schedulePlans.length ? (
           <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
-            <p>Curva S: <strong>{candidate.schedulePlans.length} versión(es)</strong> de plan programado.</p>
+            <p>Curva S — porcentajes mensuales: <strong>{candidate.schedulePlans.length} versión(es)</strong> de plan programado.</p>
             <ul className="mt-1 space-y-1 text-[11px] text-[var(--muted)]">
               {candidate.schedulePlans.map((plan) => (
                 <li key={plan.planVersion}>
@@ -295,9 +297,9 @@ function ResultActions({
             <div className="mt-2 flex items-center gap-2">
               <label className="flex items-center gap-2 text-[12px]">
                 <input type="checkbox" checked={applySchedule} onChange={(event) => onApplySchedule(event.target.checked)} />
-                Importar curva de avance programada
+                Importar Curva S (porcentajes por mes)
               </label>
-              <InfoTooltip label={"Importar curva de avance programada"} content={"Solo se incorpora el avance previsto. El ERP calcula el avance ejecutado desde sus propios certificados."} />
+              <InfoTooltip label={"Importar Curva S"} content={"Incorpora porcentajes mensuales en Avance físico. Para generar el Gantt se necesitan fechas de inicio y fin por partida. El ejecutado se calcula desde los certificados."} />
             </div>
           </div>
         ) : null}
@@ -563,6 +565,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
           </p>
         ) : null}
       </div>
+      <WorkbookImportSchedule budgetItems={created.applied?.budgetItems ?? 0} curveVersions={created.applied?.scheduleVersions ?? 0} projectId={created.projectId} />
       {created.pending?.length ? (
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Pendiente (no se importó a esta obra)</h3>
