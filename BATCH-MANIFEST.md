@@ -1,3 +1,9 @@
+# Referencia vigente — consolidación 04/11/2026
+
+Consultar docs/operations/IASA-Y-QA.md y docs/operations/CONSOLIDACION-2026-11-04.md. Los lotes que siguen son históricos; no determinan la versión desplegada actual. Definiciones de entrada: docs/imports/PLANTILLAS-ERP-V1.md.
+
+---
+
 # Cierre documental en main — 24/10/2026
 
 - Base funcional revisada: `9dba47cec8658b0670f26834690f529f1c74b5e8`; incluye el retiro del instructivo (`cd7344c4`) y del logo superior del login (`9dba47ce`).

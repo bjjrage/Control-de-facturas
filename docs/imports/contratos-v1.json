@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "scope": "Campos de entrada del ERP existente. No cambia cálculos ni crea importadores.",
+  "templates": [
+    {
+      "id": "01-presupuesto",
+      "title": "Presupuesto contractual",
+      "support": "Importador existente",
+      "entrypoint": "Obra > Presupuesto > Importar Excel",
+      "source": "app/(internal)/projects/actions.ts#importBudgetItems",
+      "notes": ["Una obra por archivo. Elegir la obra en el ERP.", "Código como texto y único dentro de la obra. La jerarquía se obtiene del código: 1, 1.1, 1.2.", "Cantidad y precio son contractuales. Para partidas certificables se exige unidad, cantidad y precio; los títulos de capítulo no llevan cantidades ficticias.", "Precio unitario no es costo APU. Mantener la moneda y el criterio contractual de la obra; este archivo no convierte monedas.", "La carga existente agrega partidas: no usarla para actualizar ni repetir una carga ya aplicada.", "No incluir subtotales como partidas. Los importes se calculan en el ERP."],
+      "fields": [
+        {"header":"Codigo","field":"budget_items.code","type":"text","required":true,"meaning":"Identificador de partida, por ejemplo 1.1; conservar ceros iniciales."},
+        {"header":"Descripcion","field":"budget_items.description","type":"text","required":true,"meaning":"Descripción contractual de la partida o título de capítulo."},
+        {"header":"Unidad","field":"budget_items.unit","type":"text","required":"partida certificable","meaning":"Unidad de medición: m2, m3, kg, un, gl."},
+        {"header":"Cantidad","field":"budget_items.quantity","type":"nonnegative","required":"partida certificable","meaning":"Cantidad total contratada; no consumo APU ni avance."},
+        {"header":"Precio unitario","field":"budget_items.unit_price","type":"nonnegative","required":"partida certificable","meaning":"Precio contractual por unidad."},
+        {"header":"Fecha inicio","field":"budget_items.start_date","type":"date","required":false,"meaning":"Fecha programada real, AAAA-MM-DD; dejar vacía si se desconoce."},
+        {"header":"Fecha fin","field":"budget_items.end_date","type":"date","required":false,"meaning":"Fecha programada final; completar junto a inicio."}
+      ]
+    },
+    {
+      "id":"02-certificacion-periodo",
+      "title":"Cantidades a certificar en el período",
+      "support":"Pegado existente, no subida de archivo",
+      "entrypoint":"Certificado en BORRADOR > Pegar avance del mes",
+      "source":"app/(internal)/projects/certificado-actions.ts#bulkSetCertificatePresente",
+      "notes":["Crear o elegir el certificado y su período en el ERP. Copiar y pegar las celdas, incluyendo los códigos.", "Cantidad presente significa cantidad de este período, no porcentaje ni acumulado.", "Esto modifica el borrador del certificado; no crea partes diarios ni acredita por sí solo ejecución física.", "Precio, contractual, anterior, acumulado, saldo y montos provienen del ERP. No cargarlos nuevamente.", "Revisar cada vínculo del preview antes de aplicar. El flujo existente no garantiza transacción global de todas las filas."],
+      "fields":[
+        {"header":"Codigo","field":"budget_items.code -> project_certificate_items.id","type":"text","required":true,"meaning":"Código exacto de la partida del certificado."},
+        {"header":"Presente","field":"project_certificate_items.qty_presente","type":"nonnegative","required":true,"meaning":"Cantidad a certificar en este período, en la unidad contractual."}
+      ]
+    },
+    {
+      "id":"03-certificado-historico",
+      "title":"Certificado histórico",
+      "support":"Importador XLSX existente con interpretación y revisión",
+      "entrypoint":"Obra > Certificados > Importar certificado",
+      "source":"lib/certificates/workbook-import.ts#extractCertificateWorkbookData; app/(internal)/projects/certificado-actions.ts#importCertificateWorkbook",
+      "metadata":["Certificado N° [COMPLETAR NUMERO]","Período: dd/mm/aaaa al dd/mm/aaaa"],
+      "notes":["Reemplazar los dos encabezados por el número y las fechas reales. Ejemplo de formato: Certificado N° 6; Período: 21/07/2026 al 20/08/2026.", "Un certificado por archivo. Se requiere presupuesto previo y revisión de correspondencias.", "El importador controla secuencia y anterior contra el ERP. No cargar un certificado N° 6 aislado como si existieran los cinco anteriores.", "Un saldo inicial de migración separado aún requiere un flujo específico; no inventar certificados ni fechas.", "Los valores importados no equivalen a aprobación ni facturación. Aplicar los estados y descuentos mediante el circuito existente.", "Los campos de descuentos, anticipos, factura y cobro no se importan por este archivo. Se revisan en sus pantallas."],
+      "fields":[
+        {"header":"Codigo","field":"project_certificate_items.codigo","type":"text","required":true,"meaning":"Código de partida vinculado al presupuesto existente."},
+        {"header":"Descripcion","field":"project_certificate_items.descripcion","type":"text","required":true,"meaning":"Descripción contractual."},
+        {"header":"Unidad","field":"project_certificate_items.unidad","type":"text","required":true,"meaning":"Unidad contractual."},
+        {"header":"Cantidad contractual","field":"project_certificate_items.qty_contractual","type":"nonnegative","required":true,"meaning":"Cantidad total del contrato."},
+        {"header":"Cantidad anterior","field":"project_certificate_items.qty_anterior","type":"nonnegative","required":true,"meaning":"Cantidad certificada antes de este período."},
+        {"header":"Cantidad presente","field":"project_certificate_items.qty_presente","type":"nonnegative","required":true,"meaning":"Cantidad de este período, no acumulada."},
+        {"header":"Precio unitario","field":"project_certificate_items.precio_unitario","type":"nonnegative","required":true,"meaning":"Precio contractual del certificado."}
+      ]
+    },
+    {
+      "id":"04-apu-materiales",
+      "title":"APU de materiales",
+      "support":"Importador existente",
+      "entrypoint":"Obra > Presupuesto > APU de una partida > Materiales",
+      "source":"lib/procurement/apu-import.ts#resolveApuMaterialImportMapping",
+      "notes":["Partida y producto deben existir y corresponder a la obra y al catálogo de la empresa.", "Una fila por partida y producto; no repetir ese par.", "CANTIDAD es consumo del material por UNA unidad ejecutada de partida, en la unidad del catálogo.", "DESPERDICIO_PCT es un porcentaje adicional. No duplicarlo si ya está incluido en el coeficiente.", "El importador de esta tabla no acepta precio de origen. Los precios se gestionan por el selector existente; no inventar una compra ni cargar costo contractual aquí."],
+      "fields":[
+        {"header":"PARTIDA_CODIGO","field":"budget_item_materials.budget_item_id via budget_items.code","type":"text","required":true,"meaning":"Código exacto de partida."},
+        {"header":"PRODUCTO_CODIGO","field":"budget_item_materials.producto_id via productos.sku","type":"text","required":true,"meaning":"SKU exacto del material ya catalogado."},
+        {"header":"CANTIDAD","field":"budget_item_materials.cantidad_por_unidad_ejecutada","type":"positive","required":true,"meaning":"Consumo de material por unidad de partida."},
+        {"header":"DESPERDICIO_PCT","field":"budget_item_materials.desperdicio_pct","type":"percent","required":false,"meaning":"Porcentaje adicional entre 0 y 100. Vacío equivale a 0 en el flujo existente."}
+      ]
+    },
+    {
+      "id":"05-apu-mano-obra",
+      "title":"APU de mano de obra",
+      "support":"Importador existente",
+      "entrypoint":"Obra > Presupuesto > APU de una partida > Mano de obra",
+      "source":"lib/procurement/apu-import.ts#resolveApuLaborImportMapping",
+      "notes":["HORAS son horas-persona por unidad ejecutada de partida, no duración calendario.", "Si el rol coincide con una categoría de Jornales, la pantalla usa su tarifa vigente. Revisar el preview; COSTO_HORA no sobrescribe ese catálogo.", "Completar la tarifa cuando no haya categoría coincidente. No usar cero para representar un costo desconocido."],
+      "fields":[
+        {"header":"PARTIDA_CODIGO","field":"budget_item_labor.budget_item_id via budget_items.code","type":"text","required":true,"meaning":"Código exacto de partida."},
+        {"header":"ROL","field":"budget_item_labor.rol","type":"text","required":true,"meaning":"Categoría laboral."},
+        {"header":"HORAS","field":"budget_item_labor.horas_por_unidad_ejecutada","type":"positive","required":true,"meaning":"Horas-persona por unidad de partida."},
+        {"header":"COSTO_HORA","field":"budget_item_labor.costo_hora","type":"nonnegative","required":"sin tarifa de Jornales","meaning":"Costo por hora; la tarifa catalogada puede tener prioridad."}
+      ]
+    },
+    {
+      "id":"06-apu-equipos",
+      "title":"APU de equipos",
+      "support":"Importador existente",
+      "entrypoint":"Obra > Presupuesto > APU de una partida > Equipos",
+      "source":"lib/procurement/apu-import.ts#resolveApuEquipmentImportMapping",
+      "notes":["HORAS es consumo horario del equipo por unidad de partida.", "Estos coeficientes no definen por sí solos el plazo de la obra."],
+      "fields":[
+        {"header":"PARTIDA_CODIGO","field":"budget_item_equipment.budget_item_id via budget_items.code","type":"text","required":true,"meaning":"Código exacto de partida."},
+        {"header":"TIPO_EQUIPO","field":"budget_item_equipment.tipo_equipo","type":"text","required":true,"meaning":"Nombre o tipo de equipo."},
+        {"header":"HORAS","field":"budget_item_equipment.horas_por_unidad_ejecutada","type":"positive","required":true,"meaning":"Horas de equipo por unidad de partida."},
+        {"header":"COSTO_HORA","field":"budget_item_equipment.costo_hora","type":"nonnegative","required":true,"meaning":"Costo de una hora del equipo."}
+      ]
+    },
+    {
+      "id":"07-apu-subcontratos",
+      "title":"APU de subcontratos",
+      "support":"Importador existente",
+      "entrypoint":"Obra > Presupuesto > APU de una partida > Subcontratos",
+      "source":"lib/procurement/apu-import.ts#resolveApuSubcontractImportMapping",
+      "notes":["PRECIO_UNIDAD es el costo del subcontrato por unidad de partida. No es el total del contrato ni una factura."],
+      "fields":[
+        {"header":"PARTIDA_CODIGO","field":"budget_item_subcontracts.budget_item_id via budget_items.code","type":"text","required":true,"meaning":"Código exacto de partida."},
+        {"header":"DESCRIPCION","field":"budget_item_subcontracts.descripcion","type":"text","required":true,"meaning":"Concepto de subcontrato."},
+        {"header":"PRECIO_UNIDAD","field":"budget_item_subcontracts.precio_por_unidad","type":"nonnegative","required":true,"meaning":"Costo por unidad ejecutada de partida."}
+      ]
+    },
+    {
+      "id":"08-cronograma",
+      "title":"Cronograma por partidas",
+      "support":"Importador existente",
+      "entrypoint":"Obra > Cronograma / Gantt > Importar cronograma",
+      "source":"lib/schedule/schedule-import.ts#interpretScheduleSheet; app/(internal)/projects/actions.ts#applyScheduleImport",
+      "notes":["Las partidas deben existir. Una fila por partida, en la primera hoja.", "Fechas reales AAAA-MM-DD; fin no anterior a inicio. Se usan fechas explícitas para evitar inferir calendarios.", "Predecesora es un código exacto existente. No usar rangos ni múltiples dependencias que el modelo actual no conserva.", "Una curva S mensual no reemplaza estas fechas por partida. No inventar un Gantt desde porcentajes.", "Este archivo programa fechas; no modifica cantidades, precios ni certificados."],
+      "fields":[
+        {"header":"Codigo","field":"budget_items.id via budget_items.code","type":"text","required":true,"meaning":"Código exacto de partida."},
+        {"header":"Descripcion","field":"matching evidence, not updated","type":"text","required":false,"meaning":"Descripción para revisar la correspondencia."},
+        {"header":"Inicio","field":"budget_items.start_date","type":"date","required":true,"meaning":"Fecha inicial programada."},
+        {"header":"Fin","field":"budget_items.end_date","type":"date","required":true,"meaning":"Fecha final programada."},
+        {"header":"Predecesora","field":"budget_items.depends_on","type":"text","required":false,"meaning":"Código de una partida predecesora; vacío cuando no corresponde."}
+      ]
+    }
+  ],
+  "definedWithoutBulkImporter":[
+    {"id":"obra","entrypoint":"Nueva obra > Crear manualmente","source":"app/(internal)/projects/new-project-dialog.tsx","fields":{"Nombre":"projects.name","Codigo":"projects.code","Cliente":"projects.client","Ubicacion":"projects.location","Fecha inicio":"projects.start_date","Fecha fin":"projects.end_date","Presupuesto estimado Gs":"projects.budget_total"},"note":"Nombre y código obligatorios. Los demás campos se completan si hay datos. No hay cargador tabular independiente de esta ficha."},
+    {"id":"parte-diario","entrypoint":"Obra > Registrar parte diario","source":"app/(internal)/projects/actions.ts#addExecutionEntry","fields":{"Codigo partida":"execution_entries.budget_item_id via budget_items.code","Fecha":"execution_entries.entry_date","Cantidad ejecutada":"execution_entries.quantity_executed","Observaciones":"execution_entries.notes"},"note":"Partida, fecha real y cantidad mayor a cero. Fotos se adjuntan por el flujo existente. No confundir con pegar cantidades en un certificado; no se entrega un XLSX como si existiera una carga masiva de partes diarios."},
+    {"id":"jornadas","entrypoint":"Obra > Jornadas climáticas / Libro de obra","source":"app/(internal)/projects/climate-actions.ts; supabase/migrations/20261031154915_workbook_import_workdays.sql","fields":{"Fecha":"project_workday_status.work_date","Tipo de dia":"project_workday_status.classification + reason_code"},"note":"B -> WORKABLE; LL -> NON_WORKABLE_RAIN; HH -> NON_WORKABLE_OTHER/TERRAIN_SATURATED; O -> NON_WORKABLE_OTHER/OTHER. Una fecha por registro. La ruta existente permite selección en calendario e importación desde workbook interpretado; no hay importador tabular independiente para esta definición. No registrar como días reales diferencias de un total sin fechas."}
+  ]
+}

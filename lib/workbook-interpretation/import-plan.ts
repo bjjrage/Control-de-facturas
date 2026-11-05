@@ -359,7 +359,11 @@ export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentatio
 export function rawNumber(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string" || !value.trim()) return null;
-  let normalized = value.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+  // A textual error, label, or currency symbol alone is not a numeric zero.
+  // Actual Excel numbers bypass this compatibility path entirely.
+  let normalized = value.trim().replace(/^(?:Gs\.?|PYG|USD|US\$|₲|\$)\s*/i, "").replace(/\s*(?:Gs\.?|PYG|USD|US\$|₲|\$|%)$/i, "");
+  if (!/^[+-]?\d[\d.,\s]*$/.test(normalized)) return null;
+  normalized = normalized.replace(/\s/g, "");
   const lastComma = normalized.lastIndexOf(",");
   const lastDot = normalized.lastIndexOf(".");
   if (lastComma >= 0 && lastDot >= 0) {
@@ -393,6 +397,12 @@ export function isBudgetShapedBlock(block: ImportBlock): boolean {
   return roles.has("description") && roles.has("quantity") && roles.has("unitPrice");
 }
 
+/** A classified budget takes precedence over comparative/resource summaries. */
+export function selectBudgetBlocks(plan: ImportPlan): ImportBlock[] {
+  const explicit = plan.blocks.filter(b => b.mainProject !== false && b.target === "BUDGET");
+  return explicit.length ? explicit : plan.blocks.filter(isBudgetShapedBlock);
+}
+
 /**
  * Copies the rows of every budget-shaped block (see isBudgetShapedBlock)
  * exactly as the model mapped them. It does not judge whether a row "looks
@@ -408,8 +418,7 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let processedRows = 0;
   let excludedRows = 0;
   let pendingRows = 0;
-  for (const block of plan.blocks) {
-    if (!isBudgetShapedBlock(block)) continue;
+  for (const block of selectBudgetBlocks(plan)) {
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));
@@ -433,7 +442,12 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
     for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
       if (excluded.has(row)) { excludedRows++; continue; }
       const description = textFor(row, "description");
-      if (!description) { pendingRows++; blockPending.push({ row, reason: "no se pudo identificar descripción" }); continue; }
+      if (!description) {
+        const range = XLSX.utils.decode_range(block.sourceRange);
+        const hasData = sheet.cells.some(c => c.row === row && c.column - 1 >= range.s.c && c.column - 1 <= range.e.c && (c.formula || (c.raw !== null && String(c.raw).trim() !== "")));
+        if (hasData) { pendingRows++; blockPending.push({ row, reason: "no se pudo identificar descripción" }); }
+        continue;
+      }
       const confidence = Math.min(block.confidence, ...block.columnMappings.filter((item) => item.role !== "ignore").map((item) => item.confidence), 1);
       items.push({ code: textFor(row, "code") || null, description, unit: textFor(row, "unit") || null, quantity: numberFor(row, "quantity"), unitPrice: numberFor(row, "unitPrice"), subtotal: numberFor(row, "subtotal"), parentCode: null, confidence, source: { sheet: block.sheet, row, range: block.sourceRange } });
       processedRows++;

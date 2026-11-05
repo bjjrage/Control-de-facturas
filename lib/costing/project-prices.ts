@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readApuRows, sourceMaterialPrices } from "./apu-source";
 import { ownerColumn, type WorkspaceContext } from "@/lib/workspace/context";
 import { calculateCostEstimate } from "@/lib/cost-engine/weighting";
 import type { CostObservation } from "@/lib/cost-engine/types";
@@ -249,6 +250,9 @@ export async function resolveContextMaterialPrices(args: {
     }
   }
 
+  const source = context.kind === "PROJECT" ? await readApuRows(supabase, "budget_item_materials", "producto_id,precio_unitario_origen", context.id, empresaId) : { data: [], error: null };
+  if (source.error) throw new Error(source.error.message);
+  const originPrices = sourceMaterialPrices(source.data ?? []);
   for (const productoId of productIds) {
     const obs = obsByProduct.get(productoId) ?? [];
     const quotes = (quotesByProduct.get(productoId) ?? []).sort((a, b) => a.precio - b.precio);
@@ -270,7 +274,7 @@ export async function resolveContextMaterialPrices(args: {
       quotesOtraMoneda: otraMonedaByProduct.get(productoId) ?? 0,
       estimate: semantics.estimatedPrice,
       costoPromedio: costoPromedio.get(productoId) ?? null,
-      price: semantics.price,
+      price: semantics.price ?? (originPrices.get(productoId) != null ? { precio: originPrices.get(productoId)!, fuente: "PLANILLA" } : null),
     };
     out.set(productoId, detail);
   }

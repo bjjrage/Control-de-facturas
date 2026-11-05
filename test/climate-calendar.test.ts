@@ -38,7 +38,7 @@ describe("canonical administrative calendar projection", () => {
   it("renders every monthly day with independent proposal and resident evidence, without auto-confirm calls", () => {
     const onConfirm = vi.fn(), onSave = vi.fn();
     const html = renderToStaticMarkup(createElement(ClimateLibroCalendar, { project, events: [event], workdays: [proposed], evidence: [photo], pending: false, onSelectDate: vi.fn(), onSave, onConfirm, onPhoto: vi.fn() }));
-    expect(html).toContain("Septiembre 2026"); expect(html).toContain('aria-label="Día 2026-09-30"');
+    expect(html).toContain("Septiembre 2026"); expect(html).toContain('aria-label="Día 2026-09-30: Sin registro"');
     expect(html).toContain("Sugerencia LL"); expect(html).toContain("DMH 18 mm"); expect(html).toContain("23 mm · Residente");
     expect(html).toContain("Guardar cambios"); expect(html).toContain("Descartar cambios");
     expect(onConfirm).not.toHaveBeenCalled(); expect(onSave).not.toHaveBeenCalled();

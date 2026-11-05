@@ -10,7 +10,7 @@ import styles from "./climate-libro-calendar.module.css";
 import type { ClimateEvent, ClimateEvidence, Project, ProjectWorkdayStatus, WeatherCode } from "@/lib/types";
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const COLORS: Record<WeatherCode, string> = { B: "text-[var(--ok)]", LL: "text-[#b5d1ff]", HH: "text-[var(--warn)]", O: "text-[var(--foreground)]" };
+const COLORS: Record<WeatherCode, string> = { B: "text-[var(--ok)]", LL: "text-[#c4b5fd]", HH: "text-[var(--warn)]", O: "text-[var(--foreground)]" };
 
 export function ClimateLibroCalendar({ project, events, workdays, evidence, pending, onSelectDate, onSave, onConfirm, onPhoto }: {
   project: Project; events: ClimateEvent[]; workdays: ProjectWorkdayStatus[]; evidence: ClimateEvidence[]; pending: boolean;
@@ -120,11 +120,11 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
             const external = facts.observations.find(event => event.external_precipitation_mm != null);
             const resident = facts.residentPhotos[0];
             const shownCode = draft[date] ?? facts.final;
-            return <button key={date} type="button" data-testid={`libro-day-${date}`} data-code={shownCode ?? undefined} data-draft={!!draft[date]} aria-label={`Día ${date}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); onSelectDate(date); }} className={`${styles.day} min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35`}>
-              <span className="flex justify-between gap-1"><span>{index + 1}{selected.includes(date) ? <span aria-hidden="true" className="ml-1 font-bold text-white">✓</span> : null}</span><strong className={shownCode ? COLORS[shownCode] : "text-[var(--muted)]"}>{shownCode ?? "—"}</strong></span>
-              <span className={`block truncate text-[9px] ${draft[date] ? styles.draftLabel : "text-[var(--muted)]"}`}>{draft[date] ? "Sin guardar" : facts.final ? "Final humano" : "Sin final"}</span>
-              {facts.proposal ? <span className="block truncate text-[9px] text-[var(--warn)]">{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}
-              {external ? <span className="block truncate text-[9px] text-[#b5d1ff]">{external.source === "DMH_DINAC" ? "DMH" : "Meteo"} {external.external_precipitation_mm} mm</span> : null}
+            return <button key={date} type="button" data-testid={`libro-day-${date}`} data-code={shownCode ?? undefined} data-draft={!!draft[date]} aria-label={`Día ${date}: ${shownCode ? `${shownCode} · ${LIBRO_LABELS[shownCode]}` : "Sin registro"}${draft[date] ? " · cambio sin guardar" : ""}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); onSelectDate(date); }} className={`${styles.day} min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35`}>
+              <span className="flex justify-between gap-1"><span>{index + 1}{selected.includes(date) ? <span aria-hidden="true" className="ml-1 font-bold">✓</span> : null}</span><strong>{shownCode ?? "—"}</strong></span>
+              <span className={`block truncate text-[9px] ${draft[date] ? styles.draftLabel : styles.dayStatus}`}>{draft[date] ? "Sin guardar" : facts.final ? "Registrado" : "Sin registro"}</span>
+              {facts.proposal ? <span className={`block truncate text-[9px] ${styles.dayEvidence}`}>{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}
+              {external ? <span className={`block truncate text-[9px] ${styles.dayEvidence}`}>{external.source === "DMH_DINAC" ? "DMH" : "Meteo"} {external.external_precipitation_mm} mm</span> : null}
               {resident ? <span className="block truncate text-[9px]">📷 {String(resident.metadata?.precipitation_mm ?? facts.observations.find(event => event.id === resident.climate_event_id)?.local_precipitation_mm ?? "—")} mm · Residente</span> : null}
             </button>;
           })}
