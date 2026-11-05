@@ -1,4 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+/** Keep planning shortcuts in sync with the existing sidebar tab event. */
+export function ProjectPlanningLink({ projectId, tab, children }: { projectId: string; tab: "cronograma" | "avance-fisico"; children: ReactNode }) {
+  return <Link className="text-action underline" href={`/projects/${projectId}?tab=${tab}`} onNavigate={() => {
+    if (window.location.pathname === `/projects/${projectId}`) {
+      window.dispatchEvent(new CustomEvent("niupack:tab", { detail: tab }));
+    }
+  }}>{children}</Link>;
+}
 
 /** The general workbook importer saves monthly curves, not task dates. */
 export function WorkbookImportSchedule({
@@ -23,8 +35,8 @@ export function WorkbookImportSchedule({
       <p>En Cronograma podés importar una tabla con <strong>Código de partida, Inicio y Fin</strong>, o usar <strong>Programar partidas</strong>. La predecesora es opcional para vincular tareas.</p>
       <p className="text-[var(--muted)]">La Curva S y las fechas generales de la obra no determinan el inicio y fin de cada partida. Esta importación general carga la curva mensual; las fechas del Gantt se completan en Cronograma.</p>
       {projectId ? <div className="flex flex-wrap gap-4 pt-1">
-        <Link className="text-action underline" href={`/projects/${projectId}?tab=cronograma`}>Completar Gantt</Link>
-        {curveVersions > 0 ? <Link className="text-action underline" href={`/projects/${projectId}?tab=avance-fisico`}>Ver Curva S importada</Link> : null}
+        <ProjectPlanningLink projectId={projectId} tab="cronograma">Completar Gantt</ProjectPlanningLink>
+        {curveVersions > 0 ? <ProjectPlanningLink projectId={projectId} tab="avance-fisico">Ver Curva S importada</ProjectPlanningLink> : null}
       </div> : null}
     </section>
   );
