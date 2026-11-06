@@ -147,6 +147,9 @@ export function UniverWorkbookGrid({
           header: true,
           toolbar: true,
           formulaBar: true,
+          // Editable workspaces must rebuild dependency/reference indexes on
+          // reopening a cached book before structural edits (rows/columns).
+          formula: extraTools ? { initialFormulaComputing: 0 } : undefined,
         }),
         ...(extraTools?.presets ?? []),
       ],

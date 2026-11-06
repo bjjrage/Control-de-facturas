@@ -18,7 +18,7 @@ it("calculates linked quantities, APU, materials and working dates in the instal
   const univer = new Univer({ locale: LocaleType.EN_US, locales: { [LocaleType.EN_US]: SheetsEnUS } });
   univer.registerPlugin(UniverRenderEnginePlugin); univer.registerPlugin(UniverFormulaEnginePlugin);
   univer.registerPlugin(UniverDocsPlugin); univer.registerPlugin(UniverSheetsPlugin);
-  univer.registerPlugin(UniverSheetsFormulaPlugin); univer.registerPlugin(UniverSheetsNumfmtPlugin);
+  univer.registerPlugin(UniverSheetsFormulaPlugin, { initialFormulaComputing: 0 }); univer.registerPlugin(UniverSheetsNumfmtPlugin);
   const api = FUniver.newAPI(univer);
   const data = createEmptyProjectWorkbook("engine-test");
   const put = (sheet: string, row: number, cells: Record<number, { v?: string | number; f?: string }>) => {
@@ -74,6 +74,15 @@ it("calculates linked quantities, APU, materials and working dates in the instal
     expect(raw("Materiales", "D4")).toBeCloseTo(698.88, 8);
     expect(raw("Cronograma", "E4")).toBe(49.92);
     expect(raw("Cronograma", "M4")).toBe(46343); // 17/11/2026
+    const cached = book.save();
+    const resumed = api.createWorkbook({ ...cached, id: "engine-resumed" });
+    await calculate();
+    resumed.getSheetByName("Cómputo")!.insertRowsBefore(3, 1);
+    await calculate();
+    expect(resumed.getSheetByName("Cómputo")!.getRange("J5").getRawValue()).toBe(41.6);
+    expect(resumed.getSheetByName("Presupuesto")!.getRange("H4").getRawValue()).toBe(3952000);
+    expect(resumed.save().sheets.computo.cellData?.[4]?.[9]?.f).toContain("IF(A5=");
+    api.disposeUnit("engine-resumed");
     book.getSheetByName("APU")!.getRange("H4").clearContent();
     await calculate();
     expect(raw("Presupuesto", "F4")).toBe(""); // Missing cost is not a free resource.
