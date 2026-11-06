@@ -9,7 +9,6 @@ import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import sheetsCoreEsES from "@univerjs/preset-sheets-core/locales/es-ES";
 import { univerToWorkingSnapshot, workingSnapshotToUniver } from "@/lib/certificates/univer-adapter";
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
-import { initializeProjectFormulaReferences } from "@/lib/projects/workspace-formulas";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
@@ -46,6 +45,7 @@ export type UniverWorkbookGridProps = Omit<CertificateWorkbookGridProps, "initia
   onSave: (workbook: IWorkbookData) => Promise<{ error: string | null }>;
   saveNowRef?: MutableRefObject<((force?: boolean) => Promise<boolean>) | null>;
   startMaximized?: boolean;
+  onActiveSheetChange?: (sheetId: string) => void;
   extraTools?: {
     presets: ReturnType<typeof UniverSheetsCorePreset>[];
     locale: Record<string, unknown>;
@@ -72,6 +72,7 @@ export function UniverWorkbookGrid({
   heightClassName = "h-[calc(100vh-220px)] min-h-[480px]",
   saveNowRef,
   startMaximized = false,
+  onActiveSheetChange,
   extraTools,
 }: UniverWorkbookGridProps) {
   const inlineHostRef = useRef<HTMLDivElement>(null);
@@ -85,10 +86,12 @@ export function UniverWorkbookGrid({
   const initialWorkbookRef = useRef(initialWorkbook);
   const readOnlyRef = useRef(readOnly);
   const onSaveRef = useRef(onSave);
+  const onActiveSheetChangeRef = useRef(onActiveSheetChange);
   const saveNowRefRef = useRef(saveNowRef);
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
+  useEffect(() => { onActiveSheetChangeRef.current = onActiveSheetChange; }, [onActiveSheetChange]);
 
   // Pantalla completa: los paneles del ERP usan backdrop-filter, que atrapa
   // un position:fixed dentro del panel. En vez de eso, el nodo de Univer
@@ -157,7 +160,6 @@ export function UniverWorkbookGrid({
 
     const univerSnapshot = initialWorkbookRef.current;
     const fWorkbook = univerAPI.createWorkbook(univerSnapshot);
-    if (extraTools) initializeProjectFormulaReferences(univer, workbookId, fWorkbook);
     const configuration = extraTools?.configure?.(univerAPI);
     // Si la primera hoja del libro está oculta (MAGY: "Julio", un mes
     // archivado), Univer la deja activa igual y la grilla se ve en blanco.
@@ -165,6 +167,8 @@ export function UniverWorkbookGrid({
     // todo certificado tiene una hoja "CERTIFICADO".
     const firstVisibleSheetId = univerSnapshot.sheetOrder.find((id) => !univerSnapshot.sheets[id]?.hidden);
     if (firstVisibleSheetId) fWorkbook.setActiveSheet(firstVisibleSheetId);
+    if (firstVisibleSheetId) onActiveSheetChangeRef.current?.(firstVisibleSheetId);
+    const activeSheetListener = univerAPI.addEvent(univerAPI.Event.ActiveSheetChanged, event => onActiveSheetChangeRef.current?.(event.activeSheet.getSheetId()));
     if (readOnlyRef.current) fWorkbook.setEditable(false);
     // Las mutaciones que Univer hace al montar el libro no son ediciones del
     // usuario: no disparan un guardado.
@@ -238,6 +242,7 @@ export function UniverWorkbookGrid({
       if (saveTimer) clearTimeout(saveTimer);
       if (saveNowTarget) saveNowTarget.current = null;
       disposable?.dispose();
+      activeSheetListener.dispose();
       configuration?.dispose();
       // Se saca el div propio del árbol YA, de forma síncrona: el dispose()
       // diferido de abajo nunca puede pisar un montaje más nuevo.

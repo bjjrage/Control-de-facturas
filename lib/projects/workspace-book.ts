@@ -28,7 +28,7 @@ export function createEmptyProjectWorkbook(id: string): IWorkbookData {
       rowCount: 1000, columnCount: 26, defaultRowHeight: 24,
       defaultColumnWidth: 110, cellData: {
         0: { 0: { v: name, s: "title" } },
-        1: { 0: { v: hint, s: "hint" } },
+        1: { 0: { s: "hint", custom: { workspaceHelp: hint } } },
         2: Object.fromEntries(headers.map((v, i) => [i, { v, s: "header" }])),
       },
       columnData: Object.fromEntries(widths.map((w, i) => [i, { w }])),

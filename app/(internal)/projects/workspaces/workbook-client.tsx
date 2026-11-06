@@ -5,16 +5,19 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { IWorkbookData } from "@univerjs/presets";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { compactProjectWorkbook, WORKSPACE_GUIDE } from "@/lib/projects/workspace-guide";
 import { createProjectWorkspace, saveProjectWorkspace } from "./actions";
 
-const WorkbookGrid = dynamic(() => import("@/components/projects/ProjectUniverWorkbookGrid").then(module => module.ProjectUniverWorkbookGrid), { ssr: false, loading: () => <p className="p-5 text-sm">Abriendo Univer con sus herramientas…</p> });
+const WorkbookGrid = dynamic(() => import("@/components/projects/ProjectUniverWorkbookGrid").then(module => module.ProjectUniverWorkbookGrid), { ssr: false, loading: () => <p className="p-5 text-sm">Abriendo…</p> });
 
 export function ProjectWorkbookClient({ id, name, revision, workbook, isNew = false, isQa }: {
   id: string; name: string; revision: number; workbook: IWorkbookData; isNew?: boolean; isQa: boolean;
 }) {
   const router = useRouter();
   const [workspaceId] = useState(id);
-  const [initialWorkbook] = useState(workbook);
+  const [initialWorkbook] = useState(() => compactProjectWorkbook(workbook));
+  const [activeSheet, setActiveSheet] = useState("computo");
   const [title, setTitle] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(!isNew);
@@ -62,11 +65,12 @@ export function ProjectWorkbookClient({ id, name, revision, workbook, isNew = fa
       onChange={event => { setTitle(event.target.value); titleRef.current = event.target.value; }} onBlur={() => { if (titleRef.current.trim()) void flush(); }} />
     <Button type="button" size="sm" disabled={busy} onClick={() => void flush()}>{busy ? "Guardando…" : "Guardar ahora"}</Button>
     <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={async () => { if (await flush()) { router.push("/projects/workspaces"); router.refresh(); } }}>Mis trabajos</Button>
-    <span className="text-xs text-[var(--muted)]">Cinco hojas vinculadas · Guardado automático{!ready ? " · Creando libro…" : ""}</span>
+    <InfoTooltip label={WORKSPACE_GUIDE[activeSheet]?.name ?? "Hoja auxiliar"} content={WORKSPACE_GUIDE[activeSheet]?.text ?? "Hoja libre. Sus datos se guardan con el trabajo."} className="z-[1100]" />
+    {!ready ? <span role="status" className="text-xs text-[var(--muted)]">Creando…</span> : null}
     {error ? <p role="alert" className="max-w-3xl text-xs text-red-400">{error}</p> : null}
   </div>;
 
-  return <WorkbookGrid workbookId={workspaceId} fileName={name} initialWorkbook={initialWorkbook} readOnly={false} startMaximized saveNowRef={saveNow}
+  return <WorkbookGrid workbookId={workspaceId} fileName={name} initialWorkbook={initialWorkbook} readOnly={false} startMaximized saveNowRef={saveNow} onActiveSheetChange={setActiveSheet}
     toolbar={toolbar} heightClassName="h-[calc(100dvh-160px)] min-h-[600px]" onSave={async data => {
       if (!await ensureCreated()) return { error: "No se pudo crear el libro." };
       const next = { ...data, name: titleRef.current.trim() || "Obra sin nombre" };

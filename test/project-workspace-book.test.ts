@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import type { ICellData } from "@univerjs/presets";
 import { createEmptyProjectWorkbook, validateProjectWorkbook, WORKSPACE_SHEETS } from "@/lib/projects/workspace-book";
+import { compactProjectWorkbook, WORKSPACE_GUIDE } from "@/lib/projects/workspace-guide";
 const id = "a0000000-0000-4000-8000-000000000001";
 it("opens five real sheets without invented quantities, prices or resources", () => {
   const book = createEmptyProjectWorkbook(id);
@@ -44,4 +45,14 @@ it("rejects invalid dimensions and oversized snapshots", () => {
   book.sheets.apu.rowCount = 1000;
   book.name = "a".repeat(4_500_001);
   expect(validateProjectWorkbook(book, id)).toContain("tamaño");
+});
+it("moves old template hints out of view while retaining user notes and formulas", () => {
+  const book = createEmptyProjectWorkbook(id);
+  book.sheets.computo.cellData![1][0]!.v = WORKSPACE_GUIDE.computo.legacy;
+  book.sheets.apu.cellData![1][0]!.v = "Nota propia de la obra";
+  const compact = compactProjectWorkbook(book);
+  expect(compact.sheets.computo.cellData![1][0]!.v).toBeUndefined();
+  expect(compact.sheets.apu.cellData![1][0]!.v).toBe("Nota propia de la obra");
+  expect(compact.sheets.computo.cellData![3][9]).toEqual(book.sheets.computo.cellData![3][9]);
+  expect(book.sheets.computo.cellData![1][0]!.v).toBe(WORKSPACE_GUIDE.computo.legacy);
 });

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { Univer, LocaleType } from "@univerjs/core";
 import { FUniver } from "@univerjs/core/facade";
 import { UniverRenderEnginePlugin } from "@univerjs/engine-render";
-import { FormulaDataModel, UniverFormulaEnginePlugin } from "@univerjs/engine-formula";
+import { UniverFormulaEnginePlugin } from "@univerjs/engine-formula";
 import { UniverDocsPlugin } from "@univerjs/docs";
 import { UniverSheetsPlugin } from "@univerjs/sheets";
 import { UniverSheetsFormulaPlugin } from "@univerjs/sheets-formula";
@@ -13,7 +13,6 @@ import "@univerjs/sheets/facade";
 import "@univerjs/sheets-formula/facade";
 import "@univerjs/sheets-numfmt/facade";
 import { createEmptyProjectWorkbook } from "@/lib/projects/workspace-book";
-import { initializeProjectFormulaReferences } from "@/lib/projects/workspace-formulas";
 
 it("calculates linked quantities, APU, materials and working dates in the installed Univer engine", async () => {
   const univer = new Univer({ locale: LocaleType.EN_US, locales: { [LocaleType.EN_US]: SheetsEnUS } });
@@ -78,12 +77,6 @@ it("calculates linked quantities, APU, materials and working dates in the instal
     const cached = book.save();
     const resumed = api.createWorkbook({ ...cached, id: "engine-resumed" });
     await calculate();
-    // Reproduce the browser's missing unit-added event: the worksheet cells
-    // exist but the reference model has not registered this document.
-    const model = univer.__getInjector().get(FormulaDataModel);
-    delete model.getFormulaData()["engine-resumed"];
-    initializeProjectFormulaReferences(univer, "engine-resumed", resumed);
-    expect(Object.keys(model.getFormulaData()["engine-resumed"]?.computo ?? {}).length).toBeGreaterThan(1);
     resumed.getSheetByName("Cómputo")!.insertRowsBefore(3, 1);
     await calculate();
     expect(resumed.getSheetByName("Cómputo")!.getRange("J5").getRawValue()).toBe(41.6);
