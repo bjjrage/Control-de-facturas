@@ -5,6 +5,7 @@ import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { encodeSnapshot } from "@/lib/certificates/snapshot-storage";
 import type { ProjectCertificateStatus } from "@/lib/types";
 import {
   CERTIFICATE_WORKBOOKS_BUCKET,
@@ -117,7 +118,7 @@ export async function saveCertificateWorkbookSnapshot(
   const { error } = await supabase
     .from("certificate_workbooks")
     .update({
-      working_snapshot: snapshot,
+      working_snapshot: encodeSnapshot(snapshot),
       structure_hash: newStructureHash,
       mapping_structure_hash: mappingStructureHash,
       working_revision: (existing.working_revision as number) + 1,
@@ -283,7 +284,7 @@ export async function getCertificateWorkbook(certificateId: string): Promise<{ e
     await supabase
       .from("certificate_workbooks")
       .update({
-        working_snapshot: formatted.snapshot,
+        working_snapshot: encodeSnapshot(formatted.snapshot),
         ...(hashCheck.upgradedHash ? { structure_hash: computeStructureHash(formatted.snapshot), mapping_structure_hash: hashCheck.upgradedHash } : {}),
       })
       .eq("id", workbook.id);

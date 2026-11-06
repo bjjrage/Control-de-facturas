@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { contiguousBlocks, parseWorkbook, WorkbookInputError } from "@/lib/workbook-interpretation/parser";
 import type { WorkbookCell, WorkbookDefinedName, WorkbookRepresentation, WorkbookSheetRepresentation } from "@/lib/workbook-interpretation/types";
 import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-formatting";
+import { decodeSnapshot, encodeSnapshot, type StoredWorkingSnapshot } from "./snapshot-storage";
 
 /**
  * Fase 1 de "Certificados Excel-first" (ver memoria de proyecto
@@ -249,7 +250,7 @@ export async function createCertificateWorkbook(
       original_file_size: input.bytes.byteLength,
       original_storage_path: storagePath,
       original_file_hash: createHash("sha256").update(input.bytes).digest("hex"),
-      working_snapshot: snapshot,
+      working_snapshot: encodeSnapshot(snapshot),
       structure_hash: computeStructureHash(snapshot),
       created_by: input.userId,
     })
@@ -283,7 +284,7 @@ export async function ensureSnapshotFormatting(
 
 type WorkbookRow = {
   id: string; certificate_id: string; project_id: string; original_file_name: string; original_file_size: number;
-  original_storage_path: string; original_file_hash: string; working_snapshot: WorkingSnapshot; working_revision: number;
+  original_storage_path: string; original_file_hash: string; working_snapshot: StoredWorkingSnapshot; working_revision: number;
   structure_hash: string; mapping: unknown; mapping_structure_hash: string | null; analyzed_at: string | null;
   analysis_error: string | null; created_at: string;
 };
@@ -297,7 +298,7 @@ function fromRow(row: WorkbookRow): CertificateWorkbookRow {
     originalFileSize: row.original_file_size,
     originalStoragePath: row.original_storage_path,
     originalFileHash: row.original_file_hash,
-    workingSnapshot: row.working_snapshot,
+    workingSnapshot: decodeSnapshot(row.working_snapshot),
     workingRevision: row.working_revision,
     structureHash: row.structure_hash,
     mapping: row.mapping,
