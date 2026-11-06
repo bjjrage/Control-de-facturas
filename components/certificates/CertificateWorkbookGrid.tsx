@@ -9,6 +9,7 @@ import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import sheetsCoreEsES from "@univerjs/preset-sheets-core/locales/es-ES";
 import { univerToWorkingSnapshot, workingSnapshotToUniver } from "@/lib/certificates/univer-adapter";
 import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
+import { initializeProjectFormulaReferences } from "@/lib/projects/workspace-formulas";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
@@ -147,8 +148,7 @@ export function UniverWorkbookGrid({
           header: true,
           toolbar: true,
           formulaBar: true,
-          // Editable workspaces must rebuild dependency/reference indexes on
-          // reopening a cached book before structural edits (rows/columns).
+          // Recalculate editable workspaces; keep certificates' cache policy.
           formula: extraTools ? { initialFormulaComputing: 0 } : undefined,
         }),
         ...(extraTools?.presets ?? []),
@@ -157,6 +157,7 @@ export function UniverWorkbookGrid({
 
     const univerSnapshot = initialWorkbookRef.current;
     const fWorkbook = univerAPI.createWorkbook(univerSnapshot);
+    if (extraTools) initializeProjectFormulaReferences(univer, workbookId, fWorkbook);
     const configuration = extraTools?.configure?.(univerAPI);
     // Si la primera hoja del libro está oculta (MAGY: "Julio", un mes
     // archivado), Univer la deja activa igual y la grilla se ve en blanco.
