@@ -1,8 +1,9 @@
 "use client";
 
 import { MetricCard } from "@/components/dashboard/metric-card";
+import Link from "next/link";
 import { formatMoney } from "@/lib/format";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { NewProjectDialog } from "./new-project-dialog";
 import { PortfolioPreview } from "./portfolio-preview";
 import { ProjectsChart } from "./projects-chart";
@@ -111,7 +112,11 @@ export function ProjectsSection({ data }: { data: ProjectsPortfolioData }) {
           <h1 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Operativo · Obras</h1>
           <p className="mt-1 text-[13px] text-[var(--muted)]">Seguimiento ejecutivo de la cartera de obras</p>
         </div>
-        <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/projects/workspaces/new" prefetch={false} className={buttonClassName()}>Nuevo workspace de obra</Link>
+          <Link href="/projects/workspaces" prefetch={false} className={buttonClassName({ variant: "secondary" })}>Mis trabajos</Link>
+          <NewProjectDialog trigger={<Button variant="ghost">Nueva obra / importar</Button>} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-4">

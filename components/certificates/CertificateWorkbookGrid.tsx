@@ -4,7 +4,7 @@ import "@univerjs/preset-sheets-core/lib/index.css";
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, Minimize2 } from "lucide-react";
-import { CommandType, LocaleType, createUniver, merge, type IWorkbookData } from "@univerjs/presets";
+import { ICommandService, LocaleType, createUniver, merge, type IWorkbookData } from "@univerjs/presets";
 import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import sheetsCoreEsES from "@univerjs/preset-sheets-core/locales/es-ES";
 import { univerToWorkingSnapshot, workingSnapshotToUniver } from "@/lib/certificates/univer-adapter";
@@ -40,32 +40,58 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
  * Fase 2 probó la fidelidad contra el Excel real de MAGY (2893/2893
  * fórmulas). Ver [[excel-first-certificados]].
  */
-export function CertificateWorkbookGrid({
+export type UniverWorkbookGridProps = Omit<CertificateWorkbookGridProps, "initialSnapshot" | "onSave" | "saveNowRef"> & {
+  initialWorkbook: IWorkbookData;
+  onSave: (workbook: IWorkbookData) => Promise<{ error: string | null }>;
+  saveNowRef?: MutableRefObject<((force?: boolean) => Promise<boolean>) | null>;
+  startMaximized?: boolean;
+  onActiveSheetChange?: (sheetId: string) => void;
+  extraTools?: {
+    presets: ReturnType<typeof UniverSheetsCorePreset>[];
+    locale: Record<string, unknown>;
+    configure?: (api: ReturnType<typeof createUniver>["univerAPI"]) => { dispose(): void };
+  };
+};
+
+/** Existing certificate adapter stays at the boundary. Both uses share the
+ * same real Univer editor, native toolbar and lifecycle. */
+export function CertificateWorkbookGrid(props: CertificateWorkbookGridProps) {
+  const [initialWorkbook] = useState(() => workingSnapshotToUniver(props.initialSnapshot, props.workbookId));
+  return <UniverWorkbookGrid {...props} initialWorkbook={initialWorkbook} onSave={async workbook => props.onSave({
+    ...univerToWorkingSnapshot(workbook, props.fileName), definedNames: props.initialSnapshot.definedNames,
+  })} />;
+}
+
+export function UniverWorkbookGrid({
   workbookId,
-  fileName,
-  initialSnapshot,
+  initialWorkbook,
   readOnly,
   onSave,
   toolbar,
   readOnlyLabel = "Planilla de solo lectura",
   heightClassName = "h-[calc(100vh-220px)] min-h-[480px]",
   saveNowRef,
-}: CertificateWorkbookGridProps) {
+  startMaximized = false,
+  onActiveSheetChange,
+  extraTools,
+}: UniverWorkbookGridProps) {
   const inlineHostRef = useRef<HTMLDivElement>(null);
   const fullHostRef = useRef<HTMLDivElement>(null);
   const mountElRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<SaveStatus>("idle");
-  const [maximized, setMaximized] = useState(false);
+  const [maximized, setMaximized] = useState(startMaximized);
   const maximizedRef = useRef(maximized);
   // Referencias estables: el montaje corre una sola vez por workbookId (un
   // libro nuevo es un componente nuevo, vía key).
-  const initialSnapshotRef = useRef(initialSnapshot);
+  const initialWorkbookRef = useRef(initialWorkbook);
   const readOnlyRef = useRef(readOnly);
   const onSaveRef = useRef(onSave);
+  const onActiveSheetChangeRef = useRef(onActiveSheetChange);
   const saveNowRefRef = useRef(saveNowRef);
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
+  useEffect(() => { onActiveSheetChangeRef.current = onActiveSheetChange; }, [onActiveSheetChange]);
 
   // Pantalla completa: los paneles del ERP usan backdrop-filter, que atrapa
   // un position:fixed dentro del panel. En vez de eso, el nodo de Univer
@@ -94,7 +120,9 @@ export function CertificateWorkbookGrid({
     if (!host) return;
     let disposed = false;
     let ready = false;
-    let dirty = false;
+    let mutationVersion = 0;
+    let savedVersion = 0;
+    let inFlight: Promise<boolean> | null = null;
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Univer monta su propio árbol de React DENTRO del elemento que se le
@@ -113,7 +141,7 @@ export function CertificateWorkbookGrid({
 
     const { univer, univerAPI } = createUniver({
       locale: LocaleType.ES_ES,
-      locales: { [LocaleType.ES_ES]: merge({}, sheetsCoreEsES) },
+      locales: { [LocaleType.ES_ES]: merge({}, sheetsCoreEsES, extraTools?.locale ?? {}) },
       presets: [
         // Barra de formato, barra de fórmulas y pestañas de hojas siempre,
         // como en Excel. Congelada se ven igual (para leer fórmulas y
@@ -123,47 +151,64 @@ export function CertificateWorkbookGrid({
           header: true,
           toolbar: true,
           formulaBar: true,
+          // Recalculate editable workspaces; keep certificates' cache policy.
+          formula: extraTools ? { initialFormulaComputing: 0 } : undefined,
         }),
+        ...(extraTools?.presets ?? []),
       ],
     });
 
-    const univerSnapshot = workingSnapshotToUniver(initialSnapshotRef.current, workbookId) as IWorkbookData;
+    const univerSnapshot = initialWorkbookRef.current;
     const fWorkbook = univerAPI.createWorkbook(univerSnapshot);
+    const configuration = extraTools?.configure?.(univerAPI);
     // Si la primera hoja del libro está oculta (MAGY: "Julio", un mes
     // archivado), Univer la deja activa igual y la grilla se ve en blanco.
     // Se activa la primera hoja VISIBLE — no una fija por nombre, porque no
     // todo certificado tiene una hoja "CERTIFICADO".
     const firstVisibleSheetId = univerSnapshot.sheetOrder.find((id) => !univerSnapshot.sheets[id]?.hidden);
     if (firstVisibleSheetId) fWorkbook.setActiveSheet(firstVisibleSheetId);
+    if (firstVisibleSheetId) onActiveSheetChangeRef.current?.(firstVisibleSheetId);
+    const activeSheetListener = univerAPI.addEvent(univerAPI.Event.ActiveSheetChanged, event => onActiveSheetChangeRef.current?.(event.activeSheet.getSheetId()));
     if (readOnlyRef.current) fWorkbook.setEditable(false);
     // Las mutaciones que Univer hace al montar el libro no son ediciones del
     // usuario: no disparan un guardado.
     const readyTimer = setTimeout(() => {
       ready = true;
     }, 500);
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (mutationVersion > savedVersion) { event.preventDefault(); event.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
 
-    const performSave = async (): Promise<boolean> => {
+    const performSave = async (force = false): Promise<boolean> => {
       if (disposed) return false;
-      setStatus("saving");
-      try {
-        const nextSnapshot = {
-          ...univerToWorkingSnapshot(fWorkbook.save() as IWorkbookData, fileName),
-          // Univer no maneja los nombres definidos del Excel; se conservan.
-          definedNames: initialSnapshotRef.current.definedNames,
-        };
-        const result = await onSaveRef.current(nextSnapshot);
-        if (!result.error) dirty = false;
-        if (!disposed) setStatus(result.error ? "error" : "saved");
-        return !result.error;
-      } catch {
-        if (!disposed) setStatus("error");
-        return false;
+      if (inFlight) {
+        const ok = await inFlight;
+        if (!ok || disposed) return false;
+        return savedVersion < mutationVersion || force ? performSave(force) : true;
       }
+      const savingVersion = mutationVersion;
+      setStatus("saving");
+      inFlight = (async () => {
+        try {
+          const result = await onSaveRef.current(fWorkbook.save() as IWorkbookData);
+          if (!result.error) savedVersion = savingVersion;
+          if (!disposed) setStatus(result.error ? "error" : "saved");
+          return !result.error;
+        } catch {
+          if (!disposed) setStatus("error");
+          return false;
+        }
+      })();
+      const ok = await inFlight;
+      inFlight = null;
+      if (ok && !disposed && savedVersion < mutationVersion) return performSave();
+      return ok;
     };
 
     const scheduleSave = () => {
       if (readOnlyRef.current || !ready) return;
-      dirty = true;
+      mutationVersion++;
       setStatus("saving");
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => void performSave(), AUTOSAVE_DEBOUNCE_MS);
@@ -171,28 +216,34 @@ export function CertificateWorkbookGrid({
 
     const saveNowTarget = saveNowRefRef.current;
     if (saveNowTarget) {
-      saveNowTarget.current = async () => {
+      saveNowTarget.current = async (force = false) => {
         if (readOnlyRef.current) return true;
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = null;
-        return dirty ? performSave() : true;
+        return savedVersion < mutationVersion || force ? performSave(force) : true;
       };
     }
 
-    // Solo MUTACIONES (cambios de datos): mover la selección, hacer scroll o
-    // cambiar de hoja también son comandos, y no deben guardar nada.
+    // Subscribe to the mutation stream: clipboard and sort execute mutations
+    // with syncOnly=true, which CommandExecuted deliberately omits in Univer
+    // 1.0.2. Selection/scroll operations still never mark the document dirty.
     const disposable = readOnlyRef.current
       ? null
-      : univerAPI.addEvent(univerAPI.Event.CommandExecuted, (event) => {
-          if (event.type === CommandType.MUTATION) scheduleSave();
+      : univer.__getInjector().get(ICommandService).onMutationExecutedForCollab(event => {
+          if (!event.id.startsWith("sheet.mutation.")) return;
+          const unitId = (event.params as { unitId?: string } | undefined)?.unitId;
+          if (!unitId || unitId === workbookId) scheduleSave();
         });
 
     return () => {
       disposed = true;
+      window.removeEventListener("beforeunload", warnBeforeUnload);
       clearTimeout(readyTimer);
       if (saveTimer) clearTimeout(saveTimer);
       if (saveNowTarget) saveNowTarget.current = null;
       disposable?.dispose();
+      activeSheetListener.dispose();
+      configuration?.dispose();
       // Se saca el div propio del árbol YA, de forma síncrona: el dispose()
       // diferido de abajo nunca puede pisar un montaje más nuevo.
       mountEl.remove();
@@ -204,7 +255,7 @@ export function CertificateWorkbookGrid({
       // de importación). Diferido, solo libera memoria.
       queueMicrotask(() => univer.dispose());
     };
-  }, [workbookId, fileName]);
+  }, [workbookId, extraTools]);
 
   const bar = (
     <div className="flex items-center justify-between gap-2 min-h-9 px-1 text-[11px] text-[var(--muted)] shrink-0">

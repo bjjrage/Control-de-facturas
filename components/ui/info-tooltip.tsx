@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleHelp } from "lucide-react";
-import { useId, useLayoutEffect, useRef, useState, type PointerEvent, type FocusEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent, type FocusEvent, type KeyboardEvent } from "react";
 
 type InfoTooltipProps = {
   label: string;
@@ -18,6 +18,16 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
   const anchor = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLSpanElement>(null);
   const [position, setPosition] = useState({ left: 0, top: "calc(100% + 0.55rem)" });
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault(); event.stopPropagation(); setOpen(false);
+    };
+    window.addEventListener("keydown", close, true);
+    return () => window.removeEventListener("keydown", close, true);
+  }, [open]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -63,7 +73,7 @@ export function InfoTooltip({ label, content, className }: InfoTooltipProps) {
   }
 
   function handleFocus(event: FocusEvent<HTMLButtonElement>) {
-    if (pointerType.current !== "touch" && event.currentTarget.matches(":focus-visible")) {
+    if (event.currentTarget.matches(":focus-visible")) {
       pointerType.current = "keyboard";
       setOpen(true);
     }
