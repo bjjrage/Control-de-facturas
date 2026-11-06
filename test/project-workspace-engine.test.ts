@@ -83,7 +83,7 @@ it("calculates linked quantities, APU, materials and working dates in the instal
     const model = univer.__getInjector().get(FormulaDataModel);
     delete model.getFormulaData()["engine-resumed"];
     initializeProjectFormulaReferences(univer, "engine-resumed", resumed);
-    expect(Object.keys(model.getFormulaData()["engine-resumed"].computo).length).toBeGreaterThan(1);
+    expect(Object.keys(model.getFormulaData()["engine-resumed"]?.computo ?? {}).length).toBeGreaterThan(1);
     resumed.getSheetByName("Cómputo")!.insertRowsBefore(3, 1);
     await calculate();
     expect(resumed.getSheetByName("Cómputo")!.getRange("J5").getRawValue()).toBe(41.6);
